@@ -307,6 +307,43 @@ export class OctopusMeterDevice extends Homey.Device {
     return isCheapestSlotNow(this.rates, at, { withinHours, incVat: this.vatInc() });
   }
 
+  /** Public entry point for the "refresh now" Flow action. */
+  async refreshNow(): Promise<void> {
+    await this.refresh();
+  }
+
+  /** Is `at` within the cheapest contiguous `durationHours` block of the next `withinHours`? */
+  isWithinCheapestPeriod(durationHours: number, withinHours: number, at: Date = new Date()): boolean {
+    const slots = Math.max(1, Math.round(durationHours * 2));
+    const win = this.getCheapestWindow(slots, withinHours);
+    if (!win || !win.length) return false;
+    const start = new Date(win[0].valid_from).getTime();
+    const lastTo = win[win.length - 1].valid_to;
+    const end = lastTo ? new Date(lastTo).getTime() : Infinity;
+    const t = at.getTime();
+    return t >= start && t < end;
+  }
+
+  /** Find the cheapest `durationHours` block within `withinHours`, for the Flow action. */
+  findCheapestSlot(withinHours: number, durationHours: number): { start_time: string; price: number } | null {
+    const slots = Math.max(1, Math.round(durationHours * 2));
+    const win = this.getCheapestWindow(slots, withinHours);
+    if (!win || !win.length) return null;
+    const avg = win.reduce((acc, r) => acc + valueOf(r, this.vatInc()), 0) / win.length;
+    return {
+      start_time: this.formatLocal(new Date(win[0].valid_from)),
+      price: Number(avg.toFixed(2)),
+    };
+  }
+
+  /** Format an instant as a short local time string using Homey's timezone. */
+  protected formatLocal(d: Date): string {
+    const tz = this.homey.clock.getTimezone();
+    return new Intl.DateTimeFormat('en-GB', {
+      weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz,
+    }).format(d);
+  }
+
   protected async refreshStandingCharge(): Promise<void> {
     const s = this.store();
     if (!s.productCode || !s.tariffCode) return;
