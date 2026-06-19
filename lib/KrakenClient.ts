@@ -18,6 +18,13 @@ interface GraphQLResponse<T> {
   errors?: Array<{ message: string; extensions?: { errorCode?: string } }>;
 }
 
+export interface SavingSession {
+  id: string;
+  startAt: string;
+  endAt: string;
+  rewardPerKwh: number;
+}
+
 export class KrakenClient {
 
   private readonly apiKey: string;
@@ -163,5 +170,44 @@ export class KrakenClient {
     if (!list.length) return null;
     const demand = Number(list[list.length - 1]?.demand);
     return Number.isFinite(demand) ? demand : null;
+  }
+
+  /**
+   * Octopus "Saving Sessions" events for an account. Returns a normalised list
+   * of upcoming/recent events. Best-effort: returns [] if the schema/account
+   * does not support saving sessions.
+   */
+  async getSavingSessions(accountNumber: string): Promise<SavingSession[]> {
+    const query = `
+      query SavingSessions($accountNumber: String!) {
+        savingSessions(accountNumber: $accountNumber) {
+          events {
+            id
+            startAt
+            endAt
+            rewardPerKwhInOctoPoints
+          }
+        }
+      }`;
+    interface Resp {
+      savingSessions?: {
+        events?: Array<{
+          id?: string | number;
+          startAt?: string;
+          endAt?: string;
+          rewardPerKwhInOctoPoints?: number | string;
+        }>;
+      };
+    }
+    const data = await this.query<Resp>(query, { accountNumber });
+    const events = data?.savingSessions?.events ?? [];
+    return events
+      .filter((e) => e.id != null && e.startAt && e.endAt)
+      .map((e) => ({
+        id: String(e.id),
+        startAt: String(e.startAt),
+        endAt: String(e.endAt),
+        rewardPerKwh: Number(e.rewardPerKwhInOctoPoints ?? 0),
+      }));
   }
 }

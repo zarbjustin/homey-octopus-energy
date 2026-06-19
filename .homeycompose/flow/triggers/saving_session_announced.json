@@ -1,0 +1,10 @@
+{
+  "id": "saving_session_announced",
+  "title": { "en": "A Saving Session was announced" },
+  "hint": { "en": "Triggers once when a new Octopus Saving Session appears for your account." },
+  "tokens": [
+    { "name": "start", "type": "string", "title": { "en": "Start" }, "example": { "en": "Tue 17:00" } },
+    { "name": "end", "type": "string", "title": { "en": "End" }, "example": { "en": "Tue 18:00" } },
+    { "name": "reward", "type": "number", "title": { "en": "OctoPoints per kWh" }, "example": 1800 }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "saving_session_starting_soon",
+  "title": { "en": "A Saving Session is starting soon" },
+  "titleFormatted": { "en": "A Saving Session starts within [[lead]] minutes" },
+  "hint": { "en": "Triggers when a Saving Session is due to start within the lead time you set." },
+  "args": [
+    { "type": "number", "name": "lead", "min": 5, "max": 240, "step": 5, "placeholder": { "en": "30" } }
+  ],
+  "tokens": [
+    { "name": "start", "type": "string", "title": { "en": "Start" }, "example": { "en": "Tue 17:00" } },
+    { "name": "end", "type": "string", "title": { "en": "End" }, "example": { "en": "Tue 18:00" } },
+    { "name": "reward", "type": "number", "title": { "en": "OctoPoints per kWh" }, "example": 1800 }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "id": "saving_session_ended",
+  "title": { "en": "A Saving Session ended" },
+  "hint": { "en": "Triggers when an Octopus Saving Session finishes." }
+}

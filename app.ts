@@ -1,6 +1,7 @@
 'use strict';
 
 import Homey from 'homey';
+import { SavingSessionsPoller } from './lib/SavingSessionsPoller';
 
 interface BalanceDevice extends Homey.Device {
   getBalance(): number | null;
@@ -8,12 +9,27 @@ interface BalanceDevice extends Homey.Device {
 
 module.exports = class OctopusEnergyApp extends Homey.App {
 
+  private savingSessions?: SavingSessionsPoller;
+
   /**
    * onInit is called when the app is initialized.
    */
   async onInit(): Promise<void> {
     this.registerBalanceFlowCards();
+    this.registerSavingSessionCards();
+    this.savingSessions = new SavingSessionsPoller(this);
+    this.savingSessions.start();
     this.log('Octopus Energy app has been initialized');
+  }
+
+  async onUninit(): Promise<void> {
+    this.savingSessions?.stop();
+  }
+
+  /** App-level Saving Session Flow triggers. */
+  private registerSavingSessionCards(): void {
+    this.homey.flow.getTriggerCard('saving_session_starting_soon')
+      .registerRunListener(async (args: { lead: number }, state: { minutesUntil: number }) => state.minutesUntil <= args.lead && state.minutesUntil > args.lead - 16);
   }
 
   /** App-level account-balance Flow cards, scoped to a chosen meter device. */

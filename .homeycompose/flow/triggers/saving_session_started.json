@@ -1,0 +1,9 @@
+{
+  "id": "saving_session_started",
+  "title": { "en": "A Saving Session started" },
+  "hint": { "en": "Triggers when an Octopus Saving Session begins — reduce usage to earn OctoPoints." },
+  "tokens": [
+    { "name": "end", "type": "string", "title": { "en": "End" }, "example": { "en": "Tue 18:00" } },
+    { "name": "reward", "type": "number", "title": { "en": "OctoPoints per kWh" }, "example": 1800 }
+  ]
+}
