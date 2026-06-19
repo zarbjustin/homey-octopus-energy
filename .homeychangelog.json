@@ -1,5 +1,5 @@
 {
   "1.0.0": {
-    "en": "First version!"
+    "en": "Initial release: Electricity and Gas meter devices with automatic discovery, half-hourly prices, standing charge, price level, last-24h usage and cost, Homey Energy integration, account balance, and a rich set of dynamic-pricing and balance Flow cards."
   }
 }

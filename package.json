@@ -1,6 +1,9 @@
 {
   "name": "uk.co.zarb.octopusenergy",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=16"
+  },
   "scripts": {
     "build": "tsc",
     "test": "tsc && node --test test/*.test.js",

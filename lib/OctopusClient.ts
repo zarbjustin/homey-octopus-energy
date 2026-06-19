@@ -139,7 +139,10 @@ export class OctopusClient {
         const transient = status === 429 || status >= 500 || status === 0;
         if (!transient || attempt === this.maxRetries - 1) throw err;
         const backoff = 2 ** attempt * 1000;
-        await new Promise((resolve) => { setTimeout(resolve, backoff); });
+        await new Promise((resolve) => {
+          // eslint-disable-next-line homey-app/global-timers
+          setTimeout(resolve, backoff);
+        });
       }
     }
     throw lastErr;

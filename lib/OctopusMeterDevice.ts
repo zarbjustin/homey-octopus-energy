@@ -411,8 +411,14 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   private stopTimers(): void {
-    if (this.refreshTimer) { this.homey.clearInterval(this.refreshTimer); this.refreshTimer = null; }
-    if (this.alignTimer) { this.homey.clearTimeout(this.alignTimer); this.alignTimer = null; }
+    if (this.refreshTimer) {
+      this.homey.clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    if (this.alignTimer) {
+      this.homey.clearTimeout(this.alignTimer);
+      this.alignTimer = null;
+    }
   }
 
   // --- Lifecycle -----------------------------------------------------------

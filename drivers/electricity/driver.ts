@@ -46,7 +46,9 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
 
     // Actions.
     flow.getActionCard('refresh_now')
-      .registerRunListener(async (args: Args<unknown>) => { await args.device.refreshNow(); });
+      .registerRunListener(async (args: Args<unknown>) => {
+        await args.device.refreshNow();
+      });
     flow.getActionCard('find_cheapest_slot')
       .registerRunListener(async (args: Args<{ within: number; duration: number }>) => {
         const result = args.device.findCheapestSlot(args.within, args.duration);
