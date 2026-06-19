@@ -40,11 +40,19 @@ export class OctopusMeterDriver extends Homey.Driver {
   private async discover(creds: Creds): Promise<DiscoveredMeter[]> {
     const client = new OctopusClient({ apiKey: creds.apiKey });
     const meters = await client.discoverMeters(creds.accountNumber);
-    const matching = meters.filter((m) => m.fuel === this.fuel);
+    const matching = meters.filter((m) => this.accepts(m));
     if (!matching.length) {
-      throw new Error(`No ${this.fuel} meters were found on account ${creds.accountNumber}.`);
+      throw new Error(`No matching meters were found on account ${creds.accountNumber}.`);
     }
     return matching;
+  }
+
+  /**
+   * Whether a discovered meter belongs to this driver. Defaults to a fuel match;
+   * the electricity/export drivers narrow this further by import vs. export.
+   */
+  protected accepts(meter: DiscoveredMeter): boolean {
+    return meter.fuel === this.fuel;
   }
 
   protected deviceName(meter: DiscoveredMeter): string {

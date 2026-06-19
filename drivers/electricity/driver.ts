@@ -22,6 +22,10 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
     this.log('Electricity driver initialised');
   }
 
+  protected accepts(meter: { fuel: string; isExport: boolean }): boolean {
+    return meter.fuel === 'electricity' && !meter.isExport;
+  }
+
   private registerFlowCards(): void {
     const { flow } = this.homey;
 

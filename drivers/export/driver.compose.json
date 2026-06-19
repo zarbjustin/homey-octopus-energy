@@ -1,0 +1,78 @@
+{
+  "name": {
+    "en": "Export Meter"
+  },
+  "class": "sensor",
+  "capabilities": [
+    "octopus_price",
+    "meter_power",
+    "octopus_usage_today",
+    "octopus_earnings_today",
+    "octopus_balance"
+  ],
+  "capabilitiesOptions": {
+    "meter_power": {
+      "title": {
+        "en": "Total exported"
+      }
+    },
+    "octopus_price": {
+      "title": {
+        "en": "Export rate"
+      }
+    },
+    "octopus_usage_today": {
+      "title": {
+        "en": "Exported (last 24h)"
+      }
+    }
+  },
+  "energy": {
+    "cumulative": true,
+    "cumulativeExportedCapability": "meter_power"
+  },
+  "platforms": [
+    "local"
+  ],
+  "connectivity": [
+    "cloud"
+  ],
+  "images": {
+    "small": "/drivers/export/assets/images/small.png",
+    "large": "/drivers/export/assets/images/large.png",
+    "xlarge": "/drivers/export/assets/images/xlarge.png"
+  },
+  "pair": [
+    { "id": "start" },
+    {
+      "id": "list_devices",
+      "template": "list_devices",
+      "navigation": { "next": "add_devices" }
+    },
+    { "id": "add_devices", "template": "add_devices" }
+  ],
+  "repair": [
+    { "id": "start" }
+  ],
+  "settings": [
+    {
+      "id": "poll_interval",
+      "type": "number",
+      "label": { "en": "Refresh interval (minutes)" },
+      "value": 30,
+      "min": 5,
+      "max": 1440,
+      "hint": { "en": "How often to refresh export prices, exported energy and balance." }
+    },
+    {
+      "id": "vat",
+      "type": "dropdown",
+      "label": { "en": "Prices include VAT" },
+      "value": "inc",
+      "values": [
+        { "id": "inc", "label": { "en": "Including VAT" } },
+        { "id": "exc", "label": { "en": "Excluding VAT" } }
+      ]
+    }
+  ]
+}

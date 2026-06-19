@@ -158,7 +158,8 @@ export class OctopusMeterDevice extends Homey.Device {
     const s = this.store();
     if (!s.mpxn || !s.serial) return;
     const hasUsage = this.hasCapability('octopus_usage_today');
-    const hasCost = this.hasCapability('octopus_cost_today');
+    const costCap = this.costCapability();
+    const hasCost = this.hasCapability(costCap);
     const meterCap = this.energyMeterCapability();
     const hasMeter = Boolean(meterCap) && this.hasCapability(meterCap as string);
     if (!hasUsage && !hasCost && !hasMeter) return;
@@ -193,9 +194,11 @@ export class OctopusMeterDevice extends Homey.Device {
         const rate = rateAt(this.rates, new Date(r.interval_start));
         if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
       }
-      const sc = rateAt(this.standingRates) ?? this.standingRates[0];
-      if (sc) pence += valueOf(sc, this.vatInc());
-      await this.setCapabilityValue('octopus_cost_today', Number((pence / 100).toFixed(2))).catch(this.error);
+      if (this.includeStandingChargeInCost()) {
+        const sc = rateAt(this.standingRates) ?? this.standingRates[0];
+        if (sc) pence += valueOf(sc, this.vatInc());
+      }
+      await this.setCapabilityValue(costCap, Number((pence / 100).toFixed(2))).catch(this.error);
     }
 
     if (hasMeter) {
@@ -231,6 +234,16 @@ export class OctopusMeterDevice extends Homey.Device {
    */
   protected toMeterUnit(value: number): number {
     return value;
+  }
+
+  /** Capability that receives the daily cost/earnings figure. */
+  protected costCapability(): string {
+    return 'octopus_cost_today';
+  }
+
+  /** Whether a day's standing charge is added to the cost figure (false for export). */
+  protected includeStandingChargeInCost(): boolean {
+    return true;
   }
 
   private periodWindow(): { period_from: string; period_to: string } {
@@ -347,6 +360,7 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   protected async refreshStandingCharge(): Promise<void> {
+    if (!this.hasCapability('octopus_standing_charge')) return;
     const s = this.store();
     if (!s.productCode || !s.tariffCode) return;
     const charges = await this.client.standingCharges(s.fuel, s.productCode, s.tariffCode);
