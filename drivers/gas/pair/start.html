@@ -1,0 +1,67 @@
+<style>
+  .intro {
+    margin-bottom: 16px;
+  }
+  .field {
+    margin-bottom: 16px;
+  }
+  .hint {
+    font-size: 13px;
+    color: #888;
+    margin-top: 4px;
+  }
+</style>
+
+<p class="intro">
+  Enter your Octopus Energy API key and account number. Homey will then find the
+  meters on your account.
+</p>
+
+<div class="field">
+  <label class="homey-form-label" for="apiKey">API key</label>
+  <input class="homey-form-input" id="apiKey" type="password" placeholder="sk_live_…" autocomplete="off" />
+  <p class="hint">Find this under your Octopus account → Personal details → Developer settings.</p>
+</div>
+
+<div class="field">
+  <label class="homey-form-label" for="account">Account number</label>
+  <input class="homey-form-input" id="account" type="text" placeholder="A-AAAA1111" autocomplete="off" />
+  <p class="hint">Shown on your bills and in the Octopus app, in the form A-XXXXXXXX.</p>
+</div>
+
+<button id="next" class="homey-button-primary-full">Find my meters</button>
+
+<script type="text/javascript">
+  const nextBtn = document.getElementById('next');
+  const apiKeyEl = document.getElementById('apiKey');
+  const accountEl = document.getElementById('account');
+
+  async function submit() {
+    const apiKey = apiKeyEl.value.trim();
+    const account = accountEl.value.trim();
+    if (!apiKey || !account) {
+      Homey.alert('Please enter both your API key and account number.');
+      return;
+    }
+    nextBtn.disabled = true;
+    Homey.showLoadingOverlay();
+    try {
+      const result = await Homey.emit('login', { apiKey, account });
+      Homey.hideLoadingOverlay();
+      if (result && result.done) {
+        Homey.done();
+      } else {
+        Homey.showView('list_devices');
+      }
+    } catch (err) {
+      Homey.hideLoadingOverlay();
+      nextBtn.disabled = false;
+      Homey.alert((err && err.message) ? err.message : String(err));
+    }
+  }
+
+  nextBtn.addEventListener('click', submit);
+  accountEl.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') submit();
+  });
+</script>

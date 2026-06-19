@@ -156,7 +156,8 @@ export class OctopusMeterDevice extends Homey.Device {
     if (!s.mpxn || !s.serial) return;
     const hasUsage = this.hasCapability('octopus_usage_today');
     const hasCost = this.hasCapability('octopus_cost_today');
-    const hasMeter = this.hasCapability('meter_power');
+    const meterCap = this.energyMeterCapability();
+    const hasMeter = Boolean(meterCap) && this.hasCapability(meterCap as string);
     if (!hasUsage && !hasCost && !hasMeter) return;
 
     const now = new Date();
@@ -197,12 +198,20 @@ export class OctopusMeterDevice extends Homey.Device {
     if (hasMeter) {
       const lastEnd = lastEndIso ? new Date(lastEndIso).getTime() : 0;
       const fresh = sorted.filter((r) => new Date(r.interval_end).getTime() > lastEnd);
-      const add = this.toEnergyUnit(sumConsumption(fresh));
-      const cumulative = Number(((Number(this.getStoreValue('cumulativeKwh')) || 0) + add).toFixed(3));
-      await this.setStoreValue('cumulativeKwh', cumulative);
+      const add = this.toMeterUnit(sumConsumption(fresh));
+      const cumulative = Number(((Number(this.getStoreValue('cumulativeMeter')) || 0) + add).toFixed(3));
+      await this.setStoreValue('cumulativeMeter', cumulative);
       await this.setStoreValue('lastConsumptionEnd', sorted[sorted.length - 1].interval_end);
-      await this.setCapabilityValue('meter_power', cumulative).catch(this.error);
+      await this.setCapabilityValue(meterCap as string, cumulative).catch(this.error);
     }
+  }
+
+  /**
+   * The capability that holds the cumulative meter reading for Homey Energy.
+   * Electricity uses meter_power (kWh); gas overrides this with meter_gas (m³).
+   */
+  protected energyMeterCapability(): string | null {
+    return 'meter_power';
   }
 
   /**
@@ -210,6 +219,14 @@ export class OctopusMeterDevice extends Homey.Device {
    * gas may be reported in m³ and is converted by the gas subclass.
    */
   protected toEnergyUnit(value: number): number {
+    return value;
+  }
+
+  /**
+   * Convert a raw consumption value into the cumulative meter's unit
+   * (kWh for electricity, m³ for gas).
+   */
+  protected toMeterUnit(value: number): number {
     return value;
   }
 

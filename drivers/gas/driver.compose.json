@@ -1,0 +1,109 @@
+{
+  "name": {
+    "en": "Gas Meter"
+  },
+  "class": "sensor",
+  "capabilities": [
+    "octopus_price",
+    "meter_gas",
+    "octopus_usage_today",
+    "octopus_cost_today",
+    "octopus_standing_charge",
+    "octopus_balance"
+  ],
+  "capabilitiesOptions": {
+    "meter_gas": {
+      "title": {
+        "en": "Total gas"
+      }
+    }
+  },
+  "platforms": [
+    "local"
+  ],
+  "connectivity": [
+    "cloud"
+  ],
+  "images": {
+    "small": "/drivers/gas/assets/images/small.png",
+    "large": "/drivers/gas/assets/images/large.png",
+    "xlarge": "/drivers/gas/assets/images/xlarge.png"
+  },
+  "pair": [
+    {
+      "id": "start"
+    },
+    {
+      "id": "list_devices",
+      "template": "list_devices",
+      "navigation": {
+        "next": "add_devices"
+      }
+    },
+    {
+      "id": "add_devices",
+      "template": "add_devices"
+    }
+  ],
+  "repair": [
+    {
+      "id": "start"
+    }
+  ],
+  "settings": [
+    {
+      "id": "poll_interval",
+      "type": "number",
+      "label": {
+        "en": "Refresh interval (minutes)"
+      },
+      "value": 30,
+      "min": 5,
+      "max": 1440,
+      "hint": {
+        "en": "How often to refresh prices, usage and balance."
+      }
+    },
+    {
+      "id": "vat",
+      "type": "dropdown",
+      "label": {
+        "en": "Prices include VAT"
+      },
+      "value": "inc",
+      "values": [
+        { "id": "inc", "label": { "en": "Including VAT" } },
+        { "id": "exc", "label": { "en": "Excluding VAT" } }
+      ]
+    },
+    {
+      "id": "gas_units",
+      "type": "dropdown",
+      "label": {
+        "en": "Meter reports consumption in"
+      },
+      "value": "m3",
+      "hint": {
+        "en": "Smart (SMETS2) gas meters usually report cubic metres; older meters may report kWh."
+      },
+      "values": [
+        { "id": "m3", "label": { "en": "Cubic metres (m³)" } },
+        { "id": "kwh", "label": { "en": "Kilowatt-hours (kWh)" } }
+      ]
+    },
+    {
+      "id": "gas_cv",
+      "type": "number",
+      "label": {
+        "en": "m³ → kWh conversion factor"
+      },
+      "value": 11.1868,
+      "min": 1,
+      "max": 20,
+      "decimals": 4,
+      "hint": {
+        "en": "Volume-to-energy factor from your bill (calorific value × 1.02264 ÷ 3.6). Typically ~11.19."
+      }
+    }
+  ]
+}
