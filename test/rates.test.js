@@ -56,6 +56,20 @@ test('cheapestWindow finds the cheapest contiguous block', () => {
   assert.strictEqual(r.cheapestWindow(SAMPLE, 10), null);
 });
 
+test('cheapestSlots selects the n cheapest non-contiguous slots, sorted by time', () => {
+  const slots = r.cheapestSlots(SAMPLE, 2);
+  // Two cheapest values are -2 (01:30) and 5 (00:30); returned in time order.
+  assert.strictEqual(slots.length, 2);
+  assert.strictEqual(slots[0].value_inc_vat, 5);
+  assert.strictEqual(slots[1].value_inc_vat, -2);
+  assert.deepStrictEqual(r.cheapestSlots(SAMPLE, 0), []);
+});
+
+test('rateCovers respects half-open interval', () => {
+  assert.strictEqual(r.rateCovers(SAMPLE[1], new Date('2024-01-01T00:45:00Z')), true);
+  assert.strictEqual(r.rateCovers(SAMPLE[1], new Date('2024-01-01T01:00:00Z')), false);
+});
+
 test('isCheapestSlotNow compares the current slot to the forward window', () => {
   // At 00:30 the slot is 5p; the only cheaper future slot is -2p later -> not cheapest.
   assert.strictEqual(r.isCheapestSlotNow(SAMPLE, new Date('2024-01-01T00:45:00Z')), false);

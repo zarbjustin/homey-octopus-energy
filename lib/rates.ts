@@ -145,6 +145,38 @@ export function isCheapestSlotNow(
 }
 
 /**
+ * Select the `n` cheapest individual half-hour rates (non-contiguous) within an
+ * optional window. Returned sorted ascending by time for display/scheduling.
+ */
+export function cheapestSlots(
+  rates: Rate[],
+  n: number,
+  opts: { from?: Date; to?: Date; incVat?: boolean } = {},
+): Rate[] {
+  const incVat = opts.incVat ?? true;
+  let pool = sortRates(rates);
+  if (opts.from || opts.to) {
+    const f = opts.from ? opts.from.getTime() : -Infinity;
+    const t = opts.to ? opts.to.getTime() : Infinity;
+    pool = pool.filter((r) => {
+      const start = new Date(r.valid_from).getTime();
+      return start >= f && start < t;
+    });
+  }
+  if (n <= 0) return [];
+  const byValue = [...pool].sort((a, b) => valueOf(a, incVat) - valueOf(b, incVat));
+  const chosen = byValue.slice(0, n);
+  return sortRates(chosen);
+}
+
+/** Whether a rate's half-hour covers the instant `at`. */
+export function rateCovers(rate: Rate, at: Date): boolean {
+  const from = new Date(rate.valid_from).getTime();
+  const to = rate.valid_to ? new Date(rate.valid_to).getTime() : Infinity;
+  return at.getTime() >= from && at.getTime() < to;
+}
+
+/**
  * Classify a price into a level using simple thresholds (p/kWh, VAT inc).
  * Negative prices ("plunge") are surfaced explicitly for Agile users.
  */

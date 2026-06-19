@@ -6,6 +6,7 @@
   "capabilities": [
     "octopus_price",
     "octopus_price_level",
+    "octopus_smart_charge",
     "meter_power",
     "octopus_usage_today",
     "octopus_cost_today",
@@ -119,6 +120,31 @@
       "value": false,
       "hint": {
         "en": "If you have an Octopus Home Mini, show near real-time power (W). Polls every 30 seconds."
+      }
+    },
+    {
+      "id": "smart_charge_hours",
+      "type": "number",
+      "label": {
+        "en": "Smart charge duration (hours)"
+      },
+      "value": 3,
+      "min": 0.5,
+      "max": 12,
+      "step": 0.5,
+      "hint": {
+        "en": "How many hours of cheapest slots the 'Smart charge window' capability should select."
+      }
+    },
+    {
+      "id": "smart_charge_by",
+      "type": "text",
+      "label": {
+        "en": "Smart charge by (HH:MM)"
+      },
+      "value": "07:00",
+      "hint": {
+        "en": "Find the cheapest slots between now and this time each day (24-hour clock)."
       }
     }
   ]

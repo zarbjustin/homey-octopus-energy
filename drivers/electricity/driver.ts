@@ -8,8 +8,10 @@ interface ElectricityDevice extends Homey.Device {
   getPriceLevel(): string | null;
   isCheapestNow(hours?: number): boolean;
   isWithinCheapestPeriod(duration: number, within: number): boolean;
+  isInCheapestPlan(duration: number, by: string): boolean;
   refreshNow(): Promise<void>;
   findCheapestSlot(within: number, duration: number): { start_time: string; price: number } | null;
+  findCheapestHours(duration: number, by: string): { count: number; first_start: string; price: number } | null;
 }
 
 type Args<T> = T & { device: ElectricityDevice };
@@ -47,6 +49,8 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ level: string }>) => args.device.getPriceLevel() === args.level);
     flow.getConditionCard('within_cheapest_period')
       .registerRunListener(async (args: Args<{ duration: number; within: number }>) => args.device.isWithinCheapestPeriod(args.duration, args.within));
+    flow.getConditionCard('in_cheapest_plan')
+      .registerRunListener(async (args: Args<{ duration: number; by: string }>) => args.device.isInCheapestPlan(args.duration, args.by));
 
     // Actions.
     flow.getActionCard('refresh_now')
@@ -56,6 +60,12 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
     flow.getActionCard('find_cheapest_slot')
       .registerRunListener(async (args: Args<{ within: number; duration: number }>) => {
         const result = args.device.findCheapestSlot(args.within, args.duration);
+        if (!result) throw new Error('No upcoming rates are available yet.');
+        return result;
+      });
+    flow.getActionCard('find_cheapest_hours')
+      .registerRunListener(async (args: Args<{ duration: number; by: string }>) => {
+        const result = args.device.findCheapestHours(args.duration, args.by);
         if (!result) throw new Error('No upcoming rates are available yet.');
         return result;
       });

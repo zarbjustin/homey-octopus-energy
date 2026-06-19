@@ -1,0 +1,17 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Smart charge window"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/level.svg",
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "In cheapest window"
+  },
+  "insightsTitleFalse": {
+    "en": "Not in cheapest window"
+  }
+}

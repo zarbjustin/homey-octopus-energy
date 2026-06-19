@@ -5,7 +5,7 @@ import { OctopusClient, FuelType } from './OctopusClient';
 import { KrakenClient } from './KrakenClient';
 import {
   Rate, rateAt, valueOf, sumConsumption, cheapestRate, cheapestWindow,
-  isCheapestSlotNow, priceLevel, PriceLevel,
+  isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers,
 } from './rates';
 
 export interface MeterStore {
@@ -351,12 +351,56 @@ export class OctopusMeterDevice extends Homey.Device {
     };
   }
 
+  /** Plan the cheapest (non-contiguous) `durationHours` before `byTime`, for the Flow action. */
+  findCheapestHours(durationHours: number, byTime: string): { count: number; first_start: string; price: number } | null {
+    const plan = this.getCheapestPlan(durationHours, byTime);
+    if (!plan.length) return null;
+    const avg = plan.reduce((acc, r) => acc + valueOf(r, this.vatInc()), 0) / plan.length;
+    return {
+      count: plan.length,
+      first_start: this.formatLocal(new Date(plan[0].valid_from)),
+      price: Number(avg.toFixed(2)),
+    };
+  }
+
   /** Format an instant as a short local time string using Homey's timezone. */
   protected formatLocal(d: Date): string {
     const tz = this.homey.clock.getTimezone();
     return new Intl.DateTimeFormat('en-GB', {
       weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz,
     }).format(d);
+  }
+
+  /** The next future instant whose local wall-clock time is `hh:mm`. */
+  protected nextLocalTime(hhmm: string): Date {
+    const tz = this.homey.clock.getTimezone();
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(now);
+    const h = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+    const m = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+    const nowMin = h * 60 + m;
+    const [th, tm] = hhmm.split(':').map((v) => Number(v));
+    const targetMin = (Number.isFinite(th) ? th : 7) * 60 + (Number.isFinite(tm) ? tm : 0);
+    let diff = (((targetMin - nowMin) % 1440) + 1440) % 1440;
+    if (diff === 0) diff = 1440;
+    return new Date(now.getTime() + diff * 60_000);
+  }
+
+  /**
+   * The cheapest `durationHours` of half-hours (non-contiguous) between now and
+   * the next occurrence of `byTime` (hh:mm). Sorted ascending by time.
+   */
+  getCheapestPlan(durationHours: number, byTime: string): Rate[] {
+    const slots = Math.max(1, Math.round(Number(durationHours) * 2));
+    const to = this.nextLocalTime(byTime);
+    return cheapestSlots(this.rates, slots, { from: new Date(), to, incVat: this.vatInc() });
+  }
+
+  /** Is `at` inside the cheapest plan for the given duration/deadline? */
+  isInCheapestPlan(durationHours: number, byTime: string, at: Date = new Date()): boolean {
+    return this.getCheapestPlan(durationHours, byTime).some((r) => rateCovers(r, at));
   }
 
   protected async refreshStandingCharge(): Promise<void> {

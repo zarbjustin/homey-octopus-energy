@@ -22,6 +22,24 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     }
   }
 
+  /** After consumption, update the smart-charge window capability. */
+  protected async refreshExtra(): Promise<void> {
+    await super.refreshExtra();
+    await this.updateSmartCharge();
+  }
+
+  private async updateSmartCharge(): Promise<void> {
+    if (!this.hasCapability('octopus_smart_charge')) return;
+    const hours = Number(this.getSetting('smart_charge_hours')) || 3;
+    const by = String(this.getSetting('smart_charge_by') || '07:00');
+    const inPlan = this.isInCheapestPlan(hours, by);
+    const prev = this.getCapabilityValue('octopus_smart_charge');
+    await this.setCapabilityValue('octopus_smart_charge', inPlan).catch(this.error);
+    if (prev !== null && prev !== inPlan) {
+      this.trigger(inPlan ? 'smart_charge_started' : 'smart_charge_ended', {});
+    }
+  }
+
   private async enableLivePower(): Promise<void> {
     if (!this.hasCapability('measure_power')) {
       await this.addCapability('measure_power').catch((err) => this.error('Add measure_power failed:', err));
