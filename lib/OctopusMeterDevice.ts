@@ -44,6 +44,8 @@ export class OctopusMeterDevice extends Homey.Device {
 
   protected currentPrice: number | null = null;
 
+  protected currentBalance: number | null = null;
+
   private refreshTimer: NodeJS.Timeout | null = null;
 
   private alignTimer: NodeJS.Timeout | null = null;
@@ -359,8 +361,31 @@ export class OctopusMeterDevice extends Homey.Device {
   protected async refreshBalance(): Promise<void> {
     const { accountNumber } = this.store();
     if (!accountNumber) return;
-    const balance = await this.kraken.getBalance(accountNumber);
-    await this.setCapabilityValue('octopus_balance', Number(balance.toFixed(2))).catch(this.error);
+    const balance = Number((await this.kraken.getBalance(accountNumber)).toFixed(2));
+    await this.setCapabilityValue('octopus_balance', balance).catch(this.error);
+    const prev = this.currentBalance;
+    this.currentBalance = balance;
+    if (prev !== null && balance !== prev) {
+      const state = { deviceId: this.getData().id, balance };
+      this.fireAppTrigger('balance_changed', { balance }, state);
+      this.fireAppTrigger('balance_below', { balance }, state);
+    }
+  }
+
+  /** The last known account balance (£), or null if not yet fetched. */
+  getBalance(): number | null {
+    return this.currentBalance;
+  }
+
+  /** Fire an app-level Flow trigger (device matching handled by app.ts). */
+  protected fireAppTrigger(id: string, tokens: Record<string, unknown>, state: Record<string, unknown>): void {
+    try {
+      this.homey.flow.getTriggerCard(id)
+        .trigger(tokens, state)
+        .catch((err) => this.error(`Trigger ${id} failed:`, err));
+    } catch (err) {
+      // Card not defined — ignore.
+    }
   }
 
   // --- Scheduling ----------------------------------------------------------

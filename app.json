@@ -31,6 +31,74 @@
   "flow": {
     "triggers": [
       {
+        "id": "balance_below",
+        "title": {
+          "en": "The account balance drops below ..."
+        },
+        "titleFormatted": {
+          "en": "The balance of [[device]] drops below £[[amount]]"
+        },
+        "hint": {
+          "en": "Triggers when your Octopus account balance falls below the amount."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "capabilities=octopus_balance"
+          },
+          {
+            "type": "number",
+            "name": "amount",
+            "min": -10000,
+            "max": 10000,
+            "step": 1,
+            "placeholder": {
+              "en": "0"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "balance",
+            "type": "number",
+            "title": {
+              "en": "Balance (£)"
+            },
+            "example": -5.2
+          }
+        ]
+      },
+      {
+        "id": "balance_changed",
+        "title": {
+          "en": "The account balance changed"
+        },
+        "titleFormatted": {
+          "en": "The balance of [[device]] changed"
+        },
+        "hint": {
+          "en": "Triggers when your Octopus account balance changes."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "capabilities=octopus_balance"
+          }
+        ],
+        "tokens": [
+          {
+            "name": "balance",
+            "type": "number",
+            "title": {
+              "en": "Balance (£)"
+            },
+            "example": 124.5
+          }
+        ]
+      },
+      {
         "id": "price_changed",
         "title": {
           "en": "The unit rate changed"
@@ -208,6 +276,32 @@
       }
     ],
     "conditions": [
+      {
+        "id": "balance_below_now",
+        "title": {
+          "en": "The account balance !{{is below|is not below}} ..."
+        },
+        "titleFormatted": {
+          "en": "The balance of [[device]] !{{is below|is not below}} £[[amount]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "capabilities=octopus_balance"
+          },
+          {
+            "type": "number",
+            "name": "amount",
+            "min": -10000,
+            "max": 10000,
+            "step": 1,
+            "placeholder": {
+              "en": "0"
+            }
+          }
+        ]
+      },
       {
         "id": "price_below_now",
         "title": {

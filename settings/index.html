@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="/homey.js" data-origin="settings"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; color: #333; }
+    h1 { color: #FF1493; font-size: 20px; }
+    h2 { font-size: 15px; margin-top: 22px; }
+    p, li { font-size: 14px; line-height: 1.5; }
+    code { background: #f4f4f4; padding: 1px 5px; border-radius: 4px; }
+    .muted { color: #888; font-size: 12px; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <h1>Octopus Energy</h1>
+  <p>Monitor your Octopus Energy tariffs, prices, usage and balance, and automate
+     around half-hourly Agile/Go prices.</p>
+
+  <h2>Getting started</h2>
+  <p>Add an <b>Electricity Meter</b> or <b>Gas Meter</b> device. During pairing you'll
+     be asked for:</p>
+  <ul>
+    <li>Your <b>API key</b> — Octopus account → Personal details → Developer settings.</li>
+    <li>Your <b>account number</b> — in the form <code>A-XXXXXXXX</code>, shown on your bills.</li>
+  </ul>
+  <p>Homey then discovers the meters on your account automatically.</p>
+
+  <h2>Per-device settings</h2>
+  <p>Open a meter device's <b>Settings</b> to change the refresh interval, VAT
+     handling, and the cheap/expensive price thresholds used for the price level
+     and Flow cards.</p>
+
+  <h2>Automations</h2>
+  <p>The electricity device offers Flow cards for price changes, "price drops below",
+     price plunges, price levels, and finding/triggering on the cheapest upcoming
+     half-hours. Both meters expose account-balance triggers and conditions.</p>
+
+  <p class="muted">Unofficial app. Not affiliated with Octopus Energy.</p>
+
+  <script type="text/javascript">
+    function onHomeyReady(Homey) {
+      Homey.ready();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "id": "balance_below",
+  "title": { "en": "The account balance drops below ..." },
+  "titleFormatted": { "en": "The balance of [[device]] drops below £[[amount]]" },
+  "hint": { "en": "Triggers when your Octopus account balance falls below the amount." },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "capabilities=octopus_balance"
+    },
+    {
+      "type": "number",
+      "name": "amount",
+      "min": -10000,
+      "max": 10000,
+      "step": 1,
+      "placeholder": { "en": "0" }
+    }
+  ],
+  "tokens": [
+    { "name": "balance", "type": "number", "title": { "en": "Balance (£)" }, "example": -5.2 }
+  ]
+}

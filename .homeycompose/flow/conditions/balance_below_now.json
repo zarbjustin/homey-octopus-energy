@@ -1,0 +1,20 @@
+{
+  "id": "balance_below_now",
+  "title": { "en": "The account balance !{{is below|is not below}} ..." },
+  "titleFormatted": { "en": "The balance of [[device]] !{{is below|is not below}} £[[amount]]" },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "capabilities=octopus_balance"
+    },
+    {
+      "type": "number",
+      "name": "amount",
+      "min": -10000,
+      "max": 10000,
+      "step": 1,
+      "placeholder": { "en": "0" }
+    }
+  ]
+}
