@@ -25,6 +25,11 @@ export interface SavingSession {
   rewardPerKwh: number;
 }
 
+export interface Dispatch {
+  start: string;
+  end: string;
+}
+
 export class KrakenClient {
 
   private readonly apiKey: string;
@@ -209,5 +214,27 @@ export class KrakenClient {
         endAt: String(e.endAt),
         rewardPerKwh: Number(e.rewardPerKwhInOctoPoints ?? 0),
       }));
+  }
+
+  /**
+   * Planned smart-charge dispatches (Intelligent Octopus Go). Best-effort:
+   * returns [] if the account is not on a smart-charge tariff.
+   */
+  async getPlannedDispatches(accountNumber: string): Promise<Dispatch[]> {
+    const query = `
+      query Dispatches($accountNumber: String!) {
+        plannedDispatches(accountNumber: $accountNumber) {
+          start
+          end
+        }
+      }`;
+    interface Resp {
+      plannedDispatches?: Array<{ start?: string; end?: string; startDt?: string; endDt?: string }>;
+    }
+    const data = await this.query<Resp>(query, { accountNumber });
+    const list = data?.plannedDispatches ?? [];
+    return list
+      .map((d) => ({ start: String(d.start ?? d.startDt ?? ''), end: String(d.end ?? d.endDt ?? '') }))
+      .filter((d) => d.start && d.end);
   }
 }

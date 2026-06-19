@@ -99,6 +99,36 @@
         ]
       },
       {
+        "id": "dispatch_ended",
+        "title": {
+          "en": "A smart-charge dispatch ended"
+        },
+        "hint": {
+          "en": "Triggers when an Intelligent Octopus Go smart-charge dispatch finishes."
+        }
+      },
+      {
+        "id": "dispatch_started",
+        "title": {
+          "en": "A smart-charge dispatch started"
+        },
+        "hint": {
+          "en": "Triggers when Intelligent Octopus Go begins a planned smart-charge dispatch."
+        },
+        "tokens": [
+          {
+            "name": "end",
+            "type": "string",
+            "title": {
+              "en": "Ends"
+            },
+            "example": {
+              "en": "Tue 05:30"
+            }
+          }
+        ]
+      },
+      {
         "id": "saving_session_announced",
         "title": {
           "en": "A Saving Session was announced"
@@ -464,6 +494,15 @@
             }
           }
         ]
+      },
+      {
+        "id": "dispatch_active",
+        "title": {
+          "en": "A smart-charge dispatch !{{is|is not}} active"
+        },
+        "hint": {
+          "en": "Whether Intelligent Octopus Go is currently running a smart-charge dispatch."
+        }
       },
       {
         "id": "price_below_now",

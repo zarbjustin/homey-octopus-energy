@@ -1,0 +1,5 @@
+{
+  "id": "dispatch_ended",
+  "title": { "en": "A smart-charge dispatch ended" },
+  "hint": { "en": "Triggers when an Intelligent Octopus Go smart-charge dispatch finishes." }
+}

@@ -1,0 +1,8 @@
+{
+  "id": "dispatch_started",
+  "title": { "en": "A smart-charge dispatch started" },
+  "hint": { "en": "Triggers when Intelligent Octopus Go begins a planned smart-charge dispatch." },
+  "tokens": [
+    { "name": "end", "type": "string", "title": { "en": "Ends" }, "example": { "en": "Tue 05:30" } }
+  ]
+}

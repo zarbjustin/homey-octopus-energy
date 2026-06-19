@@ -2,6 +2,7 @@
 
 import Homey from 'homey';
 import { SavingSessionsPoller } from './lib/SavingSessionsPoller';
+import { DispatchPoller } from './lib/DispatchPoller';
 
 interface BalanceDevice extends Homey.Device {
   getBalance(): number | null;
@@ -11,6 +12,8 @@ module.exports = class OctopusEnergyApp extends Homey.App {
 
   private savingSessions?: SavingSessionsPoller;
 
+  private dispatches?: DispatchPoller;
+
   /**
    * onInit is called when the app is initialized.
    */
@@ -19,17 +22,27 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     this.registerSavingSessionCards();
     this.savingSessions = new SavingSessionsPoller(this);
     this.savingSessions.start();
+    this.dispatches = new DispatchPoller(this);
+    this.registerDispatchCards();
+    this.dispatches.start();
     this.log('Octopus Energy app has been initialized');
   }
 
   async onUninit(): Promise<void> {
     this.savingSessions?.stop();
+    this.dispatches?.stop();
   }
 
   /** App-level Saving Session Flow triggers. */
   private registerSavingSessionCards(): void {
     this.homey.flow.getTriggerCard('saving_session_starting_soon')
       .registerRunListener(async (args: { lead: number }, state: { minutesUntil: number }) => state.minutesUntil <= args.lead && state.minutesUntil > args.lead - 16);
+  }
+
+  /** App-level Intelligent Octopus Go dispatch condition. */
+  private registerDispatchCards(): void {
+    this.homey.flow.getConditionCard('dispatch_active')
+      .registerRunListener(async () => Boolean(this.dispatches?.isActive()));
   }
 
   /** App-level account-balance Flow cards, scoped to a chosen meter device. */

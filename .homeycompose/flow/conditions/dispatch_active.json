@@ -1,0 +1,5 @@
+{
+  "id": "dispatch_active",
+  "title": { "en": "A smart-charge dispatch !{{is|is not}} active" },
+  "hint": { "en": "Whether Intelligent Octopus Go is currently running a smart-charge dispatch." }
+}
