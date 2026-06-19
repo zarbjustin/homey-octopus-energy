@@ -2,13 +2,13 @@
 
 import Homey from 'homey';
 
-module.exports = class MyApp extends Homey.App {
+module.exports = class OctopusEnergyApp extends Homey.App {
 
   /**
    * onInit is called when the app is initialized.
    */
-  async onInit() {
-    this.log('MyApp has been initialized');
+  async onInit(): Promise<void> {
+    this.log('Octopus Energy app has been initialized');
   }
 
-}
+};
