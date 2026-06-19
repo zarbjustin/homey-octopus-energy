@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="/homey.js" data-origin="widget"></script>
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--homey-text-color, #222);
+      padding: 12px 14px;
+    }
+    .row { display: flex; align-items: baseline; justify-content: space-between; }
+    .name { font-size: 12px; color: var(--homey-text-color-light, #888); }
+    .badge {
+      font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+      color: #fff; background: #888; text-transform: capitalize;
+    }
+    .badge.plunge { background: #6f42c1; }
+    .badge.cheap { background: #2ecc71; }
+    .badge.normal { background: #f39c12; }
+    .badge.expensive { background: #e74c3c; }
+    .price { font-size: 34px; font-weight: 700; line-height: 1.1; margin: 4px 0; }
+    .price small { font-size: 14px; font-weight: 500; color: var(--homey-text-color-light, #888); }
+    .meta { display: flex; gap: 14px; font-size: 12px; color: var(--homey-text-color-light, #888); margin-top: 6px; flex-wrap: wrap; }
+    .meta b { color: var(--homey-text-color, #222); font-weight: 600; }
+    .cheap-line { font-size: 12px; margin-top: 8px; }
+    .cheap-line .hl { color: #2ecc71; font-weight: 600; }
+    .err { font-size: 13px; color: var(--homey-text-color-light, #888); }
+  </style>
+</head>
+<body>
+  <div id="content">
+    <div class="err">Loading…</div>
+  </div>
+
+  <script type="text/javascript">
+    function fmt(v, dp) {
+      if (v === null || v === undefined || isNaN(v)) return '–';
+      return Number(v).toFixed(dp === undefined ? 2 : dp);
+    }
+
+    function render(d) {
+      const el = document.getElementById('content');
+      if (!d || d.error) {
+        el.innerHTML = '<div class="err">' + ((d && d.error) || 'No data') + '</div>';
+        return;
+      }
+      const level = d.level || 'normal';
+      let html = '';
+      html += '<div class="row"><span class="name">' + (d.name || 'Electricity') + '</span>';
+      html += '<span class="badge ' + level + '">' + level + '</span></div>';
+      html += '<div class="price">' + fmt(d.price) + ' <small>p/kWh</small></div>';
+      html += '<div class="meta">';
+      if (d.power !== null && d.power !== undefined) html += '<span>Now <b>' + Math.round(d.power) + ' W</b></span>';
+      html += '<span>Today <b>' + fmt(d.usage) + ' kWh</b></span>';
+      html += '<span><b>£' + fmt(d.cost) + '</b></span>';
+      html += '<span>Bal <b>£' + fmt(d.balance) + '</b></span>';
+      html += '</div>';
+      if (d.cheapestStart) {
+        html += '<div class="cheap-line">Cheapest soon: <span class="hl">' + d.cheapestStart
+          + '</span> @ ' + fmt(d.cheapestPrice) + ' p/kWh</div>';
+      }
+      el.innerHTML = html;
+    }
+
+    function onHomeyReady(Homey) {
+      let deviceId = '';
+      try {
+        const settings = Homey.getSettings();
+        if (settings && settings.device) {
+          deviceId = (typeof settings.device === 'object') ? (settings.device.id || '') : settings.device;
+        }
+      } catch (e) { /* no settings */ }
+
+      async function load() {
+        try {
+          const data = await Homey.api('GET', '/?id=' + encodeURIComponent(deviceId));
+          render(data);
+          Homey.setHeight(document.body.scrollHeight);
+        } catch (err) {
+          render({ error: (err && err.message) ? err.message : 'Error' });
+        }
+      }
+
+      load();
+      setInterval(load, 60000);
+      Homey.ready();
+    }
+  </script>
+</body>
+</html>

@@ -783,6 +783,31 @@
       "id": "gas"
     }
   ],
+  "widgets": {
+    "price": {
+      "name": {
+        "en": "Octopus Price"
+      },
+      "settings": [
+        {
+          "id": "device",
+          "type": "device",
+          "title": {
+            "en": "Electricity meter"
+          },
+          "filter": "driver_id=electricity"
+        }
+      ],
+      "height": 140,
+      "api": {
+        "getData": {
+          "method": "GET",
+          "path": "/"
+        }
+      },
+      "id": "price"
+    }
+  },
   "capabilities": {
     "octopus_balance": {
       "type": "number",
