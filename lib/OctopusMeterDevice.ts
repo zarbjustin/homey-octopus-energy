@@ -5,7 +5,7 @@ import { OctopusClient, FuelType } from './OctopusClient';
 import { KrakenClient } from './KrakenClient';
 import {
   Rate, rateAt, valueOf, sumConsumption, cheapestRate, cheapestWindow,
-  isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers,
+  isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers, ratesInWindow,
 } from './rates';
 
 export interface MeterStore {
@@ -134,6 +134,16 @@ export class OctopusMeterDevice extends Homey.Device {
       ok = true;
     } catch (err) {
       this.error('Extra refresh failed:', err);
+    }
+    try {
+      await this.refreshPriceStats();
+    } catch (err) {
+      this.error('Price-stats refresh failed:', err);
+    }
+    try {
+      await this.refreshMonthlyCost();
+    } catch (err) {
+      this.error('Monthly-cost refresh failed:', err);
     }
     if (ok) {
       if (!this.getAvailable()) await this.setAvailable().catch(this.error);
@@ -401,6 +411,89 @@ export class OctopusMeterDevice extends Homey.Device {
   /** Is `at` inside the cheapest plan for the given duration/deadline? */
   isInCheapestPlan(durationHours: number, byTime: string, at: Date = new Date()): boolean {
     return this.getCheapestPlan(durationHours, byTime).some((r) => rateCovers(r, at));
+  }
+
+  // --- Reporting -----------------------------------------------------------
+
+  /** Local midnight `daysFromNow` days away (approximate; ignores DST shifts). */
+  protected localMidnight(daysFromNow: number): Date {
+    const nextMidnight = this.nextLocalTime('00:00'); // next 00:00 (tomorrow)
+    return new Date(nextMidnight.getTime() + (daysFromNow - 1) * 86_400_000);
+  }
+
+  /** Start of the current local month (approximate). */
+  protected localMonthStart(): Date {
+    const tz = this.homey.clock.getTimezone();
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz, day: '2-digit', hourCycle: 'h23', hour: '2-digit', minute: '2-digit',
+    }).formatToParts(new Date());
+    const day = Number(parts.find((p) => p.type === 'day')?.value ?? '1');
+    // Midnight that began today, then step back to the 1st.
+    const todayMidnight = this.localMidnight(0);
+    return new Date(todayMidnight.getTime() - (day - 1) * 86_400_000);
+  }
+
+  /** Compute today's price min/max/avg and the next half-hour price. */
+  protected async refreshPriceStats(): Promise<void> {
+    if (!this.hasCapability('octopus_price_avg_today')) return;
+    const todays = ratesInWindow(this.rates, this.localMidnight(0), this.localMidnight(1))
+      .map((r) => valueOf(r, this.vatInc()));
+    if (todays.length) {
+      const min = Math.min(...todays);
+      const max = Math.max(...todays);
+      const avg = todays.reduce((a, b) => a + b, 0) / todays.length;
+      await this.setCapabilityValue('octopus_price_min_today', Number(min.toFixed(2))).catch(this.error);
+      await this.setCapabilityValue('octopus_price_max_today', Number(max.toFixed(2))).catch(this.error);
+      await this.setCapabilityValue('octopus_price_avg_today', Number(avg.toFixed(2))).catch(this.error);
+    }
+    if (this.hasCapability('octopus_price_next')) {
+      const next = rateAt(this.rates, new Date(Date.now() + 30 * 60_000));
+      if (next) {
+        await this.setCapabilityValue('octopus_price_next', Number(valueOf(next, this.vatInc()).toFixed(2))).catch(this.error);
+      }
+    }
+  }
+
+  /** Compute month-to-date and projected monthly cost (incl. standing charge). */
+  protected async refreshMonthlyCost(): Promise<void> {
+    if (!this.hasCapability('octopus_cost_month')) return;
+    const s = this.store();
+    if (!s.mpxn || !s.serial || !s.productCode || !s.tariffCode) return;
+
+    const now = new Date();
+    const monthStart = this.localMonthStart();
+    const [records, rates] = await Promise.all([
+      this.client.consumption(s.fuel, s.mpxn, s.serial, {
+        period_from: monthStart.toISOString(),
+        period_to: now.toISOString(),
+        order_by: 'period',
+      }),
+      this.client.standardUnitRates(s.fuel, s.productCode, s.tariffCode, {
+        period_from: monthStart.toISOString(),
+        period_to: now.toISOString(),
+      }),
+    ]);
+    if (!records.length) return;
+
+    let pence = 0;
+    for (const r of records) {
+      const rate = rateAt(rates, new Date(r.interval_start));
+      if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
+    }
+    if (this.includeStandingChargeInCost()) {
+      const sc = rateAt(this.standingRates) ?? this.standingRates[0];
+      const days = Math.ceil((now.getTime() - monthStart.getTime()) / 86_400_000);
+      if (sc) pence += valueOf(sc, this.vatInc()) * Math.max(1, days);
+    }
+    const cost = pence / 100;
+    await this.setCapabilityValue('octopus_cost_month', Number(cost.toFixed(2))).catch(this.error);
+
+    if (this.hasCapability('octopus_cost_projected')) {
+      const elapsed = Math.max(0.5, (now.getTime() - monthStart.getTime()) / 86_400_000);
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const projected = (cost / elapsed) * daysInMonth;
+      await this.setCapabilityValue('octopus_cost_projected', Number(projected.toFixed(2))).catch(this.error);
+    }
   }
 
   protected async refreshStandingCharge(): Promise<void> {

@@ -6,12 +6,18 @@
   "capabilities": [
     "octopus_price",
     "octopus_price_level",
+    "octopus_price_next",
     "octopus_smart_charge",
     "octopus_carbon",
     "octopus_carbon_level",
     "meter_power",
     "octopus_usage_today",
     "octopus_cost_today",
+    "octopus_cost_month",
+    "octopus_cost_projected",
+    "octopus_price_min_today",
+    "octopus_price_max_today",
+    "octopus_price_avg_today",
     "octopus_standing_charge",
     "octopus_balance"
   ],

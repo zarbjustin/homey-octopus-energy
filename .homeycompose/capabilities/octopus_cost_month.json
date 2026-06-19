@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "title": { "en": "Cost this month" },
+  "units": { "en": "£" },
+  "decimals": 2,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/cost.svg",
+  "insights": true
+}
