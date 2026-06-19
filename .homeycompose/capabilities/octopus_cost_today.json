@@ -1,0 +1,15 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Cost (last 24h)"
+  },
+  "units": {
+    "en": "£"
+  },
+  "decimals": 2,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/cost.svg",
+  "insights": true
+}

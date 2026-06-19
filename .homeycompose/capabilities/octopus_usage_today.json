@@ -1,0 +1,15 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Usage (last 24h)"
+  },
+  "units": {
+    "en": "kWh"
+  },
+  "decimals": 2,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/usage.svg",
+  "insights": true
+}

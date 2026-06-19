@@ -36,9 +36,23 @@
       "class": "sensor",
       "capabilities": [
         "octopus_price",
+        "meter_power",
+        "octopus_usage_today",
+        "octopus_cost_today",
         "octopus_standing_charge",
         "octopus_balance"
       ],
+      "capabilitiesOptions": {
+        "meter_power": {
+          "title": {
+            "en": "Total consumption"
+          }
+        }
+      },
+      "energy": {
+        "cumulative": true,
+        "cumulativeImportedCapability": "meter_power"
+      },
       "platforms": [
         "local"
       ],
@@ -156,6 +170,21 @@
       "icon": "/assets/balance.svg",
       "insights": true
     },
+    "octopus_cost_today": {
+      "type": "number",
+      "title": {
+        "en": "Cost (last 24h)"
+      },
+      "units": {
+        "en": "£"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/cost.svg",
+      "insights": true
+    },
     "octopus_price": {
       "type": "number",
       "title": {
@@ -187,6 +216,21 @@
       "setable": false,
       "uiComponent": "sensor",
       "icon": "/assets/standing.svg",
+      "insights": true
+    },
+    "octopus_usage_today": {
+      "type": "number",
+      "title": {
+        "en": "Usage (last 24h)"
+      },
+      "units": {
+        "en": "kWh"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/usage.svg",
       "insights": true
     }
   }

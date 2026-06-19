@@ -4,7 +4,7 @@ import Homey from 'homey';
 import { OctopusClient, FuelType } from './OctopusClient';
 import { KrakenClient } from './KrakenClient';
 import {
-  Rate, rateAt, valueOf,
+  Rate, rateAt, valueOf, sumConsumption,
 } from './rates';
 
 export interface MeterStore {
@@ -141,12 +141,81 @@ export class OctopusMeterDevice extends Homey.Device {
 
   /** Hook for subclasses to add fuel-specific refresh work (e.g. consumption). */
   protected async refreshExtra(): Promise<void> {
-    // no-op by default
+    await this.refreshConsumption();
+  }
+
+  /**
+   * Fetch recent half-hourly consumption and derive:
+   *  - usage over the last 24h of available data (octopus_usage_today),
+   *  - the cost of that usage incl. one day's standing charge (octopus_cost_today),
+   *  - a monotonic cumulative total for Homey Energy (meter_power).
+   * Octopus consumption typically lags real time by up to ~24 hours.
+   */
+  protected async refreshConsumption(): Promise<void> {
+    const s = this.store();
+    if (!s.mpxn || !s.serial) return;
+    const hasUsage = this.hasCapability('octopus_usage_today');
+    const hasCost = this.hasCapability('octopus_cost_today');
+    const hasMeter = this.hasCapability('meter_power');
+    if (!hasUsage && !hasCost && !hasMeter) return;
+
+    const now = new Date();
+    const lastEndIso: string | null = this.getStoreValue('lastConsumptionEnd');
+    const historyFrom = new Date(now.getTime() - 30 * 3600_000);
+    const fetchFrom = lastEndIso
+      ? new Date(Math.min(new Date(lastEndIso).getTime(), historyFrom.getTime()))
+      : new Date(now.getTime() - 7 * 86400_000);
+
+    const records = await this.client.consumption(s.fuel, s.mpxn, s.serial, {
+      period_from: fetchFrom.toISOString(),
+      period_to: now.toISOString(),
+      order_by: 'period',
+    });
+    if (!records.length) return;
+
+    const sorted = [...records].sort(
+      (a, b) => new Date(a.interval_start).getTime() - new Date(b.interval_start).getTime(),
+    );
+    const last48 = sorted.slice(-48);
+
+    if (hasUsage) {
+      const usage = Number(this.toEnergyUnit(sumConsumption(last48)).toFixed(2));
+      await this.setCapabilityValue('octopus_usage_today', usage).catch(this.error);
+    }
+
+    if (hasCost) {
+      let pence = 0;
+      for (const r of last48) {
+        const rate = rateAt(this.rates, new Date(r.interval_start));
+        if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
+      }
+      const sc = rateAt(this.standingRates) ?? this.standingRates[0];
+      if (sc) pence += valueOf(sc, this.vatInc());
+      await this.setCapabilityValue('octopus_cost_today', Number((pence / 100).toFixed(2))).catch(this.error);
+    }
+
+    if (hasMeter) {
+      const lastEnd = lastEndIso ? new Date(lastEndIso).getTime() : 0;
+      const fresh = sorted.filter((r) => new Date(r.interval_end).getTime() > lastEnd);
+      const add = this.toEnergyUnit(sumConsumption(fresh));
+      const cumulative = Number(((Number(this.getStoreValue('cumulativeKwh')) || 0) + add).toFixed(3));
+      await this.setStoreValue('cumulativeKwh', cumulative);
+      await this.setStoreValue('lastConsumptionEnd', sorted[sorted.length - 1].interval_end);
+      await this.setCapabilityValue('meter_power', cumulative).catch(this.error);
+    }
+  }
+
+  /**
+   * Convert a raw consumption value into kWh. Electricity is already kWh;
+   * gas may be reported in m³ and is converted by the gas subclass.
+   */
+  protected toEnergyUnit(value: number): number {
+    return value;
   }
 
   private periodWindow(): { period_from: string; period_to: string } {
     const now = new Date();
-    const from = new Date(now.getTime() - 6 * 3600_000); // a little history for "current"
+    const from = new Date(now.getTime() - 30 * 3600_000); // cover the last 24h for cost calc
     const to = new Date(now.getTime() + 48 * 3600_000); // up to two days ahead
     return { period_from: from.toISOString(), period_to: to.toISOString() };
   }
