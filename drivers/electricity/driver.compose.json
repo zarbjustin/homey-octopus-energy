@@ -109,6 +109,17 @@
       "hint": {
         "en": "At or above this unit rate the price level is considered expensive."
       }
+    },
+    {
+      "id": "live_power",
+      "type": "checkbox",
+      "label": {
+        "en": "Live power (Octopus Home Mini)"
+      },
+      "value": false,
+      "hint": {
+        "en": "If you have an Octopus Home Mini, show near real-time power (W). Polls every 30 seconds."
+      }
     }
   ]
 }

@@ -99,4 +99,69 @@ export class KrakenClient {
     const pence = Number(data?.account?.balance ?? 0);
     return pence / 100;
   }
+
+  /**
+   * Find the Kraken device id of the smart import electricity meter (an Octopus
+   * Home Mini), used for real-time telemetry. Returns null if none is present.
+   */
+  async getElectricityDeviceId(accountNumber: string): Promise<string | null> {
+    const query = `
+      query SmartDevices($accountNumber: String!) {
+        account(accountNumber: $accountNumber) {
+          properties {
+            electricityMeterPoints {
+              meters {
+                smartImportElectricityMeter {
+                  deviceId
+                }
+              }
+            }
+          }
+        }
+      }`;
+    interface Resp {
+      account: {
+        properties: Array<{
+          electricityMeterPoints: Array<{
+            meters: Array<{ smartImportElectricityMeter?: { deviceId?: string } }>;
+          }>;
+        }>;
+      };
+    }
+    const data = await this.query<Resp>(query, { accountNumber });
+    for (const property of data?.account?.properties ?? []) {
+      for (const mp of property.electricityMeterPoints ?? []) {
+        for (const meter of mp.meters ?? []) {
+          const id = meter.smartImportElectricityMeter?.deviceId;
+          if (id) return id;
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Latest instantaneous electricity demand in watts from a Home Mini, or null. */
+  async getDemand(deviceId: string): Promise<number | null> {
+    const query = `
+      query Telemetry($deviceId: String!) {
+        smartMeterTelemetry(deviceId: $deviceId) {
+          readAt
+          demand
+        }
+      }`;
+    const data = await this.query<{ smartMeterTelemetry: Array<{ demand: string | number }> | { demand: string | number } | null }>(
+      query,
+      { deviceId },
+    );
+    const telemetry = data?.smartMeterTelemetry;
+    let list: Array<{ demand: string | number }> = [];
+    if (Array.isArray(telemetry)) {
+      list = telemetry;
+    } else if (telemetry) {
+      list = [telemetry];
+    }
+    if (!list.length) return null;
+    const demand = Number(list[list.length - 1]?.demand);
+    return Number.isFinite(demand) ? demand : null;
+  }
 }
