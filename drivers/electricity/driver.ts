@@ -12,6 +12,9 @@ interface ElectricityDevice extends Homey.Device {
   refreshNow(): Promise<void>;
   findCheapestSlot(within: number, duration: number): { start_time: string; price: number } | null;
   findCheapestHours(duration: number, by: string): { count: number; first_start: string; price: number } | null;
+  getCarbon(): number | null;
+  getCarbonLevel(): string | null;
+  isGreenestNow(hours?: number): boolean;
 }
 
 type Args<T> = T & { device: ElectricityDevice };
@@ -51,6 +54,15 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ duration: number; within: number }>) => args.device.isWithinCheapestPeriod(args.duration, args.within));
     flow.getConditionCard('in_cheapest_plan')
       .registerRunListener(async (args: Args<{ duration: number; by: string }>) => args.device.isInCheapestPlan(args.duration, args.by));
+    flow.getConditionCard('carbon_below')
+      .registerRunListener(async (args: Args<{ intensity: number }>) => {
+        const c = args.device.getCarbon();
+        return c !== null && c < args.intensity;
+      });
+    flow.getConditionCard('is_greenest_now')
+      .registerRunListener(async (args: Args<{ hours: number }>) => args.device.isGreenestNow(args.hours));
+    flow.getConditionCard('carbon_level_is')
+      .registerRunListener(async (args: Args<{ level: string }>) => args.device.getCarbonLevel() === args.level);
 
     // Actions.
     flow.getActionCard('refresh_now')

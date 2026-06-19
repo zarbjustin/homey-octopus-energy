@@ -165,6 +165,40 @@
           "placeholder": { "en": "07:00" }
         }
       ]
+    },
+    {
+      "id": "carbon_below",
+      "title": { "en": "Carbon intensity !{{is below|is not below}} ..." },
+      "titleFormatted": { "en": "Carbon intensity !{{is below|is not below}} [[intensity]] gCO₂/kWh" },
+      "args": [
+        { "type": "number", "name": "intensity", "min": 0, "max": 600, "step": 5, "placeholder": { "en": "100" } }
+      ]
+    },
+    {
+      "id": "is_greenest_now",
+      "title": { "en": "Now !{{is|is not}} the greenest half-hour" },
+      "titleFormatted": { "en": "Now !{{is|is not}} the greenest half-hour in the next [[hours]] h" },
+      "args": [
+        { "type": "number", "name": "hours", "min": 1, "max": 48, "step": 1, "placeholder": { "en": "12" } }
+      ]
+    },
+    {
+      "id": "carbon_level_is",
+      "title": { "en": "The carbon level !{{is|is not}} ..." },
+      "titleFormatted": { "en": "The carbon level !{{is|is not}} [[level]]" },
+      "args": [
+        {
+          "type": "dropdown",
+          "name": "level",
+          "values": [
+            { "id": "very_low", "label": { "en": "Very low" } },
+            { "id": "low", "label": { "en": "Low" } },
+            { "id": "moderate", "label": { "en": "Moderate" } },
+            { "id": "high", "label": { "en": "High" } },
+            { "id": "very_high", "label": { "en": "Very high" } }
+          ]
+        }
+      ]
     }
   ],
   "actions": [

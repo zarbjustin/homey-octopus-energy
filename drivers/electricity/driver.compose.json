@@ -7,6 +7,8 @@
     "octopus_price",
     "octopus_price_level",
     "octopus_smart_charge",
+    "octopus_carbon",
+    "octopus_carbon_level",
     "meter_power",
     "octopus_usage_today",
     "octopus_cost_today",

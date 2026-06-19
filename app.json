@@ -670,6 +670,110 @@
             }
           }
         ]
+      },
+      {
+        "id": "carbon_below",
+        "title": {
+          "en": "Carbon intensity !{{is below|is not below}} ..."
+        },
+        "titleFormatted": {
+          "en": "Carbon intensity !{{is below|is not below}} [[intensity]] gCO₂/kWh"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "intensity",
+            "min": 0,
+            "max": 600,
+            "step": 5,
+            "placeholder": {
+              "en": "100"
+            }
+          }
+        ]
+      },
+      {
+        "id": "is_greenest_now",
+        "title": {
+          "en": "Now !{{is|is not}} the greenest half-hour"
+        },
+        "titleFormatted": {
+          "en": "Now !{{is|is not}} the greenest half-hour in the next [[hours]] h"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "hours",
+            "min": 1,
+            "max": 48,
+            "step": 1,
+            "placeholder": {
+              "en": "12"
+            }
+          }
+        ]
+      },
+      {
+        "id": "carbon_level_is",
+        "title": {
+          "en": "The carbon level !{{is|is not}} ..."
+        },
+        "titleFormatted": {
+          "en": "The carbon level !{{is|is not}} [[level]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "dropdown",
+            "name": "level",
+            "values": [
+              {
+                "id": "very_low",
+                "label": {
+                  "en": "Very low"
+                }
+              },
+              {
+                "id": "low",
+                "label": {
+                  "en": "Low"
+                }
+              },
+              {
+                "id": "moderate",
+                "label": {
+                  "en": "Moderate"
+                }
+              },
+              {
+                "id": "high",
+                "label": {
+                  "en": "High"
+                }
+              },
+              {
+                "id": "very_high",
+                "label": {
+                  "en": "Very high"
+                }
+              }
+            ]
+          }
+        ]
       }
     ],
     "actions": [
@@ -824,6 +928,8 @@
         "octopus_price",
         "octopus_price_level",
         "octopus_smart_charge",
+        "octopus_carbon",
+        "octopus_carbon_level",
         "meter_power",
         "octopus_usage_today",
         "octopus_cost_today",
@@ -1252,6 +1358,63 @@
       "uiComponent": "sensor",
       "icon": "/assets/balance.svg",
       "insights": true
+    },
+    "octopus_carbon": {
+      "type": "number",
+      "title": {
+        "en": "Carbon intensity"
+      },
+      "units": {
+        "en": "gCO₂/kWh"
+      },
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/level.svg",
+      "insights": true
+    },
+    "octopus_carbon_level": {
+      "type": "enum",
+      "title": {
+        "en": "Carbon level"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/level.svg",
+      "values": [
+        {
+          "id": "very_low",
+          "title": {
+            "en": "Very low"
+          }
+        },
+        {
+          "id": "low",
+          "title": {
+            "en": "Low"
+          }
+        },
+        {
+          "id": "moderate",
+          "title": {
+            "en": "Moderate"
+          }
+        },
+        {
+          "id": "high",
+          "title": {
+            "en": "High"
+          }
+        },
+        {
+          "id": "very_high",
+          "title": {
+            "en": "Very high"
+          }
+        }
+      ]
     },
     "octopus_cost_today": {
       "type": "number",

@@ -2,6 +2,9 @@
 
 import { Rate } from '../../lib/rates';
 import { OctopusMeterDevice } from '../../lib/OctopusMeterDevice';
+import {
+  CarbonClient, CarbonPoint, carbonLevelId, isGreenestNow,
+} from '../../lib/carbon';
 
 module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
@@ -13,6 +16,12 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
   private liveDeviceId: string | null = null;
 
+  private carbon = new CarbonClient();
+
+  private carbonNow: number | null = null;
+
+  private carbonForecast: CarbonPoint[] = [];
+
   /** Enable live power polling if the setting is on (opt-in, Home Mini only). */
   protected async onInitExtra(): Promise<void> {
     if (this.getSetting('live_power')) {
@@ -22,10 +31,40 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     }
   }
 
-  /** After consumption, update the smart-charge window capability. */
+  /** After consumption, update the smart-charge window and carbon capabilities. */
   protected async refreshExtra(): Promise<void> {
     await super.refreshExtra();
     await this.updateSmartCharge();
+    await this.refreshCarbon().catch((err) => this.error('Carbon refresh failed:', err));
+  }
+
+  private async refreshCarbon(): Promise<void> {
+    if (!this.hasCapability('octopus_carbon')) return;
+    const current = await this.carbon.getCurrent();
+    if (current) {
+      this.carbonNow = current.intensity;
+      await this.setCapabilityValue('octopus_carbon', Math.round(current.intensity)).catch(this.error);
+      if (this.hasCapability('octopus_carbon_level')) {
+        await this.setCapabilityValue('octopus_carbon_level', carbonLevelId(current.index)).catch(this.error);
+      }
+    }
+    this.carbonForecast = await this.carbon.getForecast();
+  }
+
+  /** Current carbon intensity (gCO₂/kWh), or null. */
+  getCarbon(): number | null {
+    return this.carbonNow;
+  }
+
+  /** Is the current half-hour the greenest in the forward window? */
+  isGreenestNow(withinHours?: number): boolean {
+    return isGreenestNow(this.carbonForecast, new Date(), withinHours);
+  }
+
+  /** Current carbon level enum id, or null. */
+  getCarbonLevel(): string | null {
+    if (!this.hasCapability('octopus_carbon_level')) return null;
+    return (this.getCapabilityValue('octopus_carbon_level') as string) ?? null;
   }
 
   private async updateSmartCharge(): Promise<void> {
