@@ -33,3 +33,26 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
 10. **Dashboard widget** — current price / cheapest slot / usage summary.
 
 Commits are tagged `Sprint N: ...` (mirrors the Vestaboard app convention).
+
+## Status: Sprints 1–10 COMPLETE
+All built, validated at publish level (12 tests pass, lint clean), committed and
+pushed to zarbjustin/homey-octopus-energy. App lives at C:\Users\jzarb\octopusenergy.
+Only validator note: expected "missing cumulativeExportedCapability" (import-only meter).
+
+## Phase 2 — recommended next sprints
+11. **Export / SEG meters** — model export meters (meter_power.exported + Outgoing/
+    Agile Outgoing tariff + earnings). Also clears the export-capability warning.
+12. **Smart-charge planner** — non-contiguous cheapest-N-slots, `smart_charge` boolean
+    capability, "now is in the plan" condition; ideal for EV/immersion automations.
+13. **Saving Sessions & Free Electricity** — GraphQL triggers (announced/starting/started),
+    Octoplus points.
+14. **Intelligent Octopus Go dispatches** — plannedDispatches/completedDispatches →
+    "smart charge dispatch started"; expose next dispatch window.
+15. **Carbon intensity** — National Grid Carbon Intensity → "greenest slot" automations.
+16. **Reporting** — today min/max/avg/next price capabilities; month-to-date + projected
+    bill (incl. standing charge); daily/weekly summaries.
+17. **Tariff comparison** — estimate savings vs Agile/other products from real usage.
+18. **Quality & reach** — inject HTTP layer for cost/gas/planner tests with fixtures;
+    persist rates + align refresh to ~16:00 Agile publication; localization (nl/de/fr);
+    real branding/screenshots; wire publish workflow to Homey token and certify.
+
