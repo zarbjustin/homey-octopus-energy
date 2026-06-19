@@ -5,6 +5,7 @@
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
+  "brandColor": "#FF1493",
   "platforms": [
     "local"
   ],
@@ -26,5 +27,167 @@
   "author": {
     "name": "Justin Zarb",
     "email": "justin.zarb@zarb.co.uk"
+  },
+  "drivers": [
+    {
+      "name": {
+        "en": "Electricity Meter"
+      },
+      "class": "sensor",
+      "capabilities": [
+        "octopus_price",
+        "octopus_standing_charge",
+        "octopus_balance"
+      ],
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "images": {
+        "small": "/drivers/electricity/assets/images/small.png",
+        "large": "/drivers/electricity/assets/images/large.png",
+        "xlarge": "/drivers/electricity/assets/images/xlarge.png"
+      },
+      "pair": [
+        {
+          "id": "start"
+        },
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "repair": [
+        {
+          "id": "start"
+        }
+      ],
+      "settings": [
+        {
+          "id": "poll_interval",
+          "type": "number",
+          "label": {
+            "en": "Refresh interval (minutes)"
+          },
+          "value": 30,
+          "min": 5,
+          "max": 1440,
+          "hint": {
+            "en": "How often to refresh prices, usage and balance. Prices update once per half hour."
+          }
+        },
+        {
+          "id": "vat",
+          "type": "dropdown",
+          "label": {
+            "en": "Prices include VAT"
+          },
+          "value": "inc",
+          "hint": {
+            "en": "Whether displayed unit rates and standing charges include 5% VAT."
+          },
+          "values": [
+            {
+              "id": "inc",
+              "label": {
+                "en": "Including VAT"
+              }
+            },
+            {
+              "id": "exc",
+              "label": {
+                "en": "Excluding VAT"
+              }
+            }
+          ]
+        },
+        {
+          "id": "cheap_threshold",
+          "type": "number",
+          "label": {
+            "en": "\"Cheap\" price threshold (p/kWh)"
+          },
+          "value": 15,
+          "min": -50,
+          "max": 200,
+          "hint": {
+            "en": "At or below this unit rate the price level is considered cheap."
+          }
+        },
+        {
+          "id": "expensive_threshold",
+          "type": "number",
+          "label": {
+            "en": "\"Expensive\" price threshold (p/kWh)"
+          },
+          "value": 30,
+          "min": -50,
+          "max": 200,
+          "hint": {
+            "en": "At or above this unit rate the price level is considered expensive."
+          }
+        }
+      ],
+      "id": "electricity"
+    }
+  ],
+  "capabilities": {
+    "octopus_balance": {
+      "type": "number",
+      "title": {
+        "en": "Account balance"
+      },
+      "units": {
+        "en": "£"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/balance.svg",
+      "insights": true
+    },
+    "octopus_price": {
+      "type": "number",
+      "title": {
+        "en": "Current price"
+      },
+      "units": {
+        "en": "p/kWh"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/price.svg",
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "Price"
+      }
+    },
+    "octopus_standing_charge": {
+      "type": "number",
+      "title": {
+        "en": "Standing charge"
+      },
+      "units": {
+        "en": "p/day"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/standing.svg",
+      "insights": true
+    }
   }
 }
