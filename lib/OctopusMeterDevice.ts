@@ -4,7 +4,8 @@ import Homey from 'homey';
 import { OctopusClient, FuelType } from './OctopusClient';
 import { KrakenClient } from './KrakenClient';
 import {
-  Rate, rateAt, valueOf, sumConsumption,
+  Rate, rateAt, valueOf, sumConsumption, cheapestRate, cheapestWindow,
+  isCheapestSlotNow, priceLevel, PriceLevel,
 } from './rates';
 
 export interface MeterStore {
@@ -257,8 +258,53 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   /** Hook fired after the current price capability is set (Flow triggers etc.). */
-  protected async onPriceUpdated(_value: number, _rate: Rate): Promise<void> {
-    // no-op by default
+  protected async onPriceUpdated(value: number, _rate: Rate): Promise<void> {
+    if (this.hasCapability('octopus_price_level')) {
+      const level = priceLevel(value, this.thresholds());
+      await this.setCapabilityValue('octopus_price_level', level).catch(this.error);
+    }
+  }
+
+  /** Cheap/expensive thresholds (p/kWh) from settings, with sensible defaults. */
+  protected thresholds(): { cheap: number; expensive: number } {
+    const cheap = Number(this.getSetting('cheap_threshold'));
+    const expensive = Number(this.getSetting('expensive_threshold'));
+    return {
+      cheap: Number.isFinite(cheap) ? cheap : 15,
+      expensive: Number.isFinite(expensive) ? expensive : 30,
+    };
+  }
+
+  // --- Dynamic-pricing intelligence ---------------------------------------
+
+  /** The current price level (plunge/cheap/normal/expensive), or null. */
+  getPriceLevel(at: Date = new Date()): PriceLevel | null {
+    const rate = rateAt(this.rates, at);
+    if (!rate) return null;
+    return priceLevel(valueOf(rate, this.vatInc()), this.thresholds());
+  }
+
+  /** The cheapest upcoming rate within an optional forward window (hours). */
+  getCheapestUpcoming(withinHours?: number): Rate | null {
+    const now = new Date();
+    const to = withinHours ? new Date(now.getTime() + withinHours * 3600_000) : undefined;
+    const forward = this.rates.filter((r) => {
+      const end = r.valid_to ? new Date(r.valid_to).getTime() : Infinity;
+      return end > now.getTime();
+    });
+    return cheapestRate(forward, { from: now, to, incVat: this.vatInc() });
+  }
+
+  /** The cheapest contiguous block of `slots` half-hours in the forward window. */
+  getCheapestWindow(slots: number, withinHours?: number): Rate[] | null {
+    const now = new Date();
+    const to = withinHours ? new Date(now.getTime() + withinHours * 3600_000) : undefined;
+    return cheapestWindow(this.rates, slots, { from: now, to, incVat: this.vatInc() });
+  }
+
+  /** Is the current half-hour the cheapest in the (optional) forward window? */
+  isCheapestNow(withinHours?: number, at: Date = new Date()): boolean {
+    return isCheapestSlotNow(this.rates, at, { withinHours, incVat: this.vatInc() });
   }
 
   protected async refreshStandingCharge(): Promise<void> {

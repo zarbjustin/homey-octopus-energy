@@ -1,0 +1,16 @@
+{
+  "type": "enum",
+  "title": {
+    "en": "Price level"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/level.svg",
+  "values": [
+    { "id": "plunge", "title": { "en": "Plunge (negative)" } },
+    { "id": "cheap", "title": { "en": "Cheap" } },
+    { "id": "normal", "title": { "en": "Normal" } },
+    { "id": "expensive", "title": { "en": "Expensive" } }
+  ]
+}

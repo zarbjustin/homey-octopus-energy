@@ -5,6 +5,7 @@
   "class": "sensor",
   "capabilities": [
     "octopus_price",
+    "octopus_price_level",
     "meter_power",
     "octopus_usage_today",
     "octopus_cost_today",
