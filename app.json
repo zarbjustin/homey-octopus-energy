@@ -915,6 +915,71 @@
             "example": 7.9
           }
         ]
+      },
+      {
+        "id": "find_best_tariff",
+        "title": {
+          "en": "Compare my tariff"
+        },
+        "titleFormatted": {
+          "en": "Compare my tariff over the last [[days]] days"
+        },
+        "hint": {
+          "en": "Estimates the cheapest Octopus product for your usage and the annual saving versus your current tariff."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "days",
+            "min": 7,
+            "max": 90,
+            "step": 1,
+            "placeholder": {
+              "en": "30"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "best_product",
+            "type": "string",
+            "title": {
+              "en": "Best product"
+            },
+            "example": {
+              "en": "Agile"
+            }
+          },
+          {
+            "name": "annual_saving",
+            "type": "number",
+            "title": {
+              "en": "Annual saving (£)"
+            },
+            "example": 120.5
+          },
+          {
+            "name": "current_annual",
+            "type": "number",
+            "title": {
+              "en": "Current annual cost (£)"
+            },
+            "example": 980
+          },
+          {
+            "name": "best_annual",
+            "type": "number",
+            "title": {
+              "en": "Best annual cost (£)"
+            },
+            "example": 859.5
+          }
+        ]
       }
     ]
   },

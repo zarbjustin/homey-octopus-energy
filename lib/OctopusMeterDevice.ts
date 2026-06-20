@@ -6,7 +6,9 @@ import { KrakenClient } from './KrakenClient';
 import {
   Rate, rateAt, valueOf, sumConsumption, cheapestRate, cheapestWindow,
   isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers, ratesInWindow,
+  regionFromTariff,
 } from './rates';
+import { estimateAnnualCost } from './compare';
 
 export interface MeterStore {
   apiKey: string;
@@ -414,6 +416,71 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   // --- Reporting -----------------------------------------------------------
+
+  /**
+   * Compare the current tariff against a few candidate Octopus products using
+   * the last `days` of real consumption. Returns the cheapest option and the
+   * estimated annual saving vs. the current tariff.
+   */
+  async compareTariffs(days: number): Promise<{
+    best_product: string;
+    current_annual: number;
+    best_annual: number;
+    annual_saving: number;
+  } | null> {
+    const s = this.store();
+    if (!s.productCode || !s.tariffCode || !s.mpxn || !s.serial) return null;
+    const region = regionFromTariff(s.tariffCode) ?? 'C';
+    const d = Math.min(90, Math.max(7, Math.round(Number(days) || 30)));
+    const now = new Date();
+    const from = new Date(now.getTime() - d * 86_400_000);
+    const window = { period_from: from.toISOString(), period_to: now.toISOString() };
+
+    const records = await this.client.consumption(s.fuel, s.mpxn, s.serial, { ...window, order_by: 'period' });
+    if (!records.length) return null;
+
+    const prefix = s.fuel === 'electricity' ? 'E-1R' : 'G-1R';
+    const candidates: Array<{ name: string; productCode: string; tariffCode: string }> = [
+      { name: 'Current', productCode: s.productCode, tariffCode: s.tariffCode },
+    ];
+    if (s.fuel === 'electricity') {
+      for (const [label, frag] of [['Agile', 'agile'], ['Go', 'go'], ['Flexible', 'flexible']]) {
+        // eslint-disable-next-line no-await-in-loop
+        const code = await this.client.findProductCode(frag);
+        if (code && code !== s.productCode) {
+          candidates.push({ name: label, productCode: code, tariffCode: `${prefix}-${code}-${region}` });
+        }
+      }
+    }
+
+    const results: Array<{ name: string; annual: number }> = [];
+    for (const c of candidates) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const [rates, standing] = await Promise.all([
+          this.client.standardUnitRates(s.fuel, c.productCode, c.tariffCode, window),
+          this.client.standingCharges(s.fuel, c.productCode, c.tariffCode, window),
+        ]);
+        if (!rates.length) continue;
+        const sc = rateAt(standing) ?? standing[0];
+        const standingPence = sc ? valueOf(sc, this.vatInc()) : 0;
+        results.push({ name: c.name, annual: estimateAnnualCost(records, rates, standingPence, this.vatInc()) });
+      } catch (err) {
+        this.error(`Tariff comparison failed for ${c.name}:`, err);
+      }
+    }
+    if (!results.length) return null;
+
+    const current = results.find((r) => r.name === 'Current');
+    const best = results.reduce((a, b) => (b.annual < a.annual ? b : a));
+    const currentAnnual = current ? current.annual : best.annual;
+    return {
+      best_product: best.name === 'Current' ? 'Current tariff (already cheapest)' : best.name,
+      current_annual: Number(currentAnnual.toFixed(2)),
+      best_annual: Number(best.annual.toFixed(2)),
+      annual_saving: Number((currentAnnual - best.annual).toFixed(2)),
+    };
+  }
 
   /** Local midnight `daysFromNow` days away (approximate; ignores DST shifts). */
   protected localMidnight(daysFromNow: number): Date {

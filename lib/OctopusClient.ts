@@ -161,6 +161,35 @@ export class OctopusClient {
     return out;
   }
 
+  // --- Products ------------------------------------------------------------
+
+  async listProducts(params: Record<string, string | number | undefined> = {}): Promise<Array<{
+    code: string;
+    display_name: string;
+    direction: string;
+    brand: string;
+    is_variable: boolean;
+    is_green: boolean;
+    available_to: string | null;
+  }>> {
+    return this.getAll('/products/', { brand: 'OCTOPUS_ENERGY', ...params });
+  }
+
+  /**
+   * Find the most relevant active product code whose display name contains the
+   * given fragment (case-insensitive), preferring import + still-available ones.
+   */
+  async findProductCode(nameFragment: string): Promise<string | null> {
+    const products = await this.listProducts();
+    const frag = nameFragment.toLowerCase();
+    const matches = products
+      .filter((p) => (p.display_name || '').toLowerCase().includes(frag))
+      .filter((p) => p.direction !== 'EXPORT')
+      .filter((p) => p.available_to === null || new Date(p.available_to).getTime() > Date.now());
+    if (!matches.length) return null;
+    return matches[0].code;
+  }
+
   // --- Account -------------------------------------------------------------
 
   async getAccount(accountNumber: string): Promise<Account> {

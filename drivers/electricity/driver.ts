@@ -15,6 +15,7 @@ interface ElectricityDevice extends Homey.Device {
   getCarbon(): number | null;
   getCarbonLevel(): string | null;
   isGreenestNow(hours?: number): boolean;
+  compareTariffs(days: number): Promise<{ best_product: string; current_annual: number; best_annual: number; annual_saving: number } | null>;
 }
 
 type Args<T> = T & { device: ElectricityDevice };
@@ -79,6 +80,12 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ duration: number; by: string }>) => {
         const result = args.device.findCheapestHours(args.duration, args.by);
         if (!result) throw new Error('No upcoming rates are available yet.');
+        return result;
+      });
+    flow.getActionCard('find_best_tariff')
+      .registerRunListener(async (args: Args<{ days: number }>) => {
+        const result = await args.device.compareTariffs(args.days);
+        if (!result) throw new Error('Not enough consumption data to compare tariffs yet.');
         return result;
       });
   }
