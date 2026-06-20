@@ -148,7 +148,12 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     if (prev !== null && value !== prev) {
       this.trigger('price_changed', { price: value, previous: prev });
       this.trigger('price_below', { price: value }, { price: value });
-      if (value < 0) this.trigger('price_plunge', { price: value });
+      if (value < 0) {
+        this.trigger('price_plunge', { price: value });
+        if (this.notifyEnabled('notify_plunge', true)) {
+          this.notify(`⚡ Octopus price is negative: ${value.toFixed(2)} p/kWh — use power now!`).catch((err) => this.error(err));
+        }
+      }
       this.trigger('cheapest_slot_started', { price: value }, {});
       if (levelNow && levelNow !== this.previousLevel) {
         this.trigger('price_level_changed', {

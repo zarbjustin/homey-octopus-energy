@@ -96,6 +96,11 @@ export class DispatchPoller {
     if (nowActive && !this.active) {
       this.currentEnd = current ? current.end : null;
       this.fire('dispatch_started', { end: this.currentEnd ? this.fmt(this.currentEnd) : '' });
+      if (this.app.homey.settings.get('notify_dispatch')) {
+        this.app.homey.notifications.createNotification({
+          excerpt: '🚗 Intelligent Octopus Go smart-charge dispatch has started.',
+        }).catch((err) => this.app.error('Notification failed:', err));
+      }
     } else if (!nowActive && this.active) {
       this.fire('dispatch_ended', {});
       this.currentEnd = null;

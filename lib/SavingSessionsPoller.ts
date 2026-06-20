@@ -105,6 +105,12 @@ export class SavingSessionsPoller {
       if (now >= start && now < end && !state.started.includes(s.id)) {
         state.started.push(s.id);
         this.fire('saving_session_started', { end: tokens.end, reward: tokens.reward });
+        const enabled = this.app.homey.settings.get('notify_saving_sessions');
+        if (enabled === undefined || enabled === null || enabled) {
+          this.app.homey.notifications.createNotification({
+            excerpt: '🐙 Octopus Saving Session has started — reduce usage to earn OctoPoints.',
+          }).catch((err) => this.app.error('Notification failed:', err));
+        }
       }
       if (now >= end && !state.ended.includes(s.id)) {
         state.ended.push(s.id);

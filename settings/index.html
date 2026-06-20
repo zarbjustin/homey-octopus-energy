@@ -37,10 +37,46 @@
      price plunges, price levels, and finding/triggering on the cheapest upcoming
      half-hours. Both meters expose account-balance triggers and conditions.</p>
 
+  <h2>Notifications</h2>
+  <p>Choose which events should post a Homey timeline notification.</p>
+  <div class="field">
+    <label><input type="checkbox" id="notify_plunge" /> Negative (plunge) prices</label>
+  </div>
+  <div class="field">
+    <label><input type="checkbox" id="notify_saving_sessions" /> Saving Sessions starting</label>
+  </div>
+  <div class="field">
+    <label><input type="checkbox" id="notify_dispatch" /> Smart-charge dispatches starting</label>
+  </div>
+  <div class="field">
+    <label><input type="checkbox" id="notify_low_balance" /> Low account balance</label>
+  </div>
+  <div class="field">
+    <label for="low_balance_threshold">Low-balance threshold (£)</label>
+    <input class="homey-form-input" id="low_balance_threshold" type="number" step="1" value="0" />
+  </div>
+
   <p class="muted">Unofficial app. Not affiliated with Octopus Energy.</p>
 
   <script type="text/javascript">
     function onHomeyReady(Homey) {
+      const checks = ['notify_plunge', 'notify_saving_sessions', 'notify_dispatch', 'notify_low_balance'];
+      const defaults = { notify_plunge: true };
+
+      checks.forEach((key) => {
+        const el = document.getElementById(key);
+        Homey.get(key, (err, value) => {
+          el.checked = (value === undefined || value === null) ? Boolean(defaults[key]) : Boolean(value);
+        });
+        el.addEventListener('change', () => Homey.set(key, el.checked, () => {}));
+      });
+
+      const thr = document.getElementById('low_balance_threshold');
+      Homey.get('low_balance_threshold', (err, value) => {
+        if (value !== undefined && value !== null) thr.value = value;
+      });
+      thr.addEventListener('change', () => Homey.set('low_balance_threshold', Number(thr.value), () => {}));
+
       Homey.ready();
     }
   </script>

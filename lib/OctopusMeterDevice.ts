@@ -445,6 +445,21 @@ export class OctopusMeterDevice extends Homey.Device {
     }).format(d);
   }
 
+  /** Whether an app-level notification toggle is enabled. */
+  protected notifyEnabled(key: string, def = false): boolean {
+    const v = this.homey.settings.get(key);
+    return (v === undefined || v === null) ? def : Boolean(v);
+  }
+
+  /** Create a Homey timeline notification (best-effort). */
+  protected async notify(excerpt: string): Promise<void> {
+    try {
+      await this.homey.notifications.createNotification({ excerpt });
+    } catch (err) {
+      this.error('Notification failed:', err);
+    }
+  }
+
   /** The next future instant whose local wall-clock time is `hh:mm`. */
   protected nextLocalTime(hhmm: string): Date {
     const tz = this.homey.clock.getTimezone();
@@ -649,6 +664,10 @@ export class OctopusMeterDevice extends Homey.Device {
       const state = { deviceId: this.getData().id, balance };
       this.fireAppTrigger('balance_changed', { balance }, state);
       this.fireAppTrigger('balance_below', { balance }, state);
+      const threshold = Number(this.homey.settings.get('low_balance_threshold') ?? 0);
+      if (prev >= threshold && balance < threshold && this.notifyEnabled('notify_low_balance', false)) {
+        await this.notify(`💷 Your Octopus balance is low: £${balance.toFixed(2)}`);
+      }
     }
   }
 
