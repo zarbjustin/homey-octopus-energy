@@ -7,7 +7,7 @@
   },
   "class": "sensor",
   "capabilities": [
-    "octopus_price",
+    "measure_octopus_price",
     "meter_gas",
     "octopus_usage_today",
     "octopus_cost_today",

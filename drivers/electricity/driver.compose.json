@@ -7,7 +7,7 @@
   },
   "class": "sensor",
   "capabilities": [
-    "octopus_price",
+    "measure_octopus_price",
     "octopus_price_level",
     "octopus_price_next",
     "octopus_smart_charge",

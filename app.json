@@ -1144,7 +1144,7 @@
       },
       "class": "sensor",
       "capabilities": [
-        "octopus_price",
+        "measure_octopus_price",
         "octopus_price_level",
         "octopus_price_next",
         "octopus_smart_charge",
@@ -1326,7 +1326,7 @@
       },
       "class": "sensor",
       "capabilities": [
-        "octopus_price",
+        "measure_octopus_price",
         "meter_power",
         "octopus_usage_today",
         "octopus_earnings_today",
@@ -1340,7 +1340,7 @@
             "en": "Total exported"
           }
         },
-        "octopus_price": {
+        "measure_octopus_price": {
           "title": {
             "en": "Export rate"
           }
@@ -1440,7 +1440,7 @@
       },
       "class": "sensor",
       "capabilities": [
-        "octopus_price",
+        "measure_octopus_price",
         "meter_gas",
         "octopus_usage_today",
         "octopus_cost_today",
@@ -1669,6 +1669,27 @@
     }
   },
   "capabilities": {
+    "measure_octopus_price": {
+      "type": "number",
+      "title": {
+        "en": "Current price",
+        "nl": "Huidige prijs",
+        "de": "Aktueller Preis",
+        "fr": "Prix actuel"
+      },
+      "units": {
+        "en": "p/kWh"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/price.svg",
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "Price"
+      }
+    },
     "octopus_balance": {
       "type": "number",
       "title": {
@@ -1841,27 +1862,6 @@
       "uiComponent": "sensor",
       "icon": "/assets/balance.svg",
       "insights": true
-    },
-    "octopus_price": {
-      "type": "number",
-      "title": {
-        "en": "Current price",
-        "nl": "Huidige prijs",
-        "de": "Aktueller Preis",
-        "fr": "Prix actuel"
-      },
-      "units": {
-        "en": "p/kWh"
-      },
-      "decimals": 2,
-      "getable": true,
-      "setable": false,
-      "uiComponent": "sensor",
-      "icon": "/assets/price.svg",
-      "insights": true,
-      "insightsTitleTrue": {
-        "en": "Price"
-      }
     },
     "octopus_price_avg_today": {
       "type": "number",

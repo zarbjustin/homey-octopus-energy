@@ -7,7 +7,7 @@
   },
   "class": "sensor",
   "capabilities": [
-    "octopus_price",
+    "measure_octopus_price",
     "meter_power",
     "octopus_usage_today",
     "octopus_earnings_today",
@@ -21,7 +21,7 @@
         "en": "Total exported"
       }
     },
-    "octopus_price": {
+    "measure_octopus_price": {
       "title": {
         "en": "Export rate"
       }

@@ -20,7 +20,7 @@ module.exports = {
 
     return {
       name: device.getName(),
-      price: cap('octopus_price'),
+      price: cap('measure_octopus_price'),
       level: cap('octopus_price_level'),
       standing: cap('octopus_standing_charge'),
       usage: cap('octopus_usage_today'),

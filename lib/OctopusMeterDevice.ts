@@ -332,7 +332,7 @@ export class OctopusMeterDevice extends Homey.Device {
     if (current) {
       const value = Number(valueOf(current, this.vatInc()).toFixed(4));
       this.currentPrice = value;
-      await this.setCapabilityValue('octopus_price', value).catch(this.error);
+      await this.setCapabilityValue('measure_octopus_price', value).catch(this.error);
       await this.onPriceUpdated(value, current);
     }
   }
@@ -357,7 +357,7 @@ export class OctopusMeterDevice extends Homey.Device {
     if (dayRate) {
       const value = Number(valueOf(dayRate, this.vatInc()).toFixed(4));
       this.currentPrice = value;
-      await this.setCapabilityValue('octopus_price', value).catch(this.error);
+      await this.setCapabilityValue('measure_octopus_price', value).catch(this.error);
       await this.onPriceUpdated(value, dayRate);
     }
   }
