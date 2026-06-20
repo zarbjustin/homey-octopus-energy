@@ -181,38 +181,43 @@
       }
 
       el.innerHTML = html;
-      wireTabs(el, tomorrowOk);
-    }
-
-    function wireTabs(el, tomorrowOk) {
-      var tabs = el.querySelectorAll('.tab');
-      for (var i = 0; i < tabs.length; i++) {
-        (function (tab) {
-          var t = tab.getAttribute('data-tab');
-          tab.onclick = function () {
-            if (t === 'tomorrow' && !tomorrowOk) return;
-            if (STATE.tab === t) return;
-            STATE.tab = t;
-            render();
-          };
-        }(tabs[i]));
-      }
     }
 
     function onHomeyReady(Homey) {
-      var deviceId = '';
-      var cheapest = '';
-      try {
-        var settings = Homey.getSettings();
-        if (settings) {
-          if (settings.device) deviceId = (typeof settings.device === 'object') ? (settings.device.id || '') : settings.device;
-          if (settings.cheapest_count !== undefined && settings.cheapest_count !== null) cheapest = settings.cheapest_count;
+      // Delegate clicks on the static #content node (survives re-renders).
+      var content = document.getElementById('content');
+      content.addEventListener('click', function (e) {
+        var node = e.target;
+        while (node && node !== content && !(node.className && String(node.className).indexOf('tab') !== -1 && node.getAttribute && node.getAttribute('data-tab'))) {
+          node = node.parentNode;
         }
-      } catch (e) { /* no settings */ }
+        if (!node || node === content || !node.getAttribute) return;
+        var t = node.getAttribute('data-tab');
+        if (!t) return;
+        if (String(node.className).indexOf('disabled') !== -1) return;
+        if (STATE.tab === t) return;
+        STATE.tab = t;
+        render();
+      });
+
+      function readSettings() {
+        var deviceId = '';
+        var cheapest = '';
+        try {
+          var settings = Homey.getSettings();
+          if (settings) {
+            if (settings.device) deviceId = (typeof settings.device === 'object') ? (settings.device.id || '') : settings.device;
+            if (settings.cheapest_count !== undefined && settings.cheapest_count !== null) cheapest = settings.cheapest_count;
+          }
+        } catch (e) { /* no settings */ }
+        return { deviceId: deviceId, cheapest: cheapest };
+      }
 
       async function load() {
+        // Re-read settings each poll so changing "cheapest slots" updates live.
+        var s = readSettings();
         try {
-          var q = '/?id=' + encodeURIComponent(deviceId) + '&cheapest=' + encodeURIComponent(cheapest);
+          var q = '/?id=' + encodeURIComponent(s.deviceId) + '&cheapest=' + encodeURIComponent(s.cheapest);
           STATE.data = await Homey.api('GET', q);
           render();
           Homey.setHeight(document.body.scrollHeight);
