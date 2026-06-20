@@ -11,6 +11,7 @@
     "octopus_price_level",
     "octopus_price_next",
     "octopus_smart_charge",
+    "octopus_good_now",
     "octopus_carbon",
     "octopus_carbon_level",
     "meter_power",

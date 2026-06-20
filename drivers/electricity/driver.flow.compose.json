@@ -199,6 +199,15 @@
           ]
         }
       ]
+    },
+    {
+      "id": "good_now",
+      "title": { "en": "Now !{{is|is not}} a good time to use power" },
+      "titleFormatted": { "en": "Now !{{is|is not}} below [[max_price]] p/kWh and [[max_carbon]] gCO₂/kWh" },
+      "args": [
+        { "type": "number", "name": "max_price", "min": -50, "max": 200, "step": 0.5, "placeholder": { "en": "15" } },
+        { "type": "number", "name": "max_carbon", "min": 0, "max": 600, "step": 5, "placeholder": { "en": "150" } }
+      ]
     }
   ],
   "actions": [
@@ -261,6 +270,23 @@
         { "name": "price", "type": "number", "title": { "en": "Average price (p/kWh)" }, "example": 7.9 }
       ]
     },
+    {
+      "id": "plan_charge",
+      "title": { "en": "Plan an EV/battery charge" },
+      "titleFormatted": { "en": "Plan charging [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]]" },
+      "hint": { "en": "Picks the cheapest half-hours before the deadline to deliver the energy you need." },
+      "args": [
+        { "type": "number", "name": "needed_kwh", "min": 0.5, "max": 200, "step": 0.5, "placeholder": { "en": "30" } },
+        { "type": "number", "name": "charge_rate", "min": 0.5, "max": 50, "step": 0.5, "placeholder": { "en": "7" } },
+        { "type": "text", "name": "by", "placeholder": { "en": "07:00" } }
+      ],
+      "tokens": [
+        { "name": "count", "type": "number", "title": { "en": "Number of half-hours" }, "example": 9 },
+        { "name": "first_start", "type": "string", "title": { "en": "First slot start" }, "example": { "en": "Tue 00:30" } },
+        { "name": "price", "type": "number", "title": { "en": "Average price (p/kWh)" }, "example": 8.1 },
+        { "name": "cost", "type": "number", "title": { "en": "Estimated cost (£)" }, "example": 2.55 }
+      ]
+    },
     {
       "id": "find_best_tariff",
       "title": { "en": "Compare my tariff" },

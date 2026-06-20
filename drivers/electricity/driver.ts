@@ -16,6 +16,7 @@ interface ElectricityDevice extends Homey.Device {
   getCarbonLevel(): string | null;
   isGreenestNow(hours?: number): boolean;
   compareTariffs(days: number): Promise<{ best_product: string; current_annual: number; best_annual: number; annual_saving: number } | null>;
+  planCharge(neededKwh: number, chargeRateKw: number, by: string): { count: number; first_start: string; price: number; cost: number } | null;
 }
 
 type Args<T> = T & { device: ElectricityDevice };
@@ -64,6 +65,12 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ hours: number }>) => args.device.isGreenestNow(args.hours));
     flow.getConditionCard('carbon_level_is')
       .registerRunListener(async (args: Args<{ level: string }>) => args.device.getCarbonLevel() === args.level);
+    flow.getConditionCard('good_now')
+      .registerRunListener(async (args: Args<{ max_price: number; max_carbon: number }>) => {
+        const price = args.device.getCurrentPrice();
+        const carbon = args.device.getCarbon();
+        return price !== null && price < args.max_price && (carbon === null || carbon < args.max_carbon);
+      });
 
     // Actions.
     flow.getActionCard('refresh_now')
@@ -86,6 +93,12 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ days: number }>) => {
         const result = await args.device.compareTariffs(args.days);
         if (!result) throw new Error('Not enough consumption data to compare tariffs yet.');
+        return result;
+      });
+    flow.getActionCard('plan_charge')
+      .registerRunListener(async (args: Args<{ needed_kwh: number; charge_rate: number; by: string }>) => {
+        const result = args.device.planCharge(args.needed_kwh, args.charge_rate, args.by);
+        if (!result) throw new Error('No upcoming rates are available yet.');
         return result;
       });
   }

@@ -49,6 +49,19 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
       }
     }
     this.carbonForecast = await this.carbon.getForecast();
+    await this.updateGoodNow();
+  }
+
+  /** "Good time to use power" = cheap (≤ threshold) and reasonably green. */
+  private async updateGoodNow(): Promise<void> {
+    if (!this.hasCapability('octopus_good_now')) return;
+    const price = this.getCurrentPrice();
+    const cheap = Number(this.getSetting('cheap_threshold'));
+    const cheapTh = Number.isFinite(cheap) ? cheap : 15;
+    const level = this.getCarbonLevel();
+    const greenish = level === null || ['very_low', 'low', 'moderate'].includes(level);
+    const good = price !== null && price <= cheapTh && greenish;
+    await this.setCapabilityValue('octopus_good_now', good).catch(this.error);
   }
 
   /** Current carbon intensity (gCO₂/kWh), or null. */

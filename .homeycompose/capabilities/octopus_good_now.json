@@ -1,0 +1,17 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Good time to use power"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/level.svg",
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "Cheap and green"
+  },
+  "insightsTitleFalse": {
+    "en": "Not ideal"
+  }
+}

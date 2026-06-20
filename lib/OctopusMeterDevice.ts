@@ -497,6 +497,29 @@ export class OctopusMeterDevice extends Homey.Device {
     return this.getCheapestPlan(durationHours, byTime).some((r) => rateCovers(r, at));
   }
 
+  /**
+   * Plan an EV/battery charge: pick the cheapest half-hours before `byTime` that
+   * deliver `neededKwh` at `chargeRateKw`. Returns slot count, first start,
+   * average price and estimated cost.
+   */
+  planCharge(neededKwh: number, chargeRateKw: number, byTime: string): {
+    count: number; first_start: string; price: number; cost: number;
+  } | null {
+    const energyPerSlot = Math.max(0.01, Number(chargeRateKw) * 0.5);
+    const slots = Math.max(1, Math.ceil(Number(neededKwh) / energyPerSlot));
+    const to = this.nextLocalTime(byTime);
+    const chosen = cheapestSlots(this.rates, slots, { from: new Date(), to, incVat: this.vatInc() });
+    if (!chosen.length) return null;
+    const avg = chosen.reduce((a, r) => a + valueOf(r, this.vatInc()), 0) / chosen.length;
+    const costPence = chosen.reduce((a, r) => a + energyPerSlot * valueOf(r, this.vatInc()), 0);
+    return {
+      count: chosen.length,
+      first_start: this.formatLocal(new Date(chosen[0].valid_from)),
+      price: Number(avg.toFixed(2)),
+      cost: Number((costPence / 100).toFixed(2)),
+    };
+  }
+
   // --- Reporting -----------------------------------------------------------
 
   /**
