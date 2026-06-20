@@ -39,7 +39,21 @@ All built, validated at publish level (12 tests pass, lint clean), committed and
 pushed to zarbjustin/homey-octopus-energy. App lives at C:\Users\jzarb\octopusenergy.
 Only validator note: expected "missing cumulativeExportedCapability" (import-only meter).
 
-## Phase 2 — recommended next sprints
+## Phase 2 — COMPLETE (Sprints 11–18)
+All built, validated at publish level, 22 tests passing, lint clean, committed and pushed.
+11. Export / SEG meters — done
+12. Smart-charge planner — done
+13. Saving Sessions — done
+14. Intelligent Octopus Go dispatches — done
+15. Carbon intensity — done
+16. Reporting & cost aggregation — done
+17. Tariff comparison — done
+18. Quality, localization (nl/de/fr) & publish prep — done
+
+Remaining to actually ship: add a HOMEY_PAT repo secret and run the Publish workflow
+(or `homey app publish`), then complete certification in the Homey Developer Tools.
+
+## Phase 2 — recommended next sprints (delivered above)
 11. **Export / SEG meters** — model export meters (meter_power.exported + Outgoing/
     Agile Outgoing tariff + earnings). Also clears the export-capability warning.
 12. **Smart-charge planner** — non-contiguous cheapest-N-slots, `smart_charge` boolean
