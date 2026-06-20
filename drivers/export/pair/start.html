@@ -60,6 +60,14 @@
       Homey.alert('Please enter both your API key and account number.');
       return;
     }
+    if (/^A-/i.test(apiKey)) {
+      Homey.alert('That looks like your account number. The API key goes in the API key field — find it under Octopus account → Personal details → Developer settings.');
+      return;
+    }
+    if (!/^A-/i.test(account)) {
+      Homey.alert('Your account number should look like A-XXXXXXXX (found on your bills and in the Octopus app).');
+      return;
+    }
     const payload = { apiKey, account };
     const mpxn = (document.getElementById('m_mpxn').value || '').trim();
     const serial = (document.getElementById('m_serial').value || '').trim();

@@ -11,6 +11,7 @@
     "meter_gas",
     "octopus_usage_today",
     "octopus_cost_today",
+    "octopus_cost_yesterday",
     "octopus_cost_month",
     "octopus_cost_projected",
     "octopus_standing_charge",

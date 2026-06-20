@@ -3,6 +3,7 @@
 import Homey from 'homey';
 import { SavingSessionsPoller } from './lib/SavingSessionsPoller';
 import { DispatchPoller } from './lib/DispatchPoller';
+import { KrakenClient } from './lib/KrakenClient';
 
 interface BalanceDevice extends Homey.Device {
   getBalance(): number | null;
@@ -13,6 +14,17 @@ module.exports = class OctopusEnergyApp extends Homey.App {
   private savingSessions?: SavingSessionsPoller;
 
   private dispatches?: DispatchPoller;
+
+  private balanceCache = new Map<string, { value: number; ts: number }>();
+
+  /** Account-wide balance with a short TTL cache (dedupes per-device calls). */
+  async getCachedBalance(apiKey: string, accountNumber: string): Promise<number> {
+    const cached = this.balanceCache.get(accountNumber);
+    if (cached && Date.now() - cached.ts < 10 * 60_000) return cached.value;
+    const value = await new KrakenClient(apiKey).getBalance(accountNumber);
+    this.balanceCache.set(accountNumber, { value, ts: Date.now() });
+    return value;
+  }
 
   /**
    * onInit is called when the app is initialized.

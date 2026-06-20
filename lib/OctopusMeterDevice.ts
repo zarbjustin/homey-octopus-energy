@@ -6,7 +6,7 @@ import { KrakenClient } from './KrakenClient';
 import {
   Rate, rateAt, valueOf, sumConsumption, cheapestRate, cheapestWindow,
   isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers, ratesInWindow,
-  regionFromTariff, isTwoRegister, expensiveWindow,
+  regionFromTariff, isTwoRegister, expensiveWindow, ConsumptionRecord,
 } from './rates';
 import { estimateAnnualCost } from './compare';
 
@@ -1004,6 +1004,58 @@ export class OctopusMeterDevice extends Homey.Device {
       const projected = (cost / elapsed) * daysInMonth;
       await this.setCapabilityValue(projectedCap, Number(projected.toFixed(2))).catch(this.error);
     }
+
+    await this.refreshDayBreakdown(records, dayRates, nightRates);
+  }
+
+  /** True when the local hour of an instant is in the typical peak window (16:00–19:00). */
+  protected isPeakHour(iso: string): boolean {
+    const tz = this.homey.clock.getTimezone();
+    const parts: Record<string, string> = {};
+    for (const p of new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz, hour: '2-digit', hourCycle: 'h23',
+    }).formatToParts(new Date(iso))) parts[p.type] = p.value;
+    const h = Number(parts.hour);
+    return h >= 16 && h < 19;
+  }
+
+  /** Calendar-yesterday cost and today's peak/off-peak split (from month data). */
+  protected async refreshDayBreakdown(records: ConsumptionRecord[], dayRates: Rate[], nightRates: Rate[]): Promise<void> {
+    const recordCost = (r: ConsumptionRecord): number => {
+      const rate = this.rateForRecord(r.interval_start, dayRates, nightRates);
+      return rate ? this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc()) : 0;
+    };
+
+    if (this.hasCapability('octopus_cost_yesterday')) {
+      const yStart = this.localMidnight(-1).getTime();
+      const yEnd = this.localMidnight(0).getTime();
+      let pence = 0;
+      for (const r of records) {
+        const t = new Date(r.interval_start).getTime();
+        if (t >= yStart && t < yEnd) pence += recordCost(r);
+      }
+      if (this.includeStandingChargeInCost()) {
+        const sc = rateAt(this.standingRates) ?? this.standingRates[0];
+        if (sc) pence += valueOf(sc, this.vatInc());
+      }
+      await this.setCapabilityValue('octopus_cost_yesterday', Number((pence / 100).toFixed(2))).catch(this.error);
+    }
+
+    if (this.hasCapability('octopus_cost_peak_today')) {
+      const tStart = this.localMidnight(0).getTime();
+      let peak = 0;
+      let off = 0;
+      for (const r of records) {
+        const t = new Date(r.interval_start).getTime();
+        if (t < tStart) continue;
+        const c = recordCost(r);
+        if (this.isPeakHour(r.interval_start)) peak += c; else off += c;
+      }
+      await this.setCapabilityValue('octopus_cost_peak_today', Number((peak / 100).toFixed(2))).catch(this.error);
+      if (this.hasCapability('octopus_cost_offpeak_today')) {
+        await this.setCapabilityValue('octopus_cost_offpeak_today', Number((off / 100).toFixed(2))).catch(this.error);
+      }
+    }
   }
 
   protected async refreshStandingCharge(): Promise<void> {
@@ -1024,9 +1076,13 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   protected async refreshBalance(): Promise<void> {
-    const { accountNumber } = this.store();
+    const { apiKey, accountNumber } = this.store();
     if (!accountNumber) return;
-    const balance = Number((await this.kraken.getBalance(accountNumber)).toFixed(2));
+    const app = this.homey.app as Homey.App & { getCachedBalance?(a: string, b: string): Promise<number> };
+    const raw = app.getCachedBalance
+      ? await app.getCachedBalance(apiKey, accountNumber)
+      : await this.kraken.getBalance(accountNumber);
+    const balance = Number(raw.toFixed(2));
     await this.setCapabilityValue('measure_octopus_balance', balance).catch(this.error);
     const prev = this.currentBalance;
     this.currentBalance = balance;
@@ -1070,8 +1126,20 @@ export class OctopusMeterDevice extends Homey.Device {
 
   // --- Scheduling ----------------------------------------------------------
 
+  /** Whether the tariff has half-hourly varying prices (Agile/Go/Flux/Intelligent). */
+  protected isDynamicTariff(): boolean {
+    const code = `${this.store().productCode ?? ''}`.toUpperCase();
+    return /AGILE|FLUX|INTELLI/.test(code) || (/(^|-)GO(-|$)/.test(code));
+  }
+
   private scheduleRefresh(): void {
     this.stopTimers();
+    if (!this.isDynamicTariff()) {
+      // Flat/fixed tariffs don't change intraday — just poll on the interval.
+      this.startInterval();
+      this.scheduleAgilePublication();
+      return;
+    }
     // Align the first tick to the next half-hour boundary (prices change then),
     // after which we fall back to the configured polling interval.
     const now = new Date();

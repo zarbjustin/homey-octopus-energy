@@ -1907,6 +1907,9 @@
         "meter_power",
         "octopus_usage_today",
         "octopus_cost_today",
+        "octopus_cost_yesterday",
+        "octopus_cost_peak_today",
+        "octopus_cost_offpeak_today",
         "octopus_cost_month",
         "octopus_cost_projected",
         "octopus_price_min_today",
@@ -2260,6 +2263,7 @@
         "meter_gas",
         "octopus_usage_today",
         "octopus_cost_today",
+        "octopus_cost_yesterday",
         "octopus_cost_month",
         "octopus_cost_projected",
         "octopus_standing_charge",
@@ -2667,6 +2671,36 @@
       "icon": "/assets/cost.svg",
       "insights": true
     },
+    "octopus_cost_offpeak_today": {
+      "type": "number",
+      "title": {
+        "en": "Off-peak cost today"
+      },
+      "units": {
+        "en": "£"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/cost.svg",
+      "insights": true
+    },
+    "octopus_cost_peak_today": {
+      "type": "number",
+      "title": {
+        "en": "Peak cost today"
+      },
+      "units": {
+        "en": "£"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/cost.svg",
+      "insights": true
+    },
     "octopus_cost_projected": {
       "type": "number",
       "title": {
@@ -2689,6 +2723,21 @@
         "nl": "Kosten (laatste 24u)",
         "de": "Kosten (letzte 24h)",
         "fr": "Coût (24 h)"
+      },
+      "units": {
+        "en": "£"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/cost.svg",
+      "insights": true
+    },
+    "octopus_cost_yesterday": {
+      "type": "number",
+      "title": {
+        "en": "Cost yesterday"
       },
       "units": {
         "en": "£"

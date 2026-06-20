@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "title": { "en": "Peak cost today" },
+  "units": { "en": "£" },
+  "decimals": 2,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/cost.svg",
+  "insights": true
+}
