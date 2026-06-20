@@ -1,6 +1,6 @@
 'use strict';
 
-import Homey from 'homey';
+import { AccountPoller } from './AccountPoller';
 import { KrakenClient, SavingSession } from './KrakenClient';
 
 interface PollerState {
@@ -12,69 +12,14 @@ interface PollerState {
 }
 
 /**
- * Polls Octopus "Saving Sessions" for the account and fires app-level Flow
- * triggers (announced / starting soon / started / ended). Credentials are
- * borrowed from the first added meter device. Best-effort: any error simply
- * results in no triggers for that cycle.
+ * Polls Octopus "Saving Sessions" + Free Electricity for the account and fires
+ * app-level Flow triggers. Best-effort: any error yields no triggers that cycle.
  */
-export class SavingSessionsPoller {
+export class SavingSessionsPoller extends AccountPoller {
 
-  private readonly app: Homey.App;
+  protected readonly intervalMs = 15 * 60_000;
 
-  private timer: NodeJS.Timeout | null = null;
-
-  constructor(app: Homey.App) {
-    this.app = app;
-  }
-
-  start(): void {
-    this.stop();
-    this.poll().catch((err) => this.app.error('Saving sessions poll failed:', err));
-    this.timer = this.app.homey.setInterval(() => {
-      this.poll().catch((err) => this.app.error('Saving sessions poll failed:', err));
-    }, 15 * 60_000);
-  }
-
-  stop(): void {
-    if (this.timer) {
-      this.app.homey.clearInterval(this.timer);
-      this.timer = null;
-    }
-  }
-
-  private credentials(): { apiKey: string; accountNumber: string } | null {
-    for (const driverId of ['electricity', 'gas', 'export']) {
-      let driver: Homey.Driver;
-      try {
-        driver = this.app.homey.drivers.getDriver(driverId);
-      } catch (err) {
-        continue;
-      }
-      for (const device of driver.getDevices()) {
-        const apiKey = device.getStoreValue('apiKey');
-        const accountNumber = device.getStoreValue('accountNumber');
-        if (apiKey && accountNumber) return { apiKey, accountNumber };
-      }
-    }
-    return null;
-  }
-
-  private fmt(iso: string): string {
-    const tz = this.app.homey.clock.getTimezone();
-    return new Intl.DateTimeFormat('en-GB', {
-      weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz,
-    }).format(new Date(iso));
-  }
-
-  private fire(id: string, tokens: Record<string, unknown>, state: Record<string, unknown> = {}): void {
-    try {
-      this.app.homey.flow.getTriggerCard(id).trigger(tokens, state).catch((err) => this.app.error(`Trigger ${id} failed:`, err));
-    } catch (err) {
-      // Card not defined — ignore.
-    }
-  }
-
-  async poll(): Promise<void> {
+  protected async poll(): Promise<void> {
     const creds = this.credentials();
     if (!creds) return;
 

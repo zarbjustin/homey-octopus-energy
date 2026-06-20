@@ -129,6 +129,10 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   }
 
   private async enableLivePower(): Promise<void> {
+    if (this.livePowerTimer) {
+      this.homey.clearInterval(this.livePowerTimer);
+      this.livePowerTimer = null;
+    }
     if (!this.hasCapability('measure_power')) {
       await this.addCapability('measure_power').catch((err) => this.error('Add measure_power failed:', err));
     }

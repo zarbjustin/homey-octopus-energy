@@ -46,15 +46,41 @@ export class KrakenClient {
     this.url = url;
   }
 
+  private async post<T>(headers: Record<string, string>, query: string, variables: Record<string, unknown>): Promise<GraphQLResponse<T>> {
+    const maxAttempts = 3;
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const res = await fetch(this.url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ query, variables }),
+        });
+        if (res.status === 429 || res.status >= 500) {
+          throw new Error(`Transient Kraken error ${res.status}`);
+        }
+        if (!res.ok) {
+          const body = await res.text().catch(() => '');
+          throw new Error(`Kraken request failed (${res.status}): ${body.slice(0, 200)}`);
+        }
+        return await res.json() as GraphQLResponse<T>;
+      } catch (err) {
+        lastErr = err;
+        const transient = err instanceof Error && /Transient Kraken error|fetch failed|network/i.test(err.message);
+        if (!transient || attempt === maxAttempts - 1) throw err;
+        await new Promise((resolve) => {
+          // eslint-disable-next-line homey-app/global-timers
+          setTimeout(resolve, 2 ** attempt * 1000);
+        });
+      }
+    }
+    throw lastErr;
+  }
+
   private async query<T>(query: string, variables: Record<string, unknown>, auth = true): Promise<T> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (auth) headers.Authorization = await this.getToken();
-    const res = await fetch(this.url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ query, variables }),
-    });
-    const json = await res.json() as GraphQLResponse<T>;
+    const json = await this.post<T>(headers, query, variables);
     if (json.errors?.length) {
       const unauthenticated = json.errors.some(
         (e) => e.extensions?.errorCode === 'KT-CT-1124' || /authenticat/i.test(e.message),
@@ -63,12 +89,7 @@ export class KrakenClient {
         // Token likely expired — refresh once and retry.
         this.token = null;
         headers.Authorization = await this.getToken();
-        const retry = await fetch(this.url, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ query, variables }),
-        });
-        const retryJson = await retry.json() as GraphQLResponse<T>;
+        const retryJson = await this.post<T>(headers, query, variables);
         if (retryJson.errors?.length) throw new Error(retryJson.errors[0].message);
         return retryJson.data as T;
       }
@@ -161,19 +182,23 @@ export class KrakenClient {
           demand
         }
       }`;
-    const data = await this.query<{ smartMeterTelemetry: Array<{ demand: string | number }> | { demand: string | number } | null }>(
+    const data = await this.query<{ smartMeterTelemetry: Array<{ readAt?: string; demand: string | number }> | { readAt?: string; demand: string | number } | null }>(
       query,
       { deviceId },
     );
     const telemetry = data?.smartMeterTelemetry;
-    let list: Array<{ demand: string | number }> = [];
+    let list: Array<{ readAt?: string; demand: string | number }> = [];
     if (Array.isArray(telemetry)) {
       list = telemetry;
     } else if (telemetry) {
       list = [telemetry];
     }
     if (!list.length) return null;
-    const demand = Number(list[list.length - 1]?.demand);
+    // Select the most recent sample by readAt rather than assuming array order.
+    const latest = list.reduce((a, b) => (
+      new Date(b.readAt ?? 0).getTime() >= new Date(a.readAt ?? 0).getTime() ? b : a
+    ));
+    const demand = Number(latest?.demand);
     return Number.isFinite(demand) ? demand : null;
   }
 

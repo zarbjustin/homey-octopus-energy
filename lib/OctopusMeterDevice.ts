@@ -42,6 +42,8 @@ export class OctopusMeterDevice extends Homey.Device {
 
   protected rates: Rate[] = [];
 
+  protected nightRates: Rate[] = [];
+
   protected standingRates: Rate[] = [];
 
   protected currentPrice: number | null = null;
@@ -292,7 +294,7 @@ export class OctopusMeterDevice extends Homey.Device {
     if (hasCost) {
       let pence = 0;
       for (const r of last48) {
-        const rate = rateAt(this.rates, new Date(r.interval_start));
+        const rate = this.rateForRecord(r.interval_start, this.rates, this.nightRates);
         if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
       }
       if (this.includeStandingChargeInCost()) {
@@ -357,6 +359,35 @@ export class OctopusMeterDevice extends Homey.Device {
     return 'octopus_cost_today';
   }
 
+  private parseHM(s: string): number {
+    const [h, m] = String(s).split(':').map((v) => Number(v));
+    return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+  }
+
+  /** Whether the local time of an ISO instant falls in the Economy 7 night window. */
+  protected isNightTime(iso: string): boolean {
+    const tz = this.homey.clock.getTimezone();
+    const parts: Record<string, string> = {};
+    for (const p of new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(new Date(iso))) parts[p.type] = p.value;
+    const mins = Number(parts.hour) * 60 + Number(parts.minute);
+    const start = this.parseHM(String(this.getSetting('night_start') || '00:30'));
+    const end = this.parseHM(String(this.getSetting('night_end') || '07:30'));
+    return start <= end ? (mins >= start && mins < end) : (mins >= start || mins < end);
+  }
+
+  /**
+   * Pick the unit rate applicable to a consumption record, honouring Economy 7
+   * day/night registers when the tariff is two-register.
+   */
+  protected rateForRecord(iso: string, dayRates: Rate[], nightRates: Rate[]): Rate | null {
+    if (this.isTwoRegisterTariff() && nightRates.length && this.isNightTime(iso)) {
+      return rateAt(nightRates, new Date(iso)) ?? nightRates[0];
+    }
+    return rateAt(dayRates, new Date(iso));
+  }
+
   /** Whether a day's standing charge is added to the cost figure (false for export). */
   protected includeStandingChargeInCost(): boolean {
     return true;
@@ -401,8 +432,9 @@ export class OctopusMeterDevice extends Homey.Device {
       this.client.registerUnitRates('night', productCode, tariffCode, this.periodWindow()),
     ]);
     // Use the day rates for the headline price and cost approximation; the exact
-    // day/night switch time is region-specific and not exposed by the API.
+    // day/night switch time is region-specific and set via device settings.
     this.rates = day;
+    this.nightRates = night;
     const dayRate = rateAt(day) ?? day[0];
     const nightRate = rateAt(night) ?? night[0];
     if (dayRate && this.hasCapability('octopus_price_day')) {
@@ -736,22 +768,56 @@ export class OctopusMeterDevice extends Homey.Device {
     };
   }
 
-  /** Local midnight `daysFromNow` days away (approximate; ignores DST shifts). */
-  protected localMidnight(daysFromNow: number): Date {
-    const nextMidnight = this.nextLocalTime('00:00'); // next 00:00 (tomorrow)
-    return new Date(nextMidnight.getTime() + (daysFromNow - 1) * 86_400_000);
+  /** Milliseconds offset (local - UTC) for the Homey timezone at instant `date`. */
+  private tzOffsetMs(date: Date): number {
+    const tz = this.homey.clock.getTimezone();
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    });
+    const map: Record<string, string> = {};
+    for (const p of dtf.formatToParts(date)) map[p.type] = p.value;
+    const asUtc = Date.UTC(
+      Number(map.year), Number(map.month) - 1, Number(map.day),
+      Number(map.hour), Number(map.minute), Number(map.second),
+    );
+    return asUtc - date.getTime();
   }
 
-  /** Start of the current local month (approximate). */
+  /** Build the UTC instant for a local wall-clock date/time in the Homey timezone. */
+  private zonedTime(year: number, month1: number, day: number, hour = 0, minute = 0): Date {
+    const utcGuess = Date.UTC(year, month1 - 1, day, hour, minute);
+    const offset = this.tzOffsetMs(new Date(utcGuess));
+    return new Date(utcGuess - offset);
+  }
+
+  /** Local midnight `daysFromNow` days away (DST-safe). */
+  protected localMidnight(daysFromNow: number): Date {
+    const tz = this.homey.clock.getTimezone();
+    const parts: Record<string, string> = {};
+    for (const p of new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(new Date())) parts[p.type] = p.value;
+    // Step the calendar date in UTC, then map that local date's midnight back.
+    const cal = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)));
+    cal.setUTCDate(cal.getUTCDate() + daysFromNow);
+    return this.zonedTime(cal.getUTCFullYear(), cal.getUTCMonth() + 1, cal.getUTCDate());
+  }
+
+  /** Start of the current local month (DST-safe). */
   protected localMonthStart(): Date {
     const tz = this.homey.clock.getTimezone();
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: tz, day: '2-digit', hourCycle: 'h23', hour: '2-digit', minute: '2-digit',
-    }).formatToParts(new Date());
-    const day = Number(parts.find((p) => p.type === 'day')?.value ?? '1');
-    // Midnight that began today, then step back to the 1st.
-    const todayMidnight = this.localMidnight(0);
-    return new Date(todayMidnight.getTime() - (day - 1) * 86_400_000);
+    const parts: Record<string, string> = {};
+    for (const p of new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz, year: 'numeric', month: '2-digit',
+    }).formatToParts(new Date())) parts[p.type] = p.value;
+    return this.zonedTime(Number(parts.year), Number(parts.month), 1);
   }
 
   /** Compute today's price min/max/avg and the next half-hour price. */
@@ -783,22 +849,22 @@ export class OctopusMeterDevice extends Homey.Device {
 
     const now = new Date();
     const monthStart = this.localMonthStart();
-    const [records, rates] = await Promise.all([
-      this.client.consumption(s.fuel, s.mpxn, s.serial, {
-        period_from: monthStart.toISOString(),
-        period_to: now.toISOString(),
-        order_by: 'period',
-      }),
-      this.client.standardUnitRates(s.fuel, s.productCode, s.tariffCode, {
-        period_from: monthStart.toISOString(),
-        period_to: now.toISOString(),
-      }),
+    const window = { period_from: monthStart.toISOString(), period_to: now.toISOString() };
+    const twoRegister = this.isTwoRegisterTariff();
+    const [records, dayRates, nightRates] = await Promise.all([
+      this.client.consumption(s.fuel, s.mpxn, s.serial, { ...window, order_by: 'period' }),
+      twoRegister
+        ? this.client.registerUnitRates('day', s.productCode, s.tariffCode, window)
+        : this.client.standardUnitRates(s.fuel, s.productCode, s.tariffCode, window),
+      twoRegister
+        ? this.client.registerUnitRates('night', s.productCode, s.tariffCode, window)
+        : Promise.resolve([] as typeof this.rates),
     ]);
     if (!records.length) return;
 
     let pence = 0;
     for (const r of records) {
-      const rate = rateAt(rates, new Date(r.interval_start));
+      const rate = this.rateForRecord(r.interval_start, dayRates, nightRates);
       if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
     }
     if (this.includeStandingChargeInCost()) {

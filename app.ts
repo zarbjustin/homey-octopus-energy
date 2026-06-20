@@ -37,7 +37,7 @@ module.exports = class OctopusEnergyApp extends Homey.App {
   /** App-level Saving Session Flow triggers. */
   private registerSavingSessionCards(): void {
     this.homey.flow.getTriggerCard('saving_session_starting_soon')
-      .registerRunListener(async (args: { lead: number }, state: { minutesUntil: number }) => state.minutesUntil <= args.lead && state.minutesUntil > args.lead - 16);
+      .registerRunListener(async (args: { lead: number }, state: { minutesUntil: number }) => state.minutesUntil <= args.lead && state.minutesUntil > args.lead - 15);
   }
 
   /** App-level Intelligent Octopus Go dispatch condition. */

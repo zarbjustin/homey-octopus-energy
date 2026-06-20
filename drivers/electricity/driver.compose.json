@@ -180,6 +180,28 @@
       "hint": {
         "en": "Only include slots at or below this price in the smart-charge window. 0 = no cap."
       }
+    },
+    {
+      "id": "night_start",
+      "type": "text",
+      "label": {
+        "en": "Economy 7 night start (HH:MM)"
+      },
+      "value": "00:30",
+      "hint": {
+        "en": "For Economy 7 meters: when the cheaper night rate begins (local time)."
+      }
+    },
+    {
+      "id": "night_end",
+      "type": "text",
+      "label": {
+        "en": "Economy 7 night end (HH:MM)"
+      },
+      "value": "07:30",
+      "hint": {
+        "en": "For Economy 7 meters: when the night rate ends and the day rate resumes."
+      }
     }
   ]
 }
