@@ -10,7 +10,7 @@ module.exports = {
     const cap = (c) => (device.hasCapability(c) ? device.getCapabilityValue(c) : null);
     return {
       name: device.getName(),
-      carbon: cap('octopus_carbon'),
+      carbon: cap('measure_octopus_carbon'),
       level: cap('octopus_carbon_level'),
       greenest: typeof device.isGreenestNow === 'function' ? device.isGreenestNow(12) : false,
     };

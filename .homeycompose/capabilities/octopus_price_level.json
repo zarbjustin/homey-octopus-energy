@@ -15,5 +15,6 @@
     { "id": "cheap", "title": { "en": "Cheap" } },
     { "id": "normal", "title": { "en": "Normal" } },
     { "id": "expensive", "title": { "en": "Expensive" } }
-  ]
+  ],
+  "insights": true
 }

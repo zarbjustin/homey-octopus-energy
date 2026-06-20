@@ -6,7 +6,7 @@
     {
       "type": "device",
       "name": "device",
-      "filter": "capabilities=octopus_balance"
+      "filter": "capabilities=measure_octopus_balance"
     },
     {
       "type": "number",

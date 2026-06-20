@@ -696,7 +696,7 @@ export class OctopusMeterDevice extends Homey.Device {
     const { accountNumber } = this.store();
     if (!accountNumber) return;
     const balance = Number((await this.kraken.getBalance(accountNumber)).toFixed(2));
-    await this.setCapabilityValue('octopus_balance', balance).catch(this.error);
+    await this.setCapabilityValue('measure_octopus_balance', balance).catch(this.error);
     const prev = this.currentBalance;
     this.currentBalance = balance;
     if (prev !== null && balance !== prev) {

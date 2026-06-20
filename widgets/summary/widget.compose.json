@@ -5,7 +5,7 @@
       "id": "device",
       "type": "device",
       "title": { "en": "Meter" },
-      "filter": "capabilities=octopus_balance"
+      "filter": "capabilities=measure_octopus_balance"
     }
   ],
   "height": 130,

@@ -25,7 +25,7 @@ module.exports = {
       standing: cap('octopus_standing_charge'),
       usage: cap('octopus_usage_today'),
       cost: cap('octopus_cost_today'),
-      balance: cap('octopus_balance'),
+      balance: cap('measure_octopus_balance'),
       power: cap('measure_power'),
       cheapestStart: cheapest ? cheapest.start_time : null,
       cheapestPrice: cheapest ? cheapest.price : null,

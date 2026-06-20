@@ -39,13 +39,17 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   }
 
   private async refreshCarbon(): Promise<void> {
-    if (!this.hasCapability('octopus_carbon')) return;
+    if (!this.hasCapability('measure_octopus_carbon')) return;
     const current = await this.carbon.getCurrent();
     if (current) {
+      const prev = this.carbonNow;
       this.carbonNow = current.intensity;
-      await this.setCapabilityValue('octopus_carbon', Math.round(current.intensity)).catch(this.error);
+      await this.setCapabilityValue('measure_octopus_carbon', Math.round(current.intensity)).catch(this.error);
       if (this.hasCapability('octopus_carbon_level')) {
         await this.setCapabilityValue('octopus_carbon_level', carbonLevelId(current.index)).catch(this.error);
+      }
+      if (prev !== null && Math.round(prev) !== Math.round(current.intensity)) {
+        this.trigger('carbon_below', { carbon: Math.round(current.intensity) }, { carbon: current.intensity });
       }
     }
     this.carbonForecast = await this.carbon.getForecast();

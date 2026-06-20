@@ -8,15 +8,15 @@
   "class": "sensor",
   "capabilities": [
     "measure_octopus_price",
-    "meter_power",
+    "meter_power.exported",
     "octopus_usage_today",
     "octopus_earnings_today",
-    "octopus_balance",
+    "measure_octopus_balance",
     "octopus_updated",
     "alarm_generic"
   ],
   "capabilitiesOptions": {
-    "meter_power": {
+    "meter_power.exported": {
       "title": {
         "en": "Total exported"
       }
@@ -39,7 +39,7 @@
   },
   "energy": {
     "cumulative": true,
-    "cumulativeExportedCapability": "meter_power"
+    "cumulativeExportedCapability": "meter_power.exported"
   },
   "platforms": [
     "local"

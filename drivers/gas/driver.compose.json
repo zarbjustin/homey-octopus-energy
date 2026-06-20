@@ -14,7 +14,7 @@
     "octopus_cost_month",
     "octopus_cost_projected",
     "octopus_standing_charge",
-    "octopus_balance",
+    "measure_octopus_balance",
     "octopus_updated",
     "alarm_generic"
   ],
@@ -29,6 +29,9 @@
         "en": "Connection problem"
       }
     }
+  },
+  "energy": {
+    "cumulative": true
   },
   "platforms": [
     "local"

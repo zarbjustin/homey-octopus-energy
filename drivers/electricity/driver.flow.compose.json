@@ -73,6 +73,18 @@
       "id": "smart_charge_ended",
       "title": { "en": "The smart charge window ended" },
       "hint": { "en": "Triggers when the current half-hour leaves your cheapest smart-charge plan." }
+    },
+    {
+      "id": "carbon_below",
+      "title": { "en": "Carbon intensity drops below ..." },
+      "titleFormatted": { "en": "Carbon intensity drops below [[threshold]] gCO₂/kWh" },
+      "hint": { "en": "Triggers when grid carbon intensity falls below your threshold — a good time to use power." },
+      "args": [
+        { "type": "number", "name": "threshold", "min": 0, "max": 600, "step": 5, "placeholder": { "en": "100" } }
+      ],
+      "tokens": [
+        { "name": "carbon", "type": "number", "title": { "en": "Carbon (gCO₂/kWh)" }, "example": 85 }
+      ]
     }
   ],
   "conditions": [

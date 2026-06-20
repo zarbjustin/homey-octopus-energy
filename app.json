@@ -48,7 +48,7 @@
           {
             "type": "device",
             "name": "device",
-            "filter": "capabilities=octopus_balance"
+            "filter": "capabilities=measure_octopus_balance"
           },
           {
             "type": "number",
@@ -87,7 +87,7 @@
           {
             "type": "device",
             "name": "device",
-            "filter": "capabilities=octopus_balance"
+            "filter": "capabilities=measure_octopus_balance"
           }
         ],
         "tokens": [
@@ -499,6 +499,45 @@
             "filter": "driver_id=electricity"
           }
         ]
+      },
+      {
+        "id": "carbon_below",
+        "title": {
+          "en": "Carbon intensity drops below ..."
+        },
+        "titleFormatted": {
+          "en": "Carbon intensity drops below [[threshold]] gCO₂/kWh"
+        },
+        "hint": {
+          "en": "Triggers when grid carbon intensity falls below your threshold — a good time to use power."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "threshold",
+            "min": 0,
+            "max": 600,
+            "step": 5,
+            "placeholder": {
+              "en": "100"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "carbon",
+            "type": "number",
+            "title": {
+              "en": "Carbon (gCO₂/kWh)"
+            },
+            "example": 85
+          }
+        ]
       }
     ],
     "conditions": [
@@ -514,7 +553,7 @@
           {
             "type": "device",
             "name": "device",
-            "filter": "capabilities=octopus_balance"
+            "filter": "capabilities=measure_octopus_balance"
           },
           {
             "type": "number",
@@ -1149,7 +1188,7 @@
         "octopus_price_next",
         "octopus_smart_charge",
         "octopus_good_now",
-        "octopus_carbon",
+        "measure_octopus_carbon",
         "octopus_carbon_level",
         "meter_power",
         "octopus_usage_today",
@@ -1160,7 +1199,7 @@
         "octopus_price_max_today",
         "octopus_price_avg_today",
         "octopus_standing_charge",
-        "octopus_balance",
+        "measure_octopus_balance",
         "octopus_points",
         "octopus_updated",
         "alarm_generic"
@@ -1327,15 +1366,15 @@
       "class": "sensor",
       "capabilities": [
         "measure_octopus_price",
-        "meter_power",
+        "meter_power.exported",
         "octopus_usage_today",
         "octopus_earnings_today",
-        "octopus_balance",
+        "measure_octopus_balance",
         "octopus_updated",
         "alarm_generic"
       ],
       "capabilitiesOptions": {
-        "meter_power": {
+        "meter_power.exported": {
           "title": {
             "en": "Total exported"
           }
@@ -1358,7 +1397,7 @@
       },
       "energy": {
         "cumulative": true,
-        "cumulativeExportedCapability": "meter_power"
+        "cumulativeExportedCapability": "meter_power.exported"
       },
       "platforms": [
         "local"
@@ -1447,7 +1486,7 @@
         "octopus_cost_month",
         "octopus_cost_projected",
         "octopus_standing_charge",
-        "octopus_balance",
+        "measure_octopus_balance",
         "octopus_updated",
         "alarm_generic"
       ],
@@ -1462,6 +1501,9 @@
             "en": "Connection problem"
           }
         }
+      },
+      "energy": {
+        "cumulative": true
       },
       "platforms": [
         "local"
@@ -1632,7 +1674,7 @@
           "title": {
             "en": "Meter"
           },
-          "filter": "capabilities=octopus_balance"
+          "filter": "capabilities=measure_octopus_balance"
         }
       ],
       "height": 130,
@@ -1669,6 +1711,42 @@
     }
   },
   "capabilities": {
+    "measure_octopus_balance": {
+      "type": "number",
+      "title": {
+        "en": "Account balance",
+        "nl": "Accountsaldo",
+        "de": "Kontostand",
+        "fr": "Solde du compte"
+      },
+      "units": {
+        "en": "£"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/balance.svg",
+      "insights": true
+    },
+    "measure_octopus_carbon": {
+      "type": "number",
+      "title": {
+        "en": "Carbon intensity",
+        "nl": "CO₂-intensiteit",
+        "de": "CO₂-Intensität",
+        "fr": "Intensité carbone"
+      },
+      "units": {
+        "en": "gCO₂/kWh"
+      },
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/level.svg",
+      "insights": true
+    },
     "measure_octopus_price": {
       "type": "number",
       "title": {
@@ -1689,42 +1767,6 @@
       "insightsTitleTrue": {
         "en": "Price"
       }
-    },
-    "octopus_balance": {
-      "type": "number",
-      "title": {
-        "en": "Account balance",
-        "nl": "Accountsaldo",
-        "de": "Kontostand",
-        "fr": "Solde du compte"
-      },
-      "units": {
-        "en": "£"
-      },
-      "decimals": 2,
-      "getable": true,
-      "setable": false,
-      "uiComponent": "sensor",
-      "icon": "/assets/balance.svg",
-      "insights": true
-    },
-    "octopus_carbon": {
-      "type": "number",
-      "title": {
-        "en": "Carbon intensity",
-        "nl": "CO₂-intensiteit",
-        "de": "CO₂-Intensität",
-        "fr": "Intensité carbone"
-      },
-      "units": {
-        "en": "gCO₂/kWh"
-      },
-      "decimals": 0,
-      "getable": true,
-      "setable": false,
-      "uiComponent": "sensor",
-      "icon": "/assets/level.svg",
-      "insights": true
     },
     "octopus_carbon_level": {
       "type": "enum",
@@ -1766,7 +1808,8 @@
             "en": "Very high"
           }
         }
-      ]
+      ],
+      "insights": true
     },
     "octopus_cost_month": {
       "type": "number",
@@ -1930,7 +1973,8 @@
             "en": "Expensive"
           }
         }
-      ]
+      ],
+      "insights": true
     },
     "octopus_price_max_today": {
       "type": "number",

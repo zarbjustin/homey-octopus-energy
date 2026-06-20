@@ -13,5 +13,6 @@
     { "id": "moderate", "title": { "en": "Moderate" } },
     { "id": "high", "title": { "en": "High" } },
     { "id": "very_high", "title": { "en": "Very high" } }
-  ]
+  ],
+  "insights": true
 }

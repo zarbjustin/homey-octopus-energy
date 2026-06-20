@@ -16,7 +16,7 @@ module.exports = {
     const cap = (c) => (device.hasCapability(c) ? device.getCapabilityValue(c) : null);
     return {
       name: device.getName(),
-      balance: cap('octopus_balance'),
+      balance: cap('measure_octopus_balance'),
       usage: cap('octopus_usage_today'),
       cost: cap('octopus_cost_today'),
       month: cap('octopus_cost_month'),

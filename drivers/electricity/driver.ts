@@ -41,6 +41,8 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ price: number }>, state: { price: number }) => state.price < args.price);
     flow.getDeviceTriggerCard('cheapest_slot_started')
       .registerRunListener(async (args: Args<{ hours: number }>) => args.device.isCheapestNow(args.hours));
+    flow.getDeviceTriggerCard('carbon_below')
+      .registerRunListener(async (args: Args<{ threshold: number }>, state: { carbon: number }) => state.carbon < args.threshold);
 
     // Conditions.
     flow.getConditionCard('price_below_now')

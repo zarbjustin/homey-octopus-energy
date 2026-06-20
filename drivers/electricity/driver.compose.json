@@ -12,7 +12,7 @@
     "octopus_price_next",
     "octopus_smart_charge",
     "octopus_good_now",
-    "octopus_carbon",
+    "measure_octopus_carbon",
     "octopus_carbon_level",
     "meter_power",
     "octopus_usage_today",
@@ -23,7 +23,7 @@
     "octopus_price_max_today",
     "octopus_price_avg_today",
     "octopus_standing_charge",
-    "octopus_balance",
+    "measure_octopus_balance",
     "octopus_points",
     "octopus_updated",
     "alarm_generic"
