@@ -1,0 +1,17 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Smart charging active"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/level.svg",
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "Dispatch active"
+  },
+  "insightsTitleFalse": {
+    "en": "No dispatch"
+  }
+}

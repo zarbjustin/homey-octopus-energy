@@ -24,6 +24,8 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
   private previousCarbonLevel: string | null = null;
 
+  private dispatching = false;
+
   /** Enable live power polling if the setting is on (opt-in, Home Mini only). */
   protected async onInitExtra(): Promise<void> {
     if (this.getSetting('live_power')) {
@@ -37,7 +39,24 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   protected async refreshExtra(): Promise<void> {
     await super.refreshExtra();
     await this.updateSmartCharge();
+    await this.refreshDispatching().catch((err) => this.error('Dispatch refresh failed:', err));
     await this.refreshCarbon().catch((err) => this.error('Carbon refresh failed:', err));
+  }
+
+  /** Reflect whether an Intelligent Octopus Go smart-charge dispatch is active now. */
+  private async refreshDispatching(): Promise<void> {
+    if (!this.hasCapability('octopus_dispatching')) return;
+    const accountNumber = this.getStoreValue('accountNumber');
+    if (!accountNumber) return;
+    const dispatches = await this.kraken.getPlannedDispatches(accountNumber);
+    const now = Date.now();
+    const active = dispatches.some((d) => {
+      const start = new Date(d.start).getTime();
+      const end = new Date(d.end).getTime();
+      return now >= start && now < end;
+    });
+    this.dispatching = active;
+    await this.setCapabilityValue('octopus_dispatching', active).catch(this.error);
   }
 
   private async refreshCarbon(): Promise<void> {
@@ -63,7 +82,7 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     await this.updateGoodNow();
   }
 
-  /** "Good time to use power" = cheap (≤ threshold) and reasonably green. */
+  /** "Good time to use power" = cheap (≤ threshold) and reasonably green, or in a smart-charge dispatch. */
   private async updateGoodNow(): Promise<void> {
     if (!this.hasCapability('octopus_good_now')) return;
     const price = this.getCurrentPrice();
@@ -71,7 +90,8 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     const cheapTh = Number.isFinite(cheap) ? cheap : 15;
     const level = this.getCarbonLevel();
     const greenish = level === null || ['very_low', 'low', 'moderate'].includes(level);
-    const good = price !== null && price <= cheapTh && greenish;
+    const cheapAndGreen = price !== null && price <= cheapTh && greenish;
+    const good = cheapAndGreen || this.dispatching;
     await this.setCapabilityValue('octopus_good_now', good).catch(this.error);
   }
 
@@ -95,12 +115,17 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     if (!this.hasCapability('octopus_smart_charge')) return;
     const hours = Number(this.getSetting('smart_charge_hours')) || 3;
     const by = String(this.getSetting('smart_charge_by') || '07:00');
-    const inPlan = this.isInCheapestPlan(hours, by);
+    const inPlan = this.isInCheapestPlan(hours, by, this.smartChargeMaxPrice());
     const prev = this.getCapabilityValue('octopus_smart_charge');
     await this.setCapabilityValue('octopus_smart_charge', inPlan).catch(this.error);
     if (prev !== null && prev !== inPlan) {
       this.trigger(inPlan ? 'smart_charge_started' : 'smart_charge_ended', {});
     }
+  }
+
+  /** Expose the cached carbon forecast for carbon-weighted planning. */
+  protected carbonForecastForWeighting(): Array<{ from: string; to: string; intensity: number }> {
+    return this.carbonForecast;
   }
 
   private async enableLivePower(): Promise<void> {

@@ -6,7 +6,7 @@ import { KrakenClient } from './KrakenClient';
 import {
   Rate, rateAt, valueOf, sumConsumption, cheapestRate, cheapestWindow,
   isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers, ratesInWindow,
-  regionFromTariff, isTwoRegister,
+  regionFromTariff, isTwoRegister, expensiveWindow,
 } from './rates';
 import { estimateAnnualCost } from './compare';
 
@@ -457,8 +457,8 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   /** Plan the cheapest (non-contiguous) `durationHours` before `byTime`, for the Flow action. */
-  findCheapestHours(durationHours: number, byTime: string): { count: number; first_start: string; price: number } | null {
-    const plan = this.getCheapestPlan(durationHours, byTime);
+  findCheapestHours(durationHours: number, byTime: string, maxPrice?: number): { count: number; first_start: string; price: number } | null {
+    const plan = this.getCheapestPlan(durationHours, byTime, maxPrice);
     if (!plan.length) return null;
     const avg = plan.reduce((acc, r) => acc + valueOf(r, this.vatInc()), 0) / plan.length;
     return {
@@ -466,6 +466,76 @@ export class OctopusMeterDevice extends Homey.Device {
       first_start: this.formatLocal(new Date(plan[0].valid_from)),
       price: Number(avg.toFixed(2)),
     };
+  }
+
+  /**
+   * Find the most expensive contiguous block of `durationHours` within
+   * `withinHours` — for exports, the best time to sell. Returns start + avg price.
+   */
+  findPeakSlot(withinHours: number, durationHours: number): { start_time: string; price: number } | null {
+    const slots = Math.max(1, Math.round(Number(durationHours) * 2));
+    const now = new Date();
+    const to = withinHours ? new Date(now.getTime() + withinHours * 3600_000) : undefined;
+    const win = expensiveWindow(this.rates, slots, { from: now, to, incVat: this.vatInc() });
+    if (!win || !win.length) return null;
+    const avg = win.reduce((a, r) => a + valueOf(r, this.vatInc()), 0) / win.length;
+    return { start_time: this.formatLocal(new Date(win[0].valid_from)), price: Number(avg.toFixed(2)) };
+  }
+
+  /** Is `at` within the most expensive `durationHours` block of the next `withinHours`? */
+  isPeakNow(withinHours: number, durationHours: number, at: Date = new Date()): boolean {
+    const slots = Math.max(1, Math.round(Number(durationHours) * 2));
+    const to = withinHours ? new Date(at.getTime() + withinHours * 3600_000) : undefined;
+    const win = expensiveWindow(this.rates, slots, { from: at, to, incVat: this.vatInc() });
+    if (!win || !win.length) return false;
+    const start = new Date(win[0].valid_from).getTime();
+    const lastTo = win[win.length - 1].valid_to;
+    const end = lastTo ? new Date(lastTo).getTime() : Infinity;
+    return at.getTime() >= start && at.getTime() < end;
+  }
+
+  /**
+   * Carbon-weighted "green charge" plan: pick the half-hours before `byTime`
+   * that minimise a blend of price and carbon intensity, biased by `greenness`
+   * (0 = price only, 1 = carbon-heavy). Returns count, first start, avg price/carbon.
+   */
+  planGreenCharge(neededKwh: number, chargeRateKw: number, byTime: string, greenness = 0.5): {
+    count: number; first_start: string; price: number; carbon: number;
+  } | null {
+    const energyPerSlot = Math.max(0.01, Number(chargeRateKw) * 0.5);
+    const slots = Math.max(1, Math.ceil(Number(neededKwh) / energyPerSlot));
+    const now = new Date();
+    const to = this.nextLocalTime(byTime);
+    const carbon = this.carbonForecastForWeighting();
+    const pool = ratesInWindow(this.rates, now, to);
+    if (pool.length < 1) return null;
+    const g = Math.min(1, Math.max(0, Number(greenness)));
+    const carbonAt = (start: string): number => {
+      const t = new Date(start).getTime();
+      const point = carbon.find((c) => new Date(c.from).getTime() <= t && t < new Date(c.to).getTime());
+      return point ? point.intensity : 150; // neutral default
+    };
+    const scored = pool.map((r) => ({
+      rate: r,
+      score: (1 - g) * valueOf(r, this.vatInc()) + g * (carbonAt(r.valid_from) / 10),
+    }));
+    scored.sort((a, b) => a.score - b.score);
+    const chosen = scored.slice(0, slots).map((s) => s.rate);
+    if (!chosen.length) return null;
+    const avgPrice = chosen.reduce((a, r) => a + valueOf(r, this.vatInc()), 0) / chosen.length;
+    const avgCarbon = chosen.reduce((a, r) => a + carbonAt(r.valid_from), 0) / chosen.length;
+    const sorted = chosen.sort((a, b) => new Date(a.valid_from).getTime() - new Date(b.valid_from).getTime());
+    return {
+      count: sorted.length,
+      first_start: this.formatLocal(new Date(sorted[0].valid_from)),
+      price: Number(avgPrice.toFixed(2)),
+      carbon: Math.round(avgCarbon),
+    };
+  }
+
+  /** Carbon forecast for weighting; overridden by the electricity device. */
+  protected carbonForecastForWeighting(): Array<{ from: string; to: string; intensity: number }> {
+    return [];
   }
 
   /** Format an instant as a short local time string using Homey's timezone. */
@@ -511,30 +581,41 @@ export class OctopusMeterDevice extends Homey.Device {
   /**
    * The cheapest `durationHours` of half-hours (non-contiguous) between now and
    * the next occurrence of `byTime` (hh:mm). Sorted ascending by time.
+   * `maxPrice` (p/kWh) optionally excludes slots above a cap.
    */
-  getCheapestPlan(durationHours: number, byTime: string): Rate[] {
+  getCheapestPlan(durationHours: number, byTime: string, maxPrice?: number): Rate[] {
     const slots = Math.max(1, Math.round(Number(durationHours) * 2));
     const to = this.nextLocalTime(byTime);
-    return cheapestSlots(this.rates, slots, { from: new Date(), to, incVat: this.vatInc() });
+    return cheapestSlots(this.rates, slots, {
+      from: new Date(), to, incVat: this.vatInc(), maxPrice,
+    });
   }
 
   /** Is `at` inside the cheapest plan for the given duration/deadline? */
-  isInCheapestPlan(durationHours: number, byTime: string, at: Date = new Date()): boolean {
-    return this.getCheapestPlan(durationHours, byTime).some((r) => rateCovers(r, at));
+  isInCheapestPlan(durationHours: number, byTime: string, maxPrice?: number, at: Date = new Date()): boolean {
+    return this.getCheapestPlan(durationHours, byTime, maxPrice).some((r) => rateCovers(r, at));
+  }
+
+  /** A configured price cap (p/kWh) for the smart-charge window, or undefined. */
+  protected smartChargeMaxPrice(): number | undefined {
+    const v = Number(this.getSetting('smart_charge_max_price'));
+    return Number.isFinite(v) && v > 0 ? v : undefined;
   }
 
   /**
    * Plan an EV/battery charge: pick the cheapest half-hours before `byTime` that
    * deliver `neededKwh` at `chargeRateKw`. Returns slot count, first start,
-   * average price and estimated cost.
+   * average price and estimated cost. `maxPrice` optionally caps slot price.
    */
-  planCharge(neededKwh: number, chargeRateKw: number, byTime: string): {
+  planCharge(neededKwh: number, chargeRateKw: number, byTime: string, maxPrice?: number): {
     count: number; first_start: string; price: number; cost: number;
   } | null {
     const energyPerSlot = Math.max(0.01, Number(chargeRateKw) * 0.5);
     const slots = Math.max(1, Math.ceil(Number(neededKwh) / energyPerSlot));
     const to = this.nextLocalTime(byTime);
-    const chosen = cheapestSlots(this.rates, slots, { from: new Date(), to, incVat: this.vatInc() });
+    const chosen = cheapestSlots(this.rates, slots, {
+      from: new Date(), to, incVat: this.vatInc(), maxPrice,
+    });
     if (!chosen.length) return null;
     const avg = chosen.reduce((a, r) => a + valueOf(r, this.vatInc()), 0) / chosen.length;
     const costPence = chosen.reduce((a, r) => a + energyPerSlot * valueOf(r, this.vatInc()), 0);

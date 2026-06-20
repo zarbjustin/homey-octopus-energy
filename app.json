@@ -1027,6 +1027,42 @@
             }
           }
         ]
+      },
+      {
+        "id": "is_peak_export_now",
+        "title": {
+          "en": "Now !{{is|is not}} the best time to export"
+        },
+        "titleFormatted": {
+          "en": "Now !{{is|is not}} within the highest-priced [[duration]] h of the next [[within]] h"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=export"
+          },
+          {
+            "type": "number",
+            "name": "duration",
+            "min": 0.5,
+            "max": 12,
+            "step": 0.5,
+            "placeholder": {
+              "en": "1"
+            }
+          },
+          {
+            "type": "number",
+            "name": "within",
+            "min": 1,
+            "max": 48,
+            "step": 1,
+            "placeholder": {
+              "en": "12"
+            }
+          }
+        ]
       }
     ],
     "actions": [
@@ -1252,6 +1288,98 @@
         ]
       },
       {
+        "id": "plan_green_charge",
+        "title": {
+          "en": "Plan a green EV/battery charge"
+        },
+        "titleFormatted": {
+          "en": "Plan greenest charge of [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]] (greenness [[greenness]])"
+        },
+        "hint": {
+          "en": "Picks half-hours that balance low price and low carbon. Greenness 0 = cheapest, 1 = greenest."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "needed_kwh",
+            "min": 0.5,
+            "max": 200,
+            "step": 0.5,
+            "placeholder": {
+              "en": "30"
+            }
+          },
+          {
+            "type": "number",
+            "name": "charge_rate",
+            "min": 0.5,
+            "max": 50,
+            "step": 0.5,
+            "placeholder": {
+              "en": "7"
+            }
+          },
+          {
+            "type": "text",
+            "name": "by",
+            "placeholder": {
+              "en": "07:00"
+            }
+          },
+          {
+            "type": "number",
+            "name": "greenness",
+            "min": 0,
+            "max": 1,
+            "step": 0.1,
+            "placeholder": {
+              "en": "0.5"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "count",
+            "type": "number",
+            "title": {
+              "en": "Number of half-hours"
+            },
+            "example": 9
+          },
+          {
+            "name": "first_start",
+            "type": "string",
+            "title": {
+              "en": "First slot start"
+            },
+            "example": {
+              "en": "Tue 01:00"
+            }
+          },
+          {
+            "name": "price",
+            "type": "number",
+            "title": {
+              "en": "Average price (p/kWh)"
+            },
+            "example": 9.2
+          },
+          {
+            "name": "carbon",
+            "type": "number",
+            "title": {
+              "en": "Average carbon (gCO₂/kWh)"
+            },
+            "example": 90
+          }
+        ]
+      },
+      {
         "id": "find_best_tariff",
         "title": {
           "en": "Compare my tariff"
@@ -1315,6 +1443,65 @@
             "example": 859.5
           }
         ]
+      },
+      {
+        "id": "find_peak_export_slot",
+        "title": {
+          "en": "Find the best time to export"
+        },
+        "titleFormatted": {
+          "en": "Find the highest-priced [[duration]] h export slot in the next [[within]] h"
+        },
+        "hint": {
+          "en": "Returns the start time and average price of the most expensive upcoming export block — the best time to sell."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=export"
+          },
+          {
+            "type": "number",
+            "name": "duration",
+            "min": 0.5,
+            "max": 12,
+            "step": 0.5,
+            "placeholder": {
+              "en": "1"
+            }
+          },
+          {
+            "type": "number",
+            "name": "within",
+            "min": 1,
+            "max": 48,
+            "step": 1,
+            "placeholder": {
+              "en": "12"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "start_time",
+            "type": "string",
+            "title": {
+              "en": "Start time"
+            },
+            "example": {
+              "en": "Tue 17:30"
+            }
+          },
+          {
+            "name": "price",
+            "type": "number",
+            "title": {
+              "en": "Average export rate (p/kWh)"
+            },
+            "example": 15
+          }
+        ]
       }
     ]
   },
@@ -1332,6 +1519,7 @@
         "octopus_price_level",
         "octopus_price_next",
         "octopus_smart_charge",
+        "octopus_dispatching",
         "octopus_good_now",
         "measure_octopus_carbon",
         "octopus_carbon_level",
@@ -1496,6 +1684,19 @@
           "value": "07:00",
           "hint": {
             "en": "Find the cheapest slots between now and this time each day (24-hour clock)."
+          }
+        },
+        {
+          "id": "smart_charge_max_price",
+          "type": "number",
+          "label": {
+            "en": "Smart charge price cap (p/kWh)"
+          },
+          "value": 0,
+          "min": 0,
+          "max": 200,
+          "hint": {
+            "en": "Only include slots at or below this price in the smart-charge window. 0 = no cap."
           }
         }
       ],
@@ -2003,6 +2204,23 @@
       "uiComponent": "sensor",
       "icon": "/assets/cost.svg",
       "insights": true
+    },
+    "octopus_dispatching": {
+      "type": "boolean",
+      "title": {
+        "en": "Smart charging active"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/level.svg",
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "Dispatch active"
+      },
+      "insightsTitleFalse": {
+        "en": "No dispatch"
+      }
     },
     "octopus_earnings_today": {
       "type": "number",

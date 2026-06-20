@@ -17,6 +17,7 @@ interface ElectricityDevice extends Homey.Device {
   isGreenestNow(hours?: number): boolean;
   compareTariffs(days: number): Promise<{ best_product: string; current_annual: number; best_annual: number; annual_saving: number } | null>;
   planCharge(neededKwh: number, chargeRateKw: number, by: string): { count: number; first_start: string; price: number; cost: number } | null;
+  planGreenCharge(neededKwh: number, chargeRateKw: number, by: string, greenness: number): { count: number; first_start: string; price: number; carbon: number } | null;
 }
 
 type Args<T> = T & { device: ElectricityDevice };
@@ -100,6 +101,12 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
     flow.getActionCard('plan_charge')
       .registerRunListener(async (args: Args<{ needed_kwh: number; charge_rate: number; by: string }>) => {
         const result = args.device.planCharge(args.needed_kwh, args.charge_rate, args.by);
+        if (!result) throw new Error('No upcoming rates are available yet.');
+        return result;
+      });
+    flow.getActionCard('plan_green_charge')
+      .registerRunListener(async (args: Args<{ needed_kwh: number; charge_rate: number; by: string; greenness: number }>) => {
+        const result = args.device.planGreenCharge(args.needed_kwh, args.charge_rate, args.by, args.greenness);
         if (!result) throw new Error('No upcoming rates are available yet.');
         return result;
       });

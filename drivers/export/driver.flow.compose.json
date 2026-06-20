@@ -1,0 +1,29 @@
+{
+  "actions": [
+    {
+      "id": "find_peak_export_slot",
+      "title": { "en": "Find the best time to export" },
+      "titleFormatted": { "en": "Find the highest-priced [[duration]] h export slot in the next [[within]] h" },
+      "hint": { "en": "Returns the start time and average price of the most expensive upcoming export block — the best time to sell." },
+      "args": [
+        { "type": "number", "name": "duration", "min": 0.5, "max": 12, "step": 0.5, "placeholder": { "en": "1" } },
+        { "type": "number", "name": "within", "min": 1, "max": 48, "step": 1, "placeholder": { "en": "12" } }
+      ],
+      "tokens": [
+        { "name": "start_time", "type": "string", "title": { "en": "Start time" }, "example": { "en": "Tue 17:30" } },
+        { "name": "price", "type": "number", "title": { "en": "Average export rate (p/kWh)" }, "example": 15 }
+      ]
+    }
+  ],
+  "conditions": [
+    {
+      "id": "is_peak_export_now",
+      "title": { "en": "Now !{{is|is not}} the best time to export" },
+      "titleFormatted": { "en": "Now !{{is|is not}} within the highest-priced [[duration]] h of the next [[within]] h" },
+      "args": [
+        { "type": "number", "name": "duration", "min": 0.5, "max": 12, "step": 0.5, "placeholder": { "en": "1" } },
+        { "type": "number", "name": "within", "min": 1, "max": 48, "step": 1, "placeholder": { "en": "12" } }
+      ]
+    }
+  ]
+}

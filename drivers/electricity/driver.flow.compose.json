@@ -307,7 +307,25 @@
         { "name": "price", "type": "number", "title": { "en": "Average price (p/kWh)" }, "example": 8.1 },
         { "name": "cost", "type": "number", "title": { "en": "Estimated cost (£)" }, "example": 2.55 }
       ]
-    },
+    },
+    {
+      "id": "plan_green_charge",
+      "title": { "en": "Plan a green EV/battery charge" },
+      "titleFormatted": { "en": "Plan greenest charge of [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]] (greenness [[greenness]])" },
+      "hint": { "en": "Picks half-hours that balance low price and low carbon. Greenness 0 = cheapest, 1 = greenest." },
+      "args": [
+        { "type": "number", "name": "needed_kwh", "min": 0.5, "max": 200, "step": 0.5, "placeholder": { "en": "30" } },
+        { "type": "number", "name": "charge_rate", "min": 0.5, "max": 50, "step": 0.5, "placeholder": { "en": "7" } },
+        { "type": "text", "name": "by", "placeholder": { "en": "07:00" } },
+        { "type": "number", "name": "greenness", "min": 0, "max": 1, "step": 0.1, "placeholder": { "en": "0.5" } }
+      ],
+      "tokens": [
+        { "name": "count", "type": "number", "title": { "en": "Number of half-hours" }, "example": 9 },
+        { "name": "first_start", "type": "string", "title": { "en": "First slot start" }, "example": { "en": "Tue 01:00" } },
+        { "name": "price", "type": "number", "title": { "en": "Average price (p/kWh)" }, "example": 9.2 },
+        { "name": "carbon", "type": "number", "title": { "en": "Average carbon (gCO₂/kWh)" }, "example": 90 }
+      ]
+    },
     {
       "id": "find_best_tariff",
       "title": { "en": "Compare my tariff" },

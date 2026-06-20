@@ -1,12 +1,33 @@
 'use strict';
 
+import Homey from 'homey';
 import { OctopusMeterDriver } from '../../lib/OctopusMeterDriver';
+
+interface ExportDevice extends Homey.Device {
+  findPeakSlot(within: number, duration: number): { start_time: string; price: number } | null;
+  isPeakNow(within: number, duration: number): boolean;
+}
+
+type Args<T> = T & { device: ExportDevice };
 
 module.exports = class ExportDriver extends OctopusMeterDriver {
 
   async onInit(): Promise<void> {
     this.fuel = 'electricity';
+    this.registerFlowCards();
     this.log('Export driver initialised');
+  }
+
+  private registerFlowCards(): void {
+    const { flow } = this.homey;
+    flow.getActionCard('find_peak_export_slot')
+      .registerRunListener(async (args: Args<{ within: number; duration: number }>) => {
+        const result = args.device.findPeakSlot(args.within, args.duration);
+        if (!result) throw new Error('No upcoming export rates are available yet.');
+        return result;
+      });
+    flow.getConditionCard('is_peak_export_now')
+      .registerRunListener(async (args: Args<{ within: number; duration: number }>) => args.device.isPeakNow(args.within, args.duration));
   }
 
   protected accepts(meter: { fuel: string; isExport: boolean }): boolean {

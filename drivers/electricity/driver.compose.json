@@ -11,6 +11,7 @@
     "octopus_price_level",
     "octopus_price_next",
     "octopus_smart_charge",
+    "octopus_dispatching",
     "octopus_good_now",
     "measure_octopus_carbon",
     "octopus_carbon_level",
@@ -165,6 +166,19 @@
       "value": "07:00",
       "hint": {
         "en": "Find the cheapest slots between now and this time each day (24-hour clock)."
+      }
+    },
+    {
+      "id": "smart_charge_max_price",
+      "type": "number",
+      "label": {
+        "en": "Smart charge price cap (p/kWh)"
+      },
+      "value": 0,
+      "min": 0,
+      "max": 200,
+      "hint": {
+        "en": "Only include slots at or below this price in the smart-charge window. 0 = no cap."
       }
     }
   ]

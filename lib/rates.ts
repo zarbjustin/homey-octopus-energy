@@ -147,11 +147,12 @@ export function isCheapestSlotNow(
 /**
  * Select the `n` cheapest individual half-hour rates (non-contiguous) within an
  * optional window. Returned sorted ascending by time for display/scheduling.
+ * `maxPrice` (p/kWh, VAT per incVat) excludes any slot above the cap.
  */
 export function cheapestSlots(
   rates: Rate[],
   n: number,
-  opts: { from?: Date; to?: Date; incVat?: boolean } = {},
+  opts: { from?: Date; to?: Date; incVat?: boolean; maxPrice?: number } = {},
 ): Rate[] {
   const incVat = opts.incVat ?? true;
   let pool = sortRates(rates);
@@ -163,10 +164,46 @@ export function cheapestSlots(
       return start >= f && start < t;
     });
   }
+  if (opts.maxPrice !== undefined) {
+    pool = pool.filter((r) => valueOf(r, incVat) <= (opts.maxPrice as number));
+  }
   if (n <= 0) return [];
   const byValue = [...pool].sort((a, b) => valueOf(a, incVat) - valueOf(b, incVat));
   const chosen = byValue.slice(0, n);
   return sortRates(chosen);
+}
+
+/**
+ * Find the most expensive contiguous block of `slots` half-hours (by average
+ * price) — useful for exports, where you want to sell when the rate is highest.
+ */
+export function expensiveWindow(
+  rates: Rate[],
+  slots: number,
+  opts: { from?: Date; to?: Date; incVat?: boolean } = {},
+): Rate[] | null {
+  const incVat = opts.incVat ?? true;
+  let pool = sortRates(rates);
+  if (opts.from || opts.to) {
+    const f = opts.from ? opts.from.getTime() : -Infinity;
+    const t = opts.to ? opts.to.getTime() : Infinity;
+    pool = pool.filter((r) => {
+      const start = new Date(r.valid_from).getTime();
+      return start >= f && start < t;
+    });
+  }
+  if (slots <= 0 || pool.length < slots) return null;
+  let bestStart = 0;
+  let bestSum = -Infinity;
+  for (let i = 0; i + slots <= pool.length; i++) {
+    let sum = 0;
+    for (let j = i; j < i + slots; j++) sum += valueOf(pool[j], incVat);
+    if (sum > bestSum) {
+      bestSum = sum;
+      bestStart = i;
+    }
+  }
+  return pool.slice(bestStart, bestStart + slots);
 }
 
 /** Whether a rate's half-hour covers the instant `at`. */

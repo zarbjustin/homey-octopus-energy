@@ -72,6 +72,22 @@ test('cheapestSlots selects the n cheapest non-contiguous slots, sorted by time'
   assert.deepStrictEqual(r.cheapestSlots(SAMPLE, 0), []);
 });
 
+test('cheapestSlots respects a maxPrice cap', () => {
+  // Cap at 6p -> only the 5p and -2p slots qualify.
+  const capped = r.cheapestSlots(SAMPLE, 4, { maxPrice: 6 });
+  assert.strictEqual(capped.length, 2);
+  assert.ok(capped.every((s) => s.value_inc_vat <= 6));
+});
+
+test('expensiveWindow finds the most expensive contiguous block', () => {
+  const win = r.expensiveWindow(SAMPLE, 2);
+  // pairs: 20+5=25, 5+30=35, 30+(-2)=28 -> highest is 5,30
+  assert.strictEqual(win.length, 2);
+  assert.strictEqual(win[0].value_inc_vat, 5);
+  assert.strictEqual(win[1].value_inc_vat, 30);
+  assert.strictEqual(r.expensiveWindow(SAMPLE, 10), null);
+});
+
 test('rateCovers respects half-open interval', () => {
   assert.strictEqual(r.rateCovers(SAMPLE[1], new Date('2024-01-01T00:45:00Z')), true);
   assert.strictEqual(r.rateCovers(SAMPLE[1], new Date('2024-01-01T01:00:00Z')), false);
