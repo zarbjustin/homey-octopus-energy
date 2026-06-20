@@ -4,5 +4,8 @@
   },
   "1.0.1": {
     "en": "Initial public release: electricity, gas and export meters with automatic discovery, half-hourly Agile pricing, standing charges, Homey Energy integration, account balance, smart-charge planner, carbon intensity, a rich set of dynamic-pricing Flow cards, and an Agile Prices widget with a Today/Tomorrow toggle that highlights the current half-hour and the cheapest slots."
+  },
+  "1.0.2": {
+    "en": "Adds an Agile Prices widget with a Today/Tomorrow toggle, a half-hourly chart that highlights the current slot, and a ranked “best times to use power” list (cheapest first, configurable). Clearer live-power setting and reliability improvements."
   }
 }

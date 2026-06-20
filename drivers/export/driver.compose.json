@@ -1,9 +1,6 @@
 {
   "name": {
-    "en": "Export Meter",
-    "nl": "Exportmeter",
-    "de": "Einspeisezähler",
-    "fr": "Compteur d'export"
+    "en": "Export Meter"
   },
   "class": "sensor",
   "capabilities": [
@@ -41,7 +38,6 @@
     }
   },
   "energy": {
-    "cumulative": true,
     "cumulativeExportedCapability": "meter_power.exported"
   },
   "platforms": [

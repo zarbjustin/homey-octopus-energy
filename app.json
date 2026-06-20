@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "uk.co.zarb.octopusenergy",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -13,10 +13,7 @@
     "en": "Octopus Energy (Unofficial)"
   },
   "description": {
-    "en": "Monitor your Octopus Energy tariffs, prices, usage and balance.",
-    "nl": "Volg je Octopus Energy-tarieven, prijzen, verbruik en saldo.",
-    "de": "Überwache deine Octopus Energy-Tarife, Preise, Verbrauch und Guthaben.",
-    "fr": "Suivez vos tarifs, prix, consommation et solde Octopus Energy."
+    "en": "Power your home when energy is cheapest and greenest."
   },
   "category": [
     "energy"
@@ -575,7 +572,7 @@
       {
         "id": "price_plunge",
         "title": {
-          "en": "The price went negative (plunge)"
+          "en": "The price went negative"
         },
         "hint": {
           "en": "Triggers when the unit rate drops below zero — Octopus is paying you to use energy."
@@ -1547,7 +1544,7 @@
       {
         "id": "bump_charge",
         "title": {
-          "en": "Start an EV bump charge (experimental)"
+          "en": "Start an EV bump charge"
         },
         "hint": {
           "en": "Triggers an immediate Intelligent Octopus Go boost charge. Experimental and only works on IOG with a supported charger."
@@ -1800,7 +1797,7 @@
           "en": "Plan a green EV/battery charge"
         },
         "titleFormatted": {
-          "en": "Plan greenest charge of [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]] (greenness [[greenness]])"
+          "en": "Plan greenest charge of [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]] at greenness [[greenness]]"
         },
         "hint": {
           "en": "Picks half-hours that balance low price and low carbon. Greenness 0 = cheapest, 1 = greenest."
@@ -2036,10 +2033,7 @@
   "drivers": [
     {
       "name": {
-        "en": "Electricity Meter",
-        "nl": "Elektriciteitsmeter",
-        "de": "Stromzähler",
-        "fr": "Compteur d'électricité"
+        "en": "Electricity Meter"
       },
       "class": "sensor",
       "capabilities": [
@@ -2083,7 +2077,6 @@
         }
       },
       "energy": {
-        "cumulative": true,
         "cumulativeImportedCapability": "meter_power"
       },
       "platforms": [
@@ -2284,10 +2277,7 @@
     },
     {
       "name": {
-        "en": "Export Meter",
-        "nl": "Exportmeter",
-        "de": "Einspeisezähler",
-        "fr": "Compteur d'export"
+        "en": "Export Meter"
       },
       "class": "sensor",
       "capabilities": [
@@ -2325,7 +2315,6 @@
         }
       },
       "energy": {
-        "cumulative": true,
         "cumulativeExportedCapability": "meter_power.exported"
       },
       "platforms": [
@@ -2401,10 +2390,7 @@
     },
     {
       "name": {
-        "en": "Gas Meter",
-        "nl": "Gasmeter",
-        "de": "Gaszähler",
-        "fr": "Compteur de gaz"
+        "en": "Gas Meter"
       },
       "class": "sensor",
       "capabilities": [

@@ -67,7 +67,7 @@
     {
       "id": "price_plunge",
       "title": {
-        "en": "The price went negative (plunge)"
+        "en": "The price went negative"
       },
       "hint": {
         "en": "Triggers when the unit rate drops below zero — Octopus is paying you to use energy."
@@ -682,7 +682,7 @@
     {
       "id": "bump_charge",
       "title": {
-        "en": "Start an EV bump charge (experimental)"
+        "en": "Start an EV bump charge"
       },
       "hint": {
         "en": "Triggers an immediate Intelligent Octopus Go boost charge. Experimental and only works on IOG with a supported charger."
@@ -913,7 +913,7 @@
         "en": "Plan a green EV/battery charge"
       },
       "titleFormatted": {
-        "en": "Plan greenest charge of [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]] (greenness [[greenness]])"
+        "en": "Plan greenest charge of [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]] at greenness [[greenness]]"
       },
       "hint": {
         "en": "Picks half-hours that balance low price and low carbon. Greenness 0 = cheapest, 1 = greenest."

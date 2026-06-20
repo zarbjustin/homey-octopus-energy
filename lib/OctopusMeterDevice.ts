@@ -1154,7 +1154,7 @@ export class OctopusMeterDevice extends Homey.Device {
 
   protected async refreshBalance(): Promise<void> {
     const { apiKey, accountNumber } = this.store();
-    if (!accountNumber) return;
+    if (!apiKey || !accountNumber) return;
     const app = this.homey.app as Homey.App & { getCachedBalance?(a: string, b: string): Promise<number> };
     const raw = app.getCachedBalance
       ? await app.getCachedBalance(apiKey, accountNumber)

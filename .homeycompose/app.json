@@ -1,6 +1,6 @@
 {
   "id": "uk.co.zarb.octopusenergy",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -12,10 +12,7 @@
     "en": "Octopus Energy (Unofficial)"
   },
   "description": {
-    "en": "Monitor your Octopus Energy tariffs, prices, usage and balance.",
-    "nl": "Volg je Octopus Energy-tarieven, prijzen, verbruik en saldo.",
-    "de": "Überwache deine Octopus Energy-Tarife, Preise, Verbrauch und Guthaben.",
-    "fr": "Suivez vos tarifs, prix, consommation et solde Octopus Energy."
+    "en": "Power your home when energy is cheapest and greenest."
   },
   "category": [
     "energy"
