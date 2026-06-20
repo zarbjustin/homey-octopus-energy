@@ -13,7 +13,10 @@
     "en": "Octopus Energy"
   },
   "description": {
-    "en": "Monitor your Octopus Energy tariffs, prices, usage and balance."
+    "en": "Monitor your Octopus Energy tariffs, prices, usage and balance.",
+    "nl": "Volg je Octopus Energy-tarieven, prijzen, verbruik en saldo.",
+    "de": "Überwache deine Octopus Energy-Tarife, Preise, Verbrauch und Guthaben.",
+    "fr": "Suivez vos tarifs, prix, consommation et solde Octopus Energy."
   },
   "category": [
     "energy"
@@ -986,7 +989,10 @@
   "drivers": [
     {
       "name": {
-        "en": "Electricity Meter"
+        "en": "Electricity Meter",
+        "nl": "Elektriciteitsmeter",
+        "de": "Stromzähler",
+        "fr": "Compteur d'électricité"
       },
       "class": "sensor",
       "capabilities": [
@@ -1156,7 +1162,10 @@
     },
     {
       "name": {
-        "en": "Export Meter"
+        "en": "Export Meter",
+        "nl": "Exportmeter",
+        "de": "Einspeisezähler",
+        "fr": "Compteur d'export"
       },
       "class": "sensor",
       "capabilities": [
@@ -1260,7 +1269,10 @@
     },
     {
       "name": {
-        "en": "Gas Meter"
+        "en": "Gas Meter",
+        "nl": "Gasmeter",
+        "de": "Gaszähler",
+        "fr": "Compteur de gaz"
       },
       "class": "sensor",
       "capabilities": [

@@ -52,6 +52,8 @@ export class OctopusMeterDevice extends Homey.Device {
 
   private alignTimer: NodeJS.Timeout | null = null;
 
+  private agileTimer: NodeJS.Timeout | null = null;
+
   async onInit(): Promise<void> {
     this.buildClients();
     await this.onInitExtra();
@@ -619,6 +621,16 @@ export class OctopusMeterDevice extends Homey.Device {
       this.refresh().catch((err) => this.error('Aligned refresh failed:', err));
       this.startInterval();
     }, Math.max(1000, msToHalfHour));
+    this.scheduleAgilePublication();
+  }
+
+  /** Refresh shortly after 16:05 daily, when Agile publishes next-day prices. */
+  private scheduleAgilePublication(): void {
+    const tick = () => {
+      this.refresh().catch((err) => this.error('Agile-publication refresh failed:', err));
+      this.agileTimer = this.homey.setTimeout(tick, this.nextLocalTime('16:05').getTime() - Date.now());
+    };
+    this.agileTimer = this.homey.setTimeout(tick, this.nextLocalTime('16:05').getTime() - Date.now());
   }
 
   private startInterval(): void {
@@ -636,6 +648,10 @@ export class OctopusMeterDevice extends Homey.Device {
     if (this.alignTimer) {
       this.homey.clearTimeout(this.alignTimer);
       this.alignTimer = null;
+    }
+    if (this.agileTimer) {
+      this.homey.clearTimeout(this.agileTimer);
+      this.agileTimer = null;
     }
   }
 

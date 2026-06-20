@@ -1,6 +1,9 @@
 {
   "name": {
-    "en": "Gas Meter"
+    "en": "Gas Meter",
+    "nl": "Gasmeter",
+    "de": "Gaszähler",
+    "fr": "Compteur de gaz"
   },
   "class": "sensor",
   "capabilities": [

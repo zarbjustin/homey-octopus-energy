@@ -1,6 +1,9 @@
 {
   "name": {
-    "en": "Export Meter"
+    "en": "Export Meter",
+    "nl": "Exportmeter",
+    "de": "Einspeisezähler",
+    "fr": "Compteur d'export"
   },
   "class": "sensor",
   "capabilities": [

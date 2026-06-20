@@ -67,6 +67,8 @@ export interface OctopusClientOptions {
   baseUrl?: string;
   /** Max attempts for transient failures (429 / 5xx). */
   maxRetries?: number;
+  /** Override the fetch implementation (for testing). */
+  fetchImpl?: typeof fetch;
 }
 
 /**
@@ -81,11 +83,14 @@ export class OctopusClient {
 
   private readonly maxRetries: number;
 
+  private readonly fetchImpl: typeof fetch;
+
   constructor(opts: OctopusClientOptions) {
     if (!opts.apiKey) throw new Error('An Octopus API key is required.');
     this.apiKey = opts.apiKey;
     this.baseUrl = opts.baseUrl ?? BASE_URL;
     this.maxRetries = opts.maxRetries ?? 3;
+    this.fetchImpl = opts.fetchImpl ?? fetch;
   }
 
   private authHeader(): string {
@@ -111,7 +116,7 @@ export class OctopusClient {
     let lastErr: unknown;
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
-        const res = await fetch(url, {
+        const res = await this.fetchImpl(url, {
           method: 'GET',
           headers: {
             Authorization: this.authHeader(),

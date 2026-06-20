@@ -43,3 +43,22 @@ homey app run        # run on a connected Homey
 ## API reference
 
 Octopus Energy REST + GraphQL: https://docs.octopus.energy/
+
+## Publishing
+
+CI workflows live in `.github/workflows/` (validate, version, publish).
+
+To publish to the Homey App Store:
+
+1. Create a **Homey Personal Access Token** at https://tools.developer.homey.app (Account → Personal Access Tokens).
+2. Add it as a repository secret named `HOMEY_PAT` (Settings → Secrets and variables → Actions).
+3. Run the **Publish Homey App** workflow (Actions tab → *Publish Homey App* → *Run workflow*), or locally:
+
+   ```bash
+   homey app publish
+   ```
+
+4. Finish the submission and certification in the Homey Developer Tools.
+
+The app validates at `publish` level. The two `energy.cumulative … cumulative{Imported,Exported}Capability` warnings are expected: the import meters declare only import and the export meter declares only export.
+
