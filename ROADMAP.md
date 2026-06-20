@@ -53,6 +53,21 @@ All built, validated at publish level, 22 tests passing, lint clean, committed a
 Remaining to actually ship: add a HOMEY_PAT repo secret and run the Publish workflow
 (or `homey app publish`), then complete certification in the Homey Developer Tools.
 
+## Phase 3 — recommended next sprints
+19. **Economy 7 & multi-register tariffs** — detect E-2R/2-register meters; day/night
+    unit-rate capabilities; register-aware cost. (Fixes the single-rate assumption — real gap.)
+20. **Health, status & resilience** — alarm_generic connection alarm + last_updated
+    capability; surface API/auth errors; settings-driven re-auth.
+21. **Proactive notifications** — opt-in Homey timeline notifications for plunge prices,
+    saving sessions, low balance, dispatch start.
+22. **Octoplus & Free Electricity** — points balance, referral credit, Free Electricity
+    sessions (distinct from Saving Sessions).
+23. **Combined best-time intelligence + EV/battery planner** — blended price+carbon score
+    + "good time to use power now" condition; target-SoC charge-schedule action.
+24. **More widgets** — cheapest-slots timeline, carbon, balance/usage widgets.
+25. **Full localization + CI hardening** — complete nl/de/fr; add test + validate to CI;
+    manual product/region/MPAN override in pairing for discovery edge cases.
+
 ## Phase 2 — recommended next sprints (delivered above)
 11. **Export / SEG meters** — model export meters (meter_power.exported + Outgoing/
     Agile Outgoing tariff + earnings). Also clears the export-capability warning.
