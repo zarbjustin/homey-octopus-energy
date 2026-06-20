@@ -132,6 +132,36 @@
         ]
       },
       {
+        "id": "free_electricity_ended",
+        "title": {
+          "en": "A Free Electricity session ended"
+        },
+        "hint": {
+          "en": "Triggers when an Octopus Free Electricity session finishes."
+        }
+      },
+      {
+        "id": "free_electricity_started",
+        "title": {
+          "en": "A Free Electricity session started"
+        },
+        "hint": {
+          "en": "Triggers when an Octopus Free Electricity session begins — electricity is free now."
+        },
+        "tokens": [
+          {
+            "name": "end",
+            "type": "string",
+            "title": {
+              "en": "Ends"
+            },
+            "example": {
+              "en": "Sun 14:00"
+            }
+          }
+        ]
+      },
+      {
         "id": "saving_session_announced",
         "title": {
           "en": "A Saving Session was announced"
@@ -1012,6 +1042,7 @@
         "octopus_price_avg_today",
         "octopus_standing_charge",
         "octopus_balance",
+        "octopus_points",
         "octopus_updated",
         "alarm_generic"
       ],
@@ -1580,6 +1611,21 @@
       "setable": false,
       "uiComponent": "sensor",
       "icon": "/assets/cost.svg",
+      "insights": true
+    },
+    "octopus_points": {
+      "type": "number",
+      "title": {
+        "en": "Octoplus points"
+      },
+      "units": {
+        "en": "pts"
+      },
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/balance.svg",
       "insights": true
     },
     "octopus_price": {

@@ -158,6 +158,11 @@ export class OctopusMeterDevice extends Homey.Device {
     } catch (err) {
       this.error('Monthly-cost refresh failed:', err);
     }
+    try {
+      await this.refreshPoints();
+    } catch (err) {
+      this.error('Points refresh failed:', err);
+    }
 
     await this.setHealth(ok, firstErr);
   }
@@ -674,6 +679,17 @@ export class OctopusMeterDevice extends Homey.Device {
   /** The last known account balance (£), or null if not yet fetched. */
   getBalance(): number | null {
     return this.currentBalance;
+  }
+
+  /** Fetch the Octoplus loyalty points balance (best-effort). */
+  protected async refreshPoints(): Promise<void> {
+    if (!this.hasCapability('octopus_points')) return;
+    const { accountNumber } = this.store();
+    if (!accountNumber) return;
+    const points = await this.kraken.getOctoplusPoints(accountNumber);
+    if (points !== null) {
+      await this.setCapabilityValue('octopus_points', points).catch(this.error);
+    }
   }
 
   /** Fire an app-level Flow trigger (device matching handled by app.ts). */

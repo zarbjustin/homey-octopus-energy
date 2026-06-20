@@ -23,6 +23,7 @@
     "octopus_price_avg_today",
     "octopus_standing_charge",
     "octopus_balance",
+    "octopus_points",
     "octopus_updated",
     "alarm_generic"
   ],

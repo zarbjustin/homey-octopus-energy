@@ -1,0 +1,5 @@
+{
+  "id": "free_electricity_ended",
+  "title": { "en": "A Free Electricity session ended" },
+  "hint": { "en": "Triggers when an Octopus Free Electricity session finishes." }
+}

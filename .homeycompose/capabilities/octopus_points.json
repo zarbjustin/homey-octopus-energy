@@ -1,0 +1,15 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Octoplus points"
+  },
+  "units": {
+    "en": "pts"
+  },
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/balance.svg",
+  "insights": true
+}

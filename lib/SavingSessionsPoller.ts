@@ -7,6 +7,8 @@ interface PollerState {
   known: string[];
   started: string[];
   ended: string[];
+  feStarted?: string[];
+  feEnded?: string[];
 }
 
 /**
@@ -85,6 +87,8 @@ export class SavingSessionsPoller {
 
     const state: PollerState = this.app.homey.settings.get('saving_sessions_state')
       || { known: [], started: [], ended: [] };
+    state.feStarted = state.feStarted ?? [];
+    state.feEnded = state.feEnded ?? [];
     const now = Date.now();
 
     for (const s of sessions) {
@@ -118,12 +122,33 @@ export class SavingSessionsPoller {
       }
     }
 
+    // Free Electricity sessions (best-effort, separate from Saving Sessions).
+    try {
+      const fe = await new KrakenClient(creds.apiKey).getFreeElectricitySessions(creds.accountNumber);
+      for (const s of fe) {
+        const start = new Date(s.startAt).getTime();
+        const end = new Date(s.endAt).getTime();
+        if (now >= start && now < end && !state.feStarted.includes(s.id)) {
+          state.feStarted.push(s.id);
+          this.fire('free_electricity_started', { end: this.fmt(s.endAt) });
+        }
+        if (now >= end && !state.feEnded.includes(s.id)) {
+          state.feEnded.push(s.id);
+          this.fire('free_electricity_ended', {});
+        }
+      }
+    } catch (err) {
+      // No free-electricity support — ignore.
+    }
+
     // Keep the persisted id lists bounded.
     const trim = (arr: string[]) => arr.slice(-50);
     this.app.homey.settings.set('saving_sessions_state', {
       known: trim(state.known),
       started: trim(state.started),
       ended: trim(state.ended),
+      feStarted: trim(state.feStarted),
+      feEnded: trim(state.feEnded),
     });
   }
 }

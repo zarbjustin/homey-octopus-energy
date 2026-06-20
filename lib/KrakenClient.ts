@@ -237,4 +237,53 @@ export class KrakenClient {
       .map((d) => ({ start: String(d.start ?? d.startDt ?? ''), end: String(d.end ?? d.endDt ?? '') }))
       .filter((d) => d.start && d.end);
   }
+
+  /**
+   * Octoplus loyalty points balance for the account. Best-effort: returns null
+   * if the account is not enrolled in Octoplus or the field is unavailable.
+   */
+  async getOctoplusPoints(accountNumber: string): Promise<number | null> {
+    const query = `
+      query Octoplus($accountNumber: String!) {
+        loyaltyPointLedgers(accountNumber: $accountNumber) {
+          balanceCarriedForward
+        }
+      }`;
+    interface Resp {
+      loyaltyPointLedgers?: Array<{ balanceCarriedForward?: number | string }>;
+    }
+    const data = await this.query<Resp>(query, { accountNumber });
+    const ledgers = data?.loyaltyPointLedgers ?? [];
+    if (!ledgers.length) return null;
+    const points = Number(ledgers[0]?.balanceCarriedForward);
+    return Number.isFinite(points) ? points : null;
+  }
+
+  /**
+   * Octopus "Free Electricity" sessions for the account. Best-effort: returns []
+   * if unavailable. Shares the SavingSession shape (reward is not applicable).
+   */
+  async getFreeElectricitySessions(accountNumber: string): Promise<SavingSession[]> {
+    const query = `
+      query FreeElectricity($accountNumber: String!) {
+        freeElectricitySessions(accountNumber: $accountNumber) {
+          code
+          startAt
+          endAt
+        }
+      }`;
+    interface Resp {
+      freeElectricitySessions?: Array<{ code?: string; startAt?: string; endAt?: string }>;
+    }
+    const data = await this.query<Resp>(query, { accountNumber });
+    const events = data?.freeElectricitySessions ?? [];
+    return events
+      .filter((e) => e.code && e.startAt && e.endAt)
+      .map((e) => ({
+        id: String(e.code),
+        startAt: String(e.startAt),
+        endAt: String(e.endAt),
+        rewardPerKwh: 0,
+      }));
+  }
 }
