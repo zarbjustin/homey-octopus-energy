@@ -60,6 +60,10 @@ export class OctopusMeterDevice extends Homey.Device {
 
   private refreshing = false;
 
+  private lastTariffCheck = 0;
+
+  private notified401 = false;
+
   private alignTimer: NodeJS.Timeout | null = null;
 
   private agileTimer: NodeJS.Timeout | null = null;
@@ -208,8 +212,35 @@ export class OctopusMeterDevice extends Homey.Device {
     } catch (err) {
       this.error('Points refresh failed:', err);
     }
+    try {
+      await this.checkTariffChange();
+    } catch (err) {
+      this.error('Tariff-change check failed:', err);
+    }
 
     await this.setHealth(ok, priceOk, firstErr);
+  }
+
+  /** Periodically re-check the account's active tariff and alert on a change. */
+  protected async checkTariffChange(): Promise<void> {
+    const s = this.store();
+    if (!s.accountNumber || !s.mpxn) return;
+    const now = Date.now();
+    if (now - this.lastTariffCheck < 12 * 3600_000) return;
+    this.lastTariffCheck = now;
+    const meters = await this.client.discoverMeters(s.accountNumber);
+    const match = meters.find((m) => m.mpxn === s.mpxn && m.fuel === s.fuel);
+    if (match && match.tariffCode && match.tariffCode !== s.tariffCode) {
+      const oldT = s.tariffCode ?? 'unknown';
+      await this.setStoreValue('tariffCode', match.tariffCode);
+      await this.setStoreValue('productCode', match.productCode);
+      await this.ensureRegisterCapabilities().catch((err) => this.error(err));
+      const state = { deviceId: this.getData().id, old: oldT, new: match.tariffCode };
+      this.fireAppTrigger('tariff_changed', { old: oldT, new: match.tariffCode }, state);
+      if (this.notifyEnabled('notify_tariff_change', true)) {
+        await this.notify(`🐙 Your ${s.fuel} tariff changed to ${match.tariffCode}.`);
+      }
+    }
   }
 
   /** Reflect refresh success/failure on the connection alarm and availability. */
@@ -222,12 +253,18 @@ export class OctopusMeterDevice extends Homey.Device {
       await this.setCapabilityValue('alarm_generic', !healthy).catch(this.error);
     }
     if (healthy) {
+      this.notified401 = false;
       if (this.hasCapability('octopus_updated')) {
         await this.setCapabilityValue('octopus_updated', this.formatLocal(new Date())).catch(this.error);
       }
       if (!this.getAvailable()) await this.setAvailable().catch(this.error);
     } else {
-      await this.setUnavailable(this.healthMessage(err)).catch(this.error);
+      const message = this.healthMessage(err);
+      if (/repair the device/i.test(message) && !this.notified401 && this.notifyEnabled('notify_auth', true)) {
+        this.notified401 = true;
+        await this.notify('🐙 Octopus authentication failed — repair the device to update your API key.');
+      }
+      await this.setUnavailable(message).catch(this.error);
     }
   }
 
@@ -566,6 +603,13 @@ export class OctopusMeterDevice extends Homey.Device {
   /** Public entry point for the "refresh now" Flow action. */
   async refreshNow(): Promise<void> {
     await this.refresh();
+  }
+
+  /** Trigger an immediate EV bump charge (Intelligent Octopus Go; experimental). */
+  async bumpCharge(): Promise<void> {
+    const { accountNumber } = this.store();
+    if (!accountNumber) throw new Error('No account number stored.');
+    await this.kraken.triggerBoostCharge(accountNumber);
   }
 
   /** Is `at` within the cheapest contiguous `durationHours` block of the next `withinHours`? */

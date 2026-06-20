@@ -141,6 +141,27 @@
         ]
       },
       {
+        "id": "dispatch_completed",
+        "title": {
+          "en": "A smart-charge dispatch completed"
+        },
+        "hint": {
+          "en": "Triggers when an Intelligent Octopus Go smart-charge dispatch finishes (from completed history)."
+        },
+        "tokens": [
+          {
+            "name": "end",
+            "type": "string",
+            "title": {
+              "en": "Ended"
+            },
+            "example": {
+              "en": "Tue 05:30"
+            }
+          }
+        ]
+      },
+      {
         "id": "dispatch_ended",
         "title": {
           "en": "A smart-charge dispatch ended"
@@ -357,6 +378,47 @@
               "en": "Standing charge (p/day)"
             },
             "example": 48.5
+          }
+        ]
+      },
+      {
+        "id": "tariff_changed",
+        "title": {
+          "en": "Your tariff changed"
+        },
+        "titleFormatted": {
+          "en": "The tariff of [[device]] changed"
+        },
+        "hint": {
+          "en": "Triggers when the active tariff on a meter changes (e.g. a fixed deal ends and you move to standard variable)."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "capabilities=octopus_updated"
+          }
+        ],
+        "tokens": [
+          {
+            "name": "old",
+            "type": "string",
+            "title": {
+              "en": "Old tariff"
+            },
+            "example": {
+              "en": "E-1R-FIX-12M-...-C"
+            }
+          },
+          {
+            "name": "new",
+            "type": "string",
+            "title": {
+              "en": "New tariff"
+            },
+            "example": {
+              "en": "E-1R-VAR-...-C"
+            }
           }
         ]
       },
@@ -1366,6 +1428,22 @@
         },
         "hint": {
           "en": "Immediately refresh prices, usage and balance from Octopus Energy."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          }
+        ]
+      },
+      {
+        "id": "bump_charge",
+        "title": {
+          "en": "Start an EV bump charge (experimental)"
+        },
+        "hint": {
+          "en": "Triggers an immediate Intelligent Octopus Go boost charge. Experimental and only works on IOG with a supported charger."
         },
         "args": [
           {

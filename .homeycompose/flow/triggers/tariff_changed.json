@@ -1,0 +1,13 @@
+{
+  "id": "tariff_changed",
+  "title": { "en": "Your tariff changed" },
+  "titleFormatted": { "en": "The tariff of [[device]] changed" },
+  "hint": { "en": "Triggers when the active tariff on a meter changes (e.g. a fixed deal ends and you move to standard variable)." },
+  "args": [
+    { "type": "device", "name": "device", "filter": "capabilities=octopus_updated" }
+  ],
+  "tokens": [
+    { "name": "old", "type": "string", "title": { "en": "Old tariff" }, "example": { "en": "E-1R-FIX-12M-...-C" } },
+    { "name": "new", "type": "string", "title": { "en": "New tariff" }, "example": { "en": "E-1R-VAR-...-C" } }
+  ]
+}

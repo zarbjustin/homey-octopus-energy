@@ -67,6 +67,12 @@ module.exports = class OctopusEnergyApp extends Homey.App {
         args: { device: Homey.Device },
         state: { deviceId: string },
       ) => args.device.getData().id === state.deviceId);
+
+    this.homey.flow.getTriggerCard('tariff_changed')
+      .registerRunListener(async (
+        args: { device: Homey.Device },
+        state: { deviceId: string },
+      ) => args.device.getData().id === state.deviceId);
   }
 
   /** App-level account-balance Flow cards, scoped to a chosen meter device. */

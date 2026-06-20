@@ -282,6 +282,11 @@
       "hint": { "en": "Immediately refresh prices, usage and balance from Octopus Energy." }
     },
     {
+      "id": "bump_charge",
+      "title": { "en": "Start an EV bump charge (experimental)" },
+      "hint": { "en": "Triggers an immediate Intelligent Octopus Go boost charge. Experimental and only works on IOG with a supported charger." }
+    },
+    {
       "id": "find_cheapest_slot",
       "title": { "en": "Find the cheapest upcoming slot" },
       "titleFormatted": { "en": "Find the cheapest [[duration]] h slot in the next [[within]] h" },

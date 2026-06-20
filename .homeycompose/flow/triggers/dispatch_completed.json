@@ -1,0 +1,8 @@
+{
+  "id": "dispatch_completed",
+  "title": { "en": "A smart-charge dispatch completed" },
+  "hint": { "en": "Triggers when an Intelligent Octopus Go smart-charge dispatch finishes (from completed history)." },
+  "tokens": [
+    { "name": "end", "type": "string", "title": { "en": "Ended" }, "example": { "en": "Tue 05:30" } }
+  ]
+}

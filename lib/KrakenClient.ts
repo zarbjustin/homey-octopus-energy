@@ -263,6 +263,40 @@ export class KrakenClient {
       .filter((d) => d.start && d.end);
   }
 
+  /** Completed smart-charge dispatches (Intelligent Octopus Go). Best-effort. */
+  async getCompletedDispatches(accountNumber: string): Promise<Dispatch[]> {
+    const query = `
+      query Completed($accountNumber: String!) {
+        completedDispatches(accountNumber: $accountNumber) {
+          start
+          end
+        }
+      }`;
+    interface Resp {
+      completedDispatches?: Array<{ start?: string; end?: string; startDt?: string; endDt?: string }>;
+    }
+    const data = await this.query<Resp>(query, { accountNumber });
+    const list = data?.completedDispatches ?? [];
+    return list
+      .map((d) => ({ start: String(d.start ?? d.startDt ?? ''), end: String(d.end ?? d.endDt ?? '') }))
+      .filter((d) => d.start && d.end);
+  }
+
+  /**
+   * Trigger an immediate EV bump (boost) charge for Intelligent Octopus Go.
+   * Best-effort / experimental: the mutation is unofficial and may not be
+   * available — throws a clear error if unsupported.
+   */
+  async triggerBoostCharge(accountNumber: string): Promise<void> {
+    const mutation = `
+      mutation BoostCharge($accountNumber: String!) {
+        triggerBoostCharge(input: { accountNumber: $accountNumber }) {
+          krakenflexDeviceId
+        }
+      }`;
+    await this.query(mutation, { accountNumber });
+  }
+
   /**
    * Octoplus loyalty points balance for the account. Best-effort: returns null
    * if the account is not enrolled in Octoplus or the field is unavailable.

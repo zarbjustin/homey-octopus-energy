@@ -16,6 +16,8 @@ export class DispatchPoller extends AccountPoller {
 
   private currentEnd: string | null = null;
 
+  private completed = new Set<string>();
+
   /** Whether a smart-charge dispatch is currently in progress. */
   isActive(): boolean {
     return this.active;
@@ -25,9 +27,10 @@ export class DispatchPoller extends AccountPoller {
     const creds = this.credentials();
     if (!creds) return;
 
+    const client = new KrakenClient(creds.apiKey);
     let dispatches: Dispatch[] = [];
     try {
-      dispatches = await new KrakenClient(creds.apiKey).getPlannedDispatches(creds.accountNumber);
+      dispatches = await client.getPlannedDispatches(creds.accountNumber);
     } catch (err) {
       return;
     }
@@ -51,5 +54,28 @@ export class DispatchPoller extends AccountPoller {
       this.currentEnd = null;
     }
     this.active = nowActive;
+
+    // Completed dispatches → fire once per newly-seen completed window.
+    try {
+      const done = await client.getCompletedDispatches(creds.accountNumber);
+      for (const d of done) {
+        const key = `${d.start}|${d.end}`;
+        if (!this.completed.has(key)) {
+          this.completed.add(key);
+          // Avoid firing on the very first poll for historical completions.
+          if (this.completed.size <= 50 && this.seededCompleted) {
+            this.fire('dispatch_completed', { end: this.fmt(d.end) });
+          }
+        }
+      }
+      this.seededCompleted = true;
+      if (this.completed.size > 100) {
+        this.completed = new Set(Array.from(this.completed).slice(-50));
+      }
+    } catch (err) {
+      // No completed-dispatch support — ignore.
+    }
   }
+
+  private seededCompleted = false;
 }
