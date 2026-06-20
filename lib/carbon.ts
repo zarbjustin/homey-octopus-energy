@@ -16,6 +16,37 @@ export interface CarbonPoint {
 
 export type CarbonLevel = 'very_low' | 'low' | 'moderate' | 'high' | 'very_high';
 
+/** GSP region letter (A–P) → Carbon Intensity API regionid (1–14). */
+const GSP_TO_REGION_ID: Record<string, number> = {
+  A: 10, // East England
+  B: 9, // East Midlands
+  C: 13, // London
+  D: 6, // North Wales & Merseyside
+  E: 8, // West Midlands
+  F: 4, // North East England
+  G: 3, // North West England
+  H: 12, // Southern England
+  J: 14, // South East England
+  K: 7, // South Wales
+  L: 11, // South West England
+  M: 5, // Yorkshire
+  N: 2, // South Scotland
+  P: 1, // North Scotland
+};
+
+/** Map a GSP region letter to the Carbon Intensity regional id, or null. */
+export function regionIdFromGsp(letter: string | null): number | null {
+  if (!letter) return null;
+  return GSP_TO_REGION_ID[letter.toUpperCase()] ?? null;
+}
+
+/** Sum the renewable share (wind + solar + hydro) of a generation mix array. */
+export function renewablePercent(mix: Array<{ fuel: string; perc: number }> = []): number {
+  return mix
+    .filter((m) => ['wind', 'solar', 'hydro'].includes((m.fuel || '').toLowerCase()))
+    .reduce((acc, m) => acc + (Number(m.perc) || 0), 0);
+}
+
 /** Map the API's textual index to a capability enum id. */
 export function carbonLevelId(index: string): CarbonLevel {
   switch ((index || '').toLowerCase()) {
@@ -76,6 +107,38 @@ export class CarbonClient {
     if (!res.ok) return [];
     const json = await res.json() as { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string } }> };
     return (json?.data ?? []).map((d) => ({
+      from: d.from,
+      to: d.to,
+      intensity: Number(d.intensity?.forecast ?? 0),
+      index: String(d.intensity?.index ?? ''),
+    }));
+  }
+
+  /** Current regional carbon intensity + index + renewable %, or null. */
+  async getRegional(regionId: number): Promise<(CarbonPoint & { renewable: number }) | null> {
+    const res = await fetch(`${this.baseUrl}/regional/regionid/${regionId}`, { headers: { Accept: 'application/json' } });
+    if (!res.ok) return null;
+    const json = await res.json() as {
+      data?: Array<{ data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string }; generationmix?: Array<{ fuel: string; perc: number }> }> }>;
+    };
+    const d = json?.data?.[0]?.data?.[0];
+    if (!d) return null;
+    return {
+      from: d.from,
+      to: d.to,
+      intensity: Number(d.intensity?.forecast ?? 0),
+      index: String(d.intensity?.index ?? ''),
+      renewable: renewablePercent(d.generationmix),
+    };
+  }
+
+  /** 48-hour forward regional carbon-intensity forecast (half-hourly). */
+  async getRegionalForecast(regionId: number): Promise<CarbonPoint[]> {
+    const fromIso = new Date().toISOString();
+    const res = await fetch(`${this.baseUrl}/regional/intensity/${fromIso}/fw48h/regionid/${regionId}`, { headers: { Accept: 'application/json' } });
+    if (!res.ok) return [];
+    const json = await res.json() as { data?: { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string } }> } };
+    return (json?.data?.data ?? []).map((d) => ({
       from: d.from,
       to: d.to,
       intensity: Number(d.intensity?.forecast ?? 0),

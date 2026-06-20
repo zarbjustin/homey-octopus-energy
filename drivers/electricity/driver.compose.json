@@ -16,6 +16,7 @@
     "octopus_good_now",
     "measure_octopus_carbon",
     "octopus_carbon_level",
+    "measure_renewable_percent",
     "meter_power",
     "octopus_usage_today",
     "octopus_cost_today",
@@ -203,6 +204,21 @@
       "hint": {
         "en": "For Economy 7 meters: when the night rate ends and the day rate resumes."
       }
+    },
+    {
+      "id": "carbon_region",
+      "type": "dropdown",
+      "label": {
+        "en": "Carbon intensity region"
+      },
+      "value": "auto",
+      "hint": {
+        "en": "Regional carbon uses your tariff's grid region (recommended). National averages the whole of GB."
+      },
+      "values": [
+        { "id": "auto", "label": { "en": "Regional (from my tariff)" } },
+        { "id": "national", "label": { "en": "National (GB average)" } }
+      ]
     }
   ]
 }

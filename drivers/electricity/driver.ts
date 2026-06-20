@@ -11,6 +11,7 @@ interface ElectricityDevice extends Homey.Device {
   isInCheapestPlan(duration: number, by: string): boolean;
   isNightRate(): boolean;
   isCheapestPercentile(percent: number, hours: number): boolean;
+  getRenewablePercent(): number | null;
   refreshNow(): Promise<void>;
   findCheapestSlot(within: number, duration: number): { start_time: string; price: number } | null;
   findCheapestHours(duration: number, by: string): { count: number; first_start: string; price: number } | null;
@@ -69,6 +70,11 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ percent: number; hours: number }>) => args.device.isCheapestPercentile(args.percent, args.hours));
     flow.getConditionCard('is_night_rate')
       .registerRunListener(async (args: Args<unknown>) => args.device.isNightRate());
+    flow.getConditionCard('renewables_above')
+      .registerRunListener(async (args: Args<{ percent: number }>) => {
+        const r = args.device.getRenewablePercent();
+        return r !== null && r > args.percent;
+      });
     flow.getConditionCard('carbon_below')
       .registerRunListener(async (args: Args<{ intensity: number }>) => {
         const c = args.device.getCarbon();

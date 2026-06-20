@@ -1,0 +1,15 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Renewables"
+  },
+  "units": {
+    "en": "%"
+  },
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/level.svg",
+  "insights": true
+}

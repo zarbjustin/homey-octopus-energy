@@ -1176,6 +1176,35 @@
         ]
       },
       {
+        "id": "renewables_above",
+        "title": {
+          "en": "Renewable generation !{{is above|is not above}} ..."
+        },
+        "titleFormatted": {
+          "en": "Renewable generation !{{is above|is not above}} [[percent]]%"
+        },
+        "hint": {
+          "en": "Wind + solar + hydro share of generation. Run loads when the grid is greenest."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "percent",
+            "min": 0,
+            "max": 100,
+            "step": 5,
+            "placeholder": {
+              "en": "70"
+            }
+          }
+        ]
+      },
+      {
         "id": "good_now",
         "title": {
           "en": "Now !{{is|is not}} a good time to use power"
@@ -1796,6 +1825,7 @@
         "octopus_good_now",
         "measure_octopus_carbon",
         "octopus_carbon_level",
+        "measure_renewable_percent",
         "meter_power",
         "octopus_usage_today",
         "octopus_cost_today",
@@ -1993,6 +2023,31 @@
           "hint": {
             "en": "For Economy 7 meters: when the night rate ends and the day rate resumes."
           }
+        },
+        {
+          "id": "carbon_region",
+          "type": "dropdown",
+          "label": {
+            "en": "Carbon intensity region"
+          },
+          "value": "auto",
+          "hint": {
+            "en": "Regional carbon uses your tariff's grid region (recommended). National averages the whole of GB."
+          },
+          "values": [
+            {
+              "id": "auto",
+              "label": {
+                "en": "Regional (from my tariff)"
+              }
+            },
+            {
+              "id": "national",
+              "label": {
+                "en": "National (GB average)"
+              }
+            }
+          ]
         }
       ],
       "id": "electricity"
@@ -2450,6 +2505,21 @@
       "insightsTitleTrue": {
         "en": "Price"
       }
+    },
+    "measure_renewable_percent": {
+      "type": "number",
+      "title": {
+        "en": "Renewables"
+      },
+      "units": {
+        "en": "%"
+      },
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/level.svg",
+      "insights": true
     },
     "octopus_carbon_level": {
       "type": "enum",

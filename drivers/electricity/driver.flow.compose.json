@@ -242,6 +242,15 @@
       ]
     },
     {
+      "id": "renewables_above",
+      "title": { "en": "Renewable generation !{{is above|is not above}} ..." },
+      "titleFormatted": { "en": "Renewable generation !{{is above|is not above}} [[percent]]%" },
+      "hint": { "en": "Wind + solar + hydro share of generation. Run loads when the grid is greenest." },
+      "args": [
+        { "type": "number", "name": "percent", "min": 0, "max": 100, "step": 5, "placeholder": { "en": "70" } }
+      ]
+    },
+    {
       "id": "good_now",
       "title": { "en": "Now !{{is|is not}} a good time to use power" },
       "titleFormatted": { "en": "Now !{{is|is not}} below [[max_price]] p/kWh and [[max_carbon]] gCO₂/kWh" },

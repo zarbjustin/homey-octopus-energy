@@ -1,9 +1,9 @@
 'use strict';
 
-import { Rate } from '../../lib/rates';
+import { Rate, regionFromTariff } from '../../lib/rates';
 import { OctopusMeterDevice } from '../../lib/OctopusMeterDevice';
 import {
-  CarbonClient, CarbonPoint, carbonLevelId, isGreenestNow,
+  CarbonClient, CarbonPoint, carbonLevelId, isGreenestNow, regionIdFromGsp,
 } from '../../lib/carbon';
 
 module.exports = class ElectricityDevice extends OctopusMeterDevice {
@@ -19,6 +19,8 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   private carbon = new CarbonClient();
 
   private carbonNow: number | null = null;
+
+  private renewableNow: number | null = null;
 
   private carbonForecast: CarbonPoint[] = [];
 
@@ -100,9 +102,27 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     await this.setCapabilityValue('octopus_dispatching', active).catch(this.error);
   }
 
+  private carbonRegionId(): number | null {
+    if (this.getSetting('carbon_region') === 'national') return null;
+    return regionIdFromGsp(regionFromTariff(String(this.getStoreValue('tariffCode') || '')));
+  }
+
   private async refreshCarbon(): Promise<void> {
     if (!this.hasCapability('measure_octopus_carbon')) return;
-    const current = await this.carbon.getCurrent();
+    const regionId = this.carbonRegionId();
+    let current: { intensity: number; index: string } | null = null;
+    let renewable: number | null = null;
+    if (regionId) {
+      const r = await this.carbon.getRegional(regionId);
+      if (r) {
+        current = r;
+        renewable = r.renewable;
+      }
+      this.carbonForecast = await this.carbon.getRegionalForecast(regionId);
+    } else {
+      current = await this.carbon.getCurrent();
+      this.carbonForecast = await this.carbon.getForecast();
+    }
     if (current) {
       const prev = this.carbonNow;
       this.carbonNow = current.intensity;
@@ -119,7 +139,10 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
         this.trigger('carbon_below', { carbon: Math.round(current.intensity) }, { carbon: current.intensity, previous: prev });
       }
     }
-    this.carbonForecast = await this.carbon.getForecast();
+    if (renewable !== null && this.hasCapability('measure_renewable_percent')) {
+      this.renewableNow = renewable;
+      await this.setCapabilityValue('measure_renewable_percent', Math.round(renewable)).catch(this.error);
+    }
     await this.updateGoodNow();
   }
 
@@ -139,6 +162,11 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   /** Current carbon intensity (gCO₂/kWh), or null. */
   getCarbon(): number | null {
     return this.carbonNow;
+  }
+
+  /** Current renewable generation percentage, or null. */
+  getRenewablePercent(): number | null {
+    return this.renewableNow;
   }
 
   /** Is the current half-hour the greenest in the forward window? */
