@@ -2042,7 +2042,7 @@
           },
           "value": false,
           "hint": {
-            "en": "If you have an Octopus Home Mini, show near real-time power (W). Polls every 30 seconds."
+            "en": "Off by default. Tick this if you have an Octopus Home Mini to show near real-time power (W); it adds a Power capability and polls every 30 seconds. Leave off if you have no Home Mini."
           }
         },
         {
@@ -2399,6 +2399,42 @@
     }
   ],
   "widgets": {
+    "agile": {
+      "name": {
+        "en": "Agile Prices"
+      },
+      "settings": [
+        {
+          "id": "device",
+          "type": "device",
+          "title": {
+            "en": "Electricity meter"
+          },
+          "filter": "driver_id=electricity"
+        },
+        {
+          "id": "cheapest_count",
+          "type": "number",
+          "title": {
+            "en": "Highlight cheapest slots"
+          },
+          "value": 6,
+          "min": 0,
+          "max": 24,
+          "hint": {
+            "en": "How many of the day's cheapest half-hours to highlight as the best times to use power."
+          }
+        }
+      ],
+      "height": 330,
+      "api": {
+        "getData": {
+          "method": "GET",
+          "path": "/"
+        }
+      },
+      "id": "agile"
+    },
     "carbon": {
       "name": {
         "en": "Carbon Intensity"

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="/homey.js" data-origin="widget"></script>
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--homey-text-color, #222);
+      padding: 10px 12px;
+      box-sizing: border-box;
+    }
+    .head { display: flex; align-items: baseline; justify-content: space-between; }
+    .name { font-size: 12px; color: var(--homey-text-color-light, #888); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .now { text-align: right; }
+    .now .val { font-size: 20px; font-weight: 700; line-height: 1; }
+    .now .val small { font-size: 11px; font-weight: 500; color: var(--homey-text-color-light, #888); }
+    .badge {
+      display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 7px;
+      border-radius: 9px; color: #fff; background: #888; text-transform: capitalize; margin-top: 3px;
+    }
+    .badge.plunge { background: #6f42c1; }
+    .badge.cheap { background: #2ecc71; }
+    .badge.normal { background: #f39c12; }
+    .badge.expensive { background: #e74c3c; }
+
+    .tabs { display: flex; gap: 6px; margin: 8px 0 6px; }
+    .tab {
+      flex: 1; text-align: center; font-size: 12px; font-weight: 600; padding: 5px 0;
+      border-radius: 14px; cursor: pointer; user-select: none;
+      background: var(--homey-background-color, rgba(127,127,127,0.12));
+      color: var(--homey-text-color-light, #888);
+    }
+    .tab.active { background: #7b3ff2; color: #fff; }
+    .tab.disabled { opacity: 0.45; cursor: default; }
+
+    .chart-wrap { display: flex; align-items: stretch; gap: 6px; }
+    .axis { display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--homey-text-color-light, #888); text-align: right; min-width: 30px; padding: 2px 0 14px; }
+    .chart-col { flex: 1; }
+    .chart {
+      position: relative; display: flex; align-items: flex-end; gap: 1px;
+      height: 86px;
+    }
+    .bar { flex: 1 1 0; background: linear-gradient(180deg, #e64bff, #b521e0); border-radius: 1px 1px 0 0; min-height: 1px; position: relative; }
+    .bar.neg { background: linear-gradient(180deg, #8e44ff, #6f42c1); }
+    .bar.cheap { background: linear-gradient(180deg, #4dffa6, #16c172); }
+    .bar.current { outline: 2px solid var(--homey-text-color, #fff); outline-offset: -1px; }
+    .ticks { display: flex; justify-content: space-between; font-size: 9px; color: var(--homey-text-color-light, #888); margin-top: 2px; }
+
+    .best { font-size: 11px; margin: 8px 0 4px; }
+    .best .hl { color: #16c172; font-weight: 600; }
+
+    .list { max-height: 92px; overflow-y: auto; border-top: 1px solid rgba(127,127,127,0.15); margin-top: 2px; }
+    .li { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 2px; border-bottom: 1px solid rgba(127,127,127,0.08); }
+    .li.current { font-weight: 700; }
+    .li.cheap .p { color: #16c172; font-weight: 600; }
+    .li .p { font-variant-numeric: tabular-nums; }
+    .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; background: #e64bff; vertical-align: middle; }
+    .li.cheap .dot { background: #16c172; }
+    .li.current .dot { background: var(--homey-text-color, #fff); box-shadow: 0 0 0 2px rgba(123,63,242,0.6); }
+
+    .err { font-size: 13px; color: var(--homey-text-color-light, #888); padding: 10px 0; }
+    .muted { font-size: 11px; color: var(--homey-text-color-light, #888); padding: 14px 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="content"><div class="err">Loading…</div></div>
+
+  <script type="text/javascript">
+    var STATE = { data: null, tab: 'today' };
+
+    function fmt(v, dp) {
+      if (v === null || v === undefined || isNaN(v)) return '–';
+      return Number(v).toFixed(dp === undefined ? 2 : dp);
+    }
+
+    function slotsFor(d, tab) {
+      return tab === 'tomorrow' ? (d.tomorrow || []) : (d.today || []);
+    }
+
+    function renderChart(slots) {
+      if (!slots.length) return '<div class="muted">No half-hourly prices for this day.</div>';
+      var prices = slots.map(function (s) { return s.price; });
+      var max = Math.max.apply(null, prices);
+      var min = Math.min.apply(null, prices);
+      var floor = Math.min(0, min);
+      var span = (max - floor) || 1;
+
+      var bars = slots.map(function (s) {
+        var pct = Math.max(2, Math.round(((s.price - floor) / span) * 100));
+        var cls = 'bar';
+        if (s.price < 0) cls += ' neg';
+        else if (s.cheapest) cls += ' cheap';
+        if (s.current) cls += ' current';
+        var title = s.label + ' · ' + fmt(s.price) + 'p';
+        return '<div class="' + cls + '" style="height:' + pct + '%" title="' + title + '"></div>';
+      }).join('');
+
+      return ''
+        + '<div class="chart-wrap">'
+        +   '<div class="axis"><span>' + fmt(max, max >= 100 ? 0 : 1) + 'p</span>'
+        +     '<span>' + fmt(min, min >= 100 ? 0 : 1) + 'p</span></div>'
+        +   '<div class="chart-col">'
+        +     '<div class="chart">' + bars + '</div>'
+        +     '<div class="ticks"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span></div>'
+        +   '</div>'
+        + '</div>';
+    }
+
+    function renderBest(slots) {
+      var cheap = slots.filter(function (s) { return s.cheapest; });
+      if (!cheap.length) return '';
+      cheap.sort(function (a, b) { return a.start < b.start ? -1 : 1; });
+      var labels = cheap.slice(0, 4).map(function (s) { return s.label; }).join(', ');
+      var more = cheap.length > 4 ? ' +' + (cheap.length - 4) + ' more' : '';
+      var lo = Math.min.apply(null, cheap.map(function (s) { return s.price; }));
+      return '<div class="best">Best times: <span class="hl">' + labels + more
+        + '</span> · from ' + fmt(lo) + 'p</div>';
+    }
+
+    function renderList(slots) {
+      if (!slots.length) return '';
+      var rows = slots.map(function (s) {
+        var cls = 'li';
+        if (s.cheapest && s.price >= 0) cls += ' cheap';
+        if (s.current) cls += ' current';
+        return '<div class="' + cls + '"><span><span class="dot"></span>' + s.label + '</span>'
+          + '<span class="p">' + fmt(s.price) + 'p</span></div>';
+      }).join('');
+      return '<div class="list">' + rows + '</div>';
+    }
+
+    function render() {
+      var d = STATE.data;
+      var el = document.getElementById('content');
+      if (!d || d.error) {
+        el.innerHTML = '<div class="err">' + ((d && d.error) || 'No data') + '</div>';
+        return;
+      }
+      var tomorrowOk = d.tomorrowAvailable && (d.tomorrow || []).length;
+      if (STATE.tab === 'tomorrow' && !tomorrowOk) STATE.tab = 'today';
+      var slots = slotsFor(d, STATE.tab);
+
+      var level = d.currentLevel || 'normal';
+      var html = '';
+      html += '<div class="head">';
+      html += '<span class="name">' + (d.name || 'Electricity') + '</span>';
+      html += '<span class="now"><span class="val">' + fmt(d.currentPrice)
+        + ' <small>p/kWh</small></span><br><span class="badge ' + level + '">' + level + '</span></span>';
+      html += '</div>';
+
+      html += '<div class="tabs">';
+      html += '<div class="tab' + (STATE.tab === 'today' ? ' active' : '') + '" data-tab="today">Today</div>';
+      html += '<div class="tab' + (STATE.tab === 'tomorrow' ? ' active' : '')
+        + (tomorrowOk ? '' : ' disabled') + '" data-tab="tomorrow">Tomorrow</div>';
+      html += '</div>';
+
+      if (STATE.tab === 'tomorrow' && !tomorrowOk) {
+        html += '<div class="muted">Tomorrow\u2019s prices are not published yet (usually after ~4pm).</div>';
+      } else {
+        html += renderChart(slots);
+        html += renderBest(slots);
+        html += renderList(slots);
+      }
+
+      el.innerHTML = html;
+
+      var tabs = el.querySelectorAll('.tab');
+      for (var i = 0; i < tabs.length; i++) {
+        tabs[i].addEventListener('click', function (e) {
+          var t = e.currentTarget.getAttribute('data-tab');
+          if (t === 'tomorrow' && !tomorrowOk) return;
+          STATE.tab = t;
+          render();
+        });
+      }
+    }
+
+    function onHomeyReady(Homey) {
+      var deviceId = '';
+      var cheapest = '';
+      try {
+        var settings = Homey.getSettings();
+        if (settings) {
+          if (settings.device) deviceId = (typeof settings.device === 'object') ? (settings.device.id || '') : settings.device;
+          if (settings.cheapest_count !== undefined && settings.cheapest_count !== null) cheapest = settings.cheapest_count;
+        }
+      } catch (e) { /* no settings */ }
+
+      async function load() {
+        try {
+          var q = '/?id=' + encodeURIComponent(deviceId) + '&cheapest=' + encodeURIComponent(cheapest);
+          STATE.data = await Homey.api('GET', q);
+          render();
+          Homey.setHeight(document.body.scrollHeight);
+        } catch (err) {
+          STATE.data = { error: (err && err.message) ? err.message : 'Error' };
+          render();
+        }
+      }
+
+      load();
+      setInterval(load, 60000);
+      Homey.ready();
+    }
+  </script>
+</body>
+</html>

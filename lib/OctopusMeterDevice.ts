@@ -28,6 +28,29 @@ export interface MeterSettings {
   expensive_threshold: number;
 }
 
+/** A single half-hourly Agile slot, shaped for the prices widget. */
+export interface AgileSlot {
+  start: string;
+  end: string | null;
+  label: string;
+  price: number;
+  level: PriceLevel;
+  current: boolean;
+  cheapest: boolean;
+}
+
+/** Today/tomorrow Agile data for the prices widget. */
+export interface AgileDayData {
+  unit: string;
+  vat: boolean;
+  currentPrice: number | null;
+  currentLevel: PriceLevel | null;
+  currentStart: string | null;
+  today: AgileSlot[];
+  tomorrow: AgileSlot[];
+  tomorrowAvailable: boolean;
+}
+
 /**
  * Shared base for the electricity and gas meter devices. Owns the API clients,
  * the refresh schedule, and the common price / standing-charge / balance logic.
@@ -146,6 +169,60 @@ export class OctopusMeterDevice extends Homey.Device {
   /** The current unit rate value (p/kWh), VAT per the device setting. */
   getCurrentPrice(): number | null {
     return this.currentPrice;
+  }
+
+  /**
+   * Structured half-hourly Agile data for today and tomorrow, used by the Agile
+   * prices widget. Slots are timezone-aware and flagged for the current slot and
+   * the cheapest `cheapestCount` slots of each day ("best times to use power").
+   * Tomorrow is empty until Agile prices publish (typically ~16:00 UK time).
+   */
+  getAgileDayData(cheapestCount = 6): AgileDayData {
+    const inc = this.vatInc();
+    const th = this.thresholds();
+    const current = rateAt(this.rates, new Date());
+    const currentStart = current ? current.valid_from : null;
+
+    const build = (from: Date, to: Date): AgileSlot[] => {
+      const slots = ratesInWindow(this.rates, from, to);
+      const cheap = new Set(
+        cheapestSlots(slots, cheapestCount, { incVat: inc }).map((r) => r.valid_from),
+      );
+      return slots.map((r) => {
+        const price = Number(valueOf(r, inc).toFixed(2));
+        return {
+          start: r.valid_from,
+          end: r.valid_to,
+          label: this.hourMinuteLabel(new Date(r.valid_from)),
+          price,
+          level: priceLevel(price, th),
+          current: currentStart === r.valid_from,
+          cheapest: cheap.has(r.valid_from),
+        };
+      });
+    };
+
+    const today = build(this.localMidnight(0), this.localMidnight(1));
+    const tomorrow = build(this.localMidnight(1), this.localMidnight(2));
+    return {
+      unit: 'p/kWh',
+      vat: inc,
+      currentPrice: this.currentPrice,
+      currentLevel: current ? priceLevel(Number(valueOf(current, inc).toFixed(2)), th) : null,
+      currentStart,
+      today,
+      tomorrow,
+      // A published Agile day has 48 half-hours; treat a near-full day as available.
+      tomorrowAvailable: tomorrow.length >= 24,
+    };
+  }
+
+  /** Local HH:MM label for an instant, in the Homey timezone. */
+  private hourMinuteLabel(d: Date): string {
+    const tz = this.homey.clock.getTimezone();
+    return new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz,
+    }).format(d);
   }
 
   /**

@@ -1,0 +1,35 @@
+{
+  "name": {
+    "en": "Agile Prices"
+  },
+  "settings": [
+    {
+      "id": "device",
+      "type": "device",
+      "title": {
+        "en": "Electricity meter"
+      },
+      "filter": "driver_id=electricity"
+    },
+    {
+      "id": "cheapest_count",
+      "type": "number",
+      "title": {
+        "en": "Highlight cheapest slots"
+      },
+      "value": 6,
+      "min": 0,
+      "max": 24,
+      "hint": {
+        "en": "How many of the day's cheapest half-hours to highlight as the best times to use power."
+      }
+    }
+  ],
+  "height": 330,
+  "api": {
+    "getData": {
+      "method": "GET",
+      "path": "/"
+    }
+  }
+}
