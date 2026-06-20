@@ -34,6 +34,31 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
 
 Commits are tagged `Sprint N: ...` (mirrors the Vestaboard app convention).
 
+## Multi-model review (Opus + GPT-5.5 code review, Sonnet feature review)
+
+### Code-review findings (convergent)
+- HIGH: budget/threshold "above/below" triggers re-fire every refresh (rolling 24h value changes constantly) — need crossing semantics.
+- HIGH: no single-flight guard on refresh() → concurrent runs over-count the cumulative meter (read-modify-write race); store writes of cumulativeMeter + lastConsumptionEnd are non-atomic.
+- HIGH: repair updates store creds but never rebuilds OctopusClient/KrakenClient → stale API key until restart; repair also doesn't update mpxn/serial identity.
+- MEDIUM: localMidnight/localMonthStart use fixed 86,400,000 ms days → DST/month drift in price stats + monthly cost.
+- MEDIUM: Economy 7 cost mispriced — night usage charged at day rate; monthly cost 404s for 2R tariffs.
+- MEDIUM: activeTariff() can pick a future open-ended agreement (valid_from in future).
+- MEDIUM: health treats any one successful sub-refresh as healthy → masks persistent price-fetch outage.
+- LOW: saving_session_starting_soon can double-fire; KrakenClient lacks res.ok check/backoff; getDemand assumes array order = recency; enableLivePower can leak interval; pollers duplicate credentials/fmt/fire/notify (extract AccountPoller base).
+
+### Feature-review Top additions
+Agile new-rates-published trigger; export Flow triggers + parity (level/standing/earnings month/widget); gas Flow cards + gas embedded carbon; regional carbon + generation mix %; target-rate percentile condition; E7 night-rate condition/trigger; EV bump-charge; completed-dispatches trigger; tariff-change alert; adaptive refresh cadence; balance dedup; pairing key validation; calendar yesterday + peak/off-peak cost; next-charge-start capability.
+
+## Phase 4 — recommended sprints (from the review)
+26. **Correctness & reliability** — refresh single-flight + atomic/cursor-safe cumulative meter; threshold-crossing triggers; rebuild clients + full identity on repair; activeTariff ignores future agreements.
+27. **Time & tariff accuracy** — DST-safe local boundaries; Economy 7 register-aware cost; health reflects price failure; KrakenClient hardening; shared AccountPoller; starting-soon dedup.
+28. **Export & Gas parity** — export rate triggers + level/standing/earnings-month + widget; gas Flow cards + gas embedded carbon.
+29. **Rate intelligence** — Agile new-rates trigger; percentile target-rate condition; E7 night-rate cards; saving% token; next-charge-start capability.
+30. **Carbon & green** — regional carbon intensity; generation-mix renewable % + condition.
+31. **IOG deepening** — EV bump-charge (best-effort); completed-dispatches trigger; repair-on-401 notification; tariff-change alert.
+32. **API optimisation & UX** — adaptive refresh cadence; balance dedup cache; tighter consumption fetch; poller back-off; pairing validation; calendar/peak-offpeak cost; widget compact mode.
+
+
 ## Status: Sprints 1–10 COMPLETE
 All built, validated at publish level (12 tests pass, lint clean), committed and
 pushed to zarbjustin/homey-octopus-energy. App lives at C:\Users\jzarb\octopusenergy.
