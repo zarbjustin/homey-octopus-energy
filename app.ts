@@ -51,14 +51,16 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     this.homey.flow.getTriggerCard('cost_today_above')
       .registerRunListener(async (
         args: { device: Homey.Device; amount: number },
-        state: { deviceId: string; cost: number },
-      ) => args.device.getData().id === state.deviceId && state.cost > args.amount);
+        state: { deviceId: string; cost: number; previous: number },
+      ) => args.device.getData().id === state.deviceId
+        && state.previous <= args.amount && state.cost > args.amount);
 
     this.homey.flow.getTriggerCard('usage_today_above')
       .registerRunListener(async (
         args: { device: Homey.Device; amount: number },
-        state: { deviceId: string; usage: number },
-      ) => args.device.getData().id === state.deviceId && state.usage > args.amount);
+        state: { deviceId: string; usage: number; previous: number },
+      ) => args.device.getData().id === state.deviceId
+        && state.previous <= args.amount && state.usage > args.amount);
 
     this.homey.flow.getTriggerCard('standing_charge_changed')
       .registerRunListener(async (

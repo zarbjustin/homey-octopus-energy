@@ -75,7 +75,7 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
         this.previousCarbonLevel = level;
       }
       if (prev !== null && Math.round(prev) !== Math.round(current.intensity)) {
-        this.trigger('carbon_below', { carbon: Math.round(current.intensity) }, { carbon: current.intensity });
+        this.trigger('carbon_below', { carbon: Math.round(current.intensity) }, { carbon: current.intensity, previous: prev });
       }
     }
     this.carbonForecast = await this.carbon.getForecast();
@@ -196,7 +196,7 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     // every app restart / first refresh).
     if (prev !== null && value !== prev) {
       this.trigger('price_changed', { price: value, previous: prev });
-      this.trigger('price_below', { price: value }, { price: value });
+      this.trigger('price_below', { price: value }, { price: value, previous: prev });
       if (value < 0) {
         this.trigger('price_plunge', { price: value });
         if (this.notifyEnabled('notify_plunge', true)) {

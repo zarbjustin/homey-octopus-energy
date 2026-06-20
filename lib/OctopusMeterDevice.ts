@@ -56,6 +56,8 @@ export class OctopusMeterDevice extends Homey.Device {
 
   private refreshTimer: NodeJS.Timeout | null = null;
 
+  private refreshing = false;
+
   private alignTimer: NodeJS.Timeout | null = null;
 
   private agileTimer: NodeJS.Timeout | null = null;
@@ -140,6 +142,17 @@ export class OctopusMeterDevice extends Homey.Device {
     return this.currentPrice;
   }
 
+  /**
+   * Re-build the API clients from the (just-updated) stored credentials and
+   * refresh. Called after a repair so a new API key takes effect immediately
+   * without restarting the app.
+   */
+  async applyCredentials(): Promise<void> {
+    this.buildClients();
+    await this.ensureRegisterCapabilities().catch((err) => this.error(err));
+    await this.refresh().catch((err) => this.error('Refresh after repair failed:', err));
+  }
+
   getCurrentRate(at: Date = new Date()): Rate | null {
     return rateAt(this.rates, at);
   }
@@ -148,19 +161,32 @@ export class OctopusMeterDevice extends Homey.Device {
 
   /** Refresh prices, standing charge and balance. Subclasses extend this. */
   protected async refresh(): Promise<void> {
+    if (this.refreshing) return; // single-flight: avoid concurrent cumulative-meter races
+    this.refreshing = true;
+    try {
+      await this.runRefresh();
+    } finally {
+      this.refreshing = false;
+    }
+  }
+
+  private async runRefresh(): Promise<void> {
     let ok = false;
+    let priceOk = false;
     let firstErr: unknown = null;
-    const run = async (label: string, fn: () => Promise<void>): Promise<void> => {
+    const run = async (label: string, fn: () => Promise<void>): Promise<boolean> => {
       try {
         await fn();
         ok = true;
+        return true;
       } catch (err) {
         if (!firstErr) firstErr = err;
         this.error(`${label} failed:`, err);
+        return false;
       }
     };
 
-    await run('Price refresh', () => this.refreshPrices());
+    priceOk = await run('Price refresh', () => this.refreshPrices());
     await run('Standing-charge refresh', () => this.refreshStandingCharge());
     await run('Balance refresh', () => this.refreshBalance());
     await run('Extra refresh', () => this.refreshExtra());
@@ -181,15 +207,19 @@ export class OctopusMeterDevice extends Homey.Device {
       this.error('Points refresh failed:', err);
     }
 
-    await this.setHealth(ok, firstErr);
+    await this.setHealth(ok, priceOk, firstErr);
   }
 
   /** Reflect refresh success/failure on the connection alarm and availability. */
-  private async setHealth(ok: boolean, err: unknown): Promise<void> {
+  private async setHealth(ok: boolean, priceOk: boolean, err: unknown): Promise<void> {
+    // The device's primary job is price data; a persistent price failure is
+    // surfaced even if ancillary calls (balance, etc.) succeed. Devices with no
+    // tariff (productCode null) legitimately skip prices, so treat that as ok.
+    const healthy = ok && (priceOk || !this.store().productCode);
     if (this.hasCapability('alarm_generic')) {
-      await this.setCapabilityValue('alarm_generic', !ok).catch(this.error);
+      await this.setCapabilityValue('alarm_generic', !healthy).catch(this.error);
     }
-    if (ok) {
+    if (healthy) {
       if (this.hasCapability('octopus_updated')) {
         await this.setCapabilityValue('octopus_updated', this.formatLocal(new Date())).catch(this.error);
       }
@@ -252,7 +282,9 @@ export class OctopusMeterDevice extends Homey.Device {
       const usage = Number(this.toEnergyUnit(sumConsumption(last48)).toFixed(2));
       await this.setCapabilityValue('octopus_usage_today', usage).catch(this.error);
       if (this.previousUsage !== null && usage !== this.previousUsage) {
-        this.fireAppTrigger('usage_today_above', { usage }, { deviceId: this.getData().id, usage });
+        this.fireAppTrigger('usage_today_above', { usage }, {
+          deviceId: this.getData().id, usage, previous: this.previousUsage,
+        });
       }
       this.previousUsage = usage;
     }
@@ -270,19 +302,29 @@ export class OctopusMeterDevice extends Homey.Device {
       const cost = Number((pence / 100).toFixed(2));
       await this.setCapabilityValue(costCap, cost).catch(this.error);
       if (costCap === 'octopus_cost_today' && this.previousCostToday !== null && cost !== this.previousCostToday) {
-        this.fireAppTrigger('cost_today_above', { cost }, { deviceId: this.getData().id, cost });
+        this.fireAppTrigger('cost_today_above', { cost }, {
+          deviceId: this.getData().id, cost, previous: this.previousCostToday,
+        });
       }
       this.previousCostToday = cost;
     }
 
     if (hasMeter) {
-      const lastEnd = lastEndIso ? new Date(lastEndIso).getTime() : 0;
+      // Re-read the cursor immediately before the read-modify-write to stay
+      // correct; write the cursor before the total so an interrupted write
+      // under-counts (loses a delta) rather than double-counting.
+      const persistedEnd: string | null = this.getStoreValue('lastConsumptionEnd');
+      const lastEnd = persistedEnd ? new Date(persistedEnd).getTime() : 0;
       const fresh = sorted.filter((r) => new Date(r.interval_end).getTime() > lastEnd);
-      const add = this.toMeterUnit(sumConsumption(fresh));
-      const cumulative = Number(((Number(this.getStoreValue('cumulativeMeter')) || 0) + add).toFixed(3));
-      await this.setStoreValue('cumulativeMeter', cumulative);
-      await this.setStoreValue('lastConsumptionEnd', sorted[sorted.length - 1].interval_end);
-      await this.setCapabilityValue(meterCap as string, cumulative).catch(this.error);
+      if (fresh.length) {
+        const add = this.toMeterUnit(sumConsumption(fresh));
+        const cumulative = Number(((Number(this.getStoreValue('cumulativeMeter')) || 0) + add).toFixed(3));
+        await this.setStoreValue('lastConsumptionEnd', sorted[sorted.length - 1].interval_end);
+        await this.setStoreValue('cumulativeMeter', cumulative);
+        await this.setCapabilityValue(meterCap as string, cumulative).catch(this.error);
+      } else if (this.getStoreValue('cumulativeMeter') != null) {
+        await this.setCapabilityValue(meterCap as string, Number(this.getStoreValue('cumulativeMeter'))).catch(this.error);
+      }
     }
   }
 

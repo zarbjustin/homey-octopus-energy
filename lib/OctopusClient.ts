@@ -242,11 +242,19 @@ export class OctopusClient {
   /** Choose the active agreement's tariff code (null valid_to wins, else latest). */
   static activeTariff(agreements: Agreement[] = []): string | null {
     if (!agreements.length) return null;
+    const now = Date.now();
     const sorted = [...agreements].sort(
       (a, b) => new Date(b.valid_from ?? 0).getTime() - new Date(a.valid_from ?? 0).getTime(),
     );
-    const active = sorted.find((a) => !a.valid_to) ?? sorted[0];
-    return active?.tariff_code ?? null;
+    // Prefer an agreement that is active right now (started, not yet ended).
+    const current = sorted.find((a) => {
+      const from = a.valid_from ? new Date(a.valid_from).getTime() : -Infinity;
+      const to = a.valid_to ? new Date(a.valid_to).getTime() : Infinity;
+      return from <= now && to > now;
+    });
+    if (current) return current.tariff_code ?? null;
+    // Otherwise fall back to the most recent agreement (latest valid_from).
+    return sorted[0]?.tariff_code ?? null;
   }
 
   // --- Tariff prices -------------------------------------------------------

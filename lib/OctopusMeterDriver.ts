@@ -122,8 +122,17 @@ export class OctopusMeterDriver extends Homey.Driver {
       const match = meters.find((m) => m.mpxn === wanted) ?? meters[0];
       await device.setStoreValue('apiKey', creds.apiKey);
       await device.setStoreValue('accountNumber', creds.accountNumber);
+      await device.setStoreValue('mpxn', match.mpxn);
+      await device.setStoreValue('serial', match.serial);
+      await device.setStoreValue('fuel', match.fuel);
+      await device.setStoreValue('isExport', match.isExport);
       await device.setStoreValue('productCode', match.productCode);
       await device.setStoreValue('tariffCode', match.tariffCode);
+      // Rebuild the API clients so the new key takes effect immediately.
+      const meterDevice = device as Homey.Device & { applyCredentials?: () => Promise<void> };
+      if (typeof meterDevice.applyCredentials === 'function') {
+        await meterDevice.applyCredentials();
+      }
       return { done: true };
     });
   }
