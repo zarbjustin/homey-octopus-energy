@@ -2,18 +2,42 @@
   "triggers": [
     {
       "id": "price_changed",
-      "title": { "en": "The unit rate changed" },
-      "hint": { "en": "Triggers each half hour when the electricity unit rate changes." },
+      "title": {
+        "en": "The unit rate changed"
+      },
+      "hint": {
+        "en": "Triggers each half hour when the electricity unit rate changes."
+      },
       "tokens": [
-        { "name": "price", "type": "number", "title": { "en": "Price (p/kWh)" }, "example": 18.5 },
-        { "name": "previous", "type": "number", "title": { "en": "Previous price" }, "example": 22.1 }
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Price (p/kWh)"
+          },
+          "example": 18.5
+        },
+        {
+          "name": "previous",
+          "type": "number",
+          "title": {
+            "en": "Previous price"
+          },
+          "example": 22.1
+        }
       ]
     },
     {
       "id": "price_below",
-      "title": { "en": "The price drops below ..." },
-      "titleFormatted": { "en": "The unit rate drops below [[price]] p/kWh" },
-      "hint": { "en": "Triggers when a new half-hourly unit rate is below your threshold." },
+      "title": {
+        "en": "The price drops below ..."
+      },
+      "titleFormatted": {
+        "en": "The unit rate drops below [[price]] p/kWh"
+      },
+      "hint": {
+        "en": "Triggers when a new half-hourly unit rate is below your threshold."
+      },
       "args": [
         {
           "type": "number",
@@ -21,35 +45,86 @@
           "min": -50,
           "max": 200,
           "step": 0.1,
-          "placeholder": { "en": "15" }
+          "placeholder": {
+            "en": "15"
+          },
+          "title": {
+            "en": "Price (p/kWh)"
+          }
         }
       ],
       "tokens": [
-        { "name": "price", "type": "number", "title": { "en": "Price (p/kWh)" }, "example": 12.3 }
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Price (p/kWh)"
+          },
+          "example": 12.3
+        }
       ]
     },
     {
       "id": "price_plunge",
-      "title": { "en": "The price went negative (plunge)" },
-      "hint": { "en": "Triggers when the unit rate drops below zero — Octopus is paying you to use energy." },
+      "title": {
+        "en": "The price went negative (plunge)"
+      },
+      "hint": {
+        "en": "Triggers when the unit rate drops below zero — Octopus is paying you to use energy."
+      },
       "tokens": [
-        { "name": "price", "type": "number", "title": { "en": "Price (p/kWh)" }, "example": -2.5 }
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Price (p/kWh)"
+          },
+          "example": -2.5
+        }
       ]
     },
     {
       "id": "price_level_changed",
-      "title": { "en": "The price level changed" },
-      "hint": { "en": "Triggers when the price level changes between plunge, cheap, normal and expensive." },
+      "title": {
+        "en": "The price level changed"
+      },
+      "hint": {
+        "en": "Triggers when the price level changes between plunge, cheap, normal and expensive."
+      },
       "tokens": [
-        { "name": "level", "type": "string", "title": { "en": "Level" }, "example": { "en": "cheap" } },
-        { "name": "previous", "type": "string", "title": { "en": "Previous level" }, "example": { "en": "normal" } }
+        {
+          "name": "level",
+          "type": "string",
+          "title": {
+            "en": "Level"
+          },
+          "example": {
+            "en": "cheap"
+          }
+        },
+        {
+          "name": "previous",
+          "type": "string",
+          "title": {
+            "en": "Previous level"
+          },
+          "example": {
+            "en": "normal"
+          }
+        }
       ]
     },
     {
       "id": "cheapest_slot_started",
-      "title": { "en": "The cheapest half-hour started" },
-      "titleFormatted": { "en": "Now is the cheapest half-hour in the next [[hours]] h" },
-      "hint": { "en": "Triggers when the current half-hour is the cheapest within the look-ahead window." },
+      "title": {
+        "en": "The cheapest half-hour started"
+      },
+      "titleFormatted": {
+        "en": "Now is the cheapest half-hour in the next [[hours]] h"
+      },
+      "hint": {
+        "en": "Triggers when the current half-hour is the cheapest within the look-ahead window."
+      },
       "args": [
         {
           "type": "number",
@@ -57,70 +132,176 @@
           "min": 1,
           "max": 48,
           "step": 1,
-          "placeholder": { "en": "12" }
+          "placeholder": {
+            "en": "12"
+          },
+          "title": {
+            "en": "Within the next (hours)"
+          }
         }
       ],
       "tokens": [
-        { "name": "price", "type": "number", "title": { "en": "Price (p/kWh)" }, "example": 9.8 }
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Price (p/kWh)"
+          },
+          "example": 9.8
+        }
       ]
     },
     {
       "id": "smart_charge_started",
-      "title": { "en": "The smart charge window started" },
-      "hint": { "en": "Triggers when the current half-hour enters your cheapest smart-charge plan." }
+      "title": {
+        "en": "The smart charge window started"
+      },
+      "hint": {
+        "en": "Triggers when the current half-hour enters your cheapest smart-charge plan."
+      }
     },
     {
       "id": "smart_charge_ended",
-      "title": { "en": "The smart charge window ended" },
-      "hint": { "en": "Triggers when the current half-hour leaves your cheapest smart-charge plan." }
+      "title": {
+        "en": "The smart charge window ended"
+      },
+      "hint": {
+        "en": "Triggers when the current half-hour leaves your cheapest smart-charge plan."
+      }
     },
     {
       "id": "carbon_below",
-      "title": { "en": "Carbon intensity drops below ..." },
-      "titleFormatted": { "en": "Carbon intensity drops below [[threshold]] gCO₂/kWh" },
-      "hint": { "en": "Triggers when grid carbon intensity falls below your threshold — a good time to use power." },
+      "title": {
+        "en": "Carbon intensity drops below ..."
+      },
+      "titleFormatted": {
+        "en": "Carbon intensity drops below [[threshold]] gCO₂/kWh"
+      },
+      "hint": {
+        "en": "Triggers when grid carbon intensity falls below your threshold — a good time to use power."
+      },
       "args": [
-        { "type": "number", "name": "threshold", "min": 0, "max": 600, "step": 5, "placeholder": { "en": "100" } }
+        {
+          "type": "number",
+          "name": "threshold",
+          "min": 0,
+          "max": 600,
+          "step": 5,
+          "placeholder": {
+            "en": "100"
+          },
+          "title": {
+            "en": "Carbon intensity (gCO₂/kWh)"
+          }
+        }
       ],
       "tokens": [
-        { "name": "carbon", "type": "number", "title": { "en": "Carbon (gCO₂/kWh)" }, "example": 85 }
+        {
+          "name": "carbon",
+          "type": "number",
+          "title": {
+            "en": "Carbon (gCO₂/kWh)"
+          },
+          "example": 85
+        }
       ]
     },
     {
       "id": "carbon_level_changed",
-      "title": { "en": "The carbon level changed" },
-      "hint": { "en": "Triggers when grid carbon intensity moves between very low / low / moderate / high / very high." },
+      "title": {
+        "en": "The carbon level changed"
+      },
+      "hint": {
+        "en": "Triggers when grid carbon intensity moves between very low / low / moderate / high / very high."
+      },
       "tokens": [
-        { "name": "level", "type": "string", "title": { "en": "Level" }, "example": { "en": "low" } },
-        { "name": "previous", "type": "string", "title": { "en": "Previous level" }, "example": { "en": "moderate" } }
+        {
+          "name": "level",
+          "type": "string",
+          "title": {
+            "en": "Level"
+          },
+          "example": {
+            "en": "low"
+          }
+        },
+        {
+          "name": "previous",
+          "type": "string",
+          "title": {
+            "en": "Previous level"
+          },
+          "example": {
+            "en": "moderate"
+          }
+        }
       ]
     },
     {
       "id": "rates_published",
-      "title": { "en": "New Agile prices were published" },
-      "hint": { "en": "Triggers when fresh half-hourly prices become available (typically ~16:00) — schedule tonight's automations." },
+      "title": {
+        "en": "New Agile prices were published"
+      },
+      "hint": {
+        "en": "Triggers when fresh half-hourly prices become available (typically ~16:00) — schedule tonight's automations."
+      },
       "tokens": [
-        { "name": "cheapest", "type": "number", "title": { "en": "Cheapest upcoming (p/kWh)" }, "example": 8.5 },
-        { "name": "cheapest_start", "type": "string", "title": { "en": "Cheapest slot start" }, "example": { "en": "Tue 02:30" } },
-        { "name": "most_expensive", "type": "number", "title": { "en": "Most expensive upcoming (p/kWh)" }, "example": 34 }
+        {
+          "name": "cheapest",
+          "type": "number",
+          "title": {
+            "en": "Cheapest upcoming (p/kWh)"
+          },
+          "example": 8.5
+        },
+        {
+          "name": "cheapest_start",
+          "type": "string",
+          "title": {
+            "en": "Cheapest slot start"
+          },
+          "example": {
+            "en": "Tue 02:30"
+          }
+        },
+        {
+          "name": "most_expensive",
+          "type": "number",
+          "title": {
+            "en": "Most expensive upcoming (p/kWh)"
+          },
+          "example": 34
+        }
       ]
     },
     {
       "id": "night_rate_started",
-      "title": { "en": "The Economy 7 night rate started" },
-      "hint": { "en": "Triggers when the cheaper Economy 7 night rate period begins." }
+      "title": {
+        "en": "The Economy 7 night rate started"
+      },
+      "hint": {
+        "en": "Triggers when the cheaper Economy 7 night rate period begins."
+      }
     },
     {
       "id": "night_rate_ended",
-      "title": { "en": "The Economy 7 night rate ended" },
-      "hint": { "en": "Triggers when the Economy 7 night rate period ends and the day rate resumes." }
+      "title": {
+        "en": "The Economy 7 night rate ended"
+      },
+      "hint": {
+        "en": "Triggers when the Economy 7 night rate period ends and the day rate resumes."
+      }
     }
   ],
   "conditions": [
     {
       "id": "price_below_now",
-      "title": { "en": "Current price !{{is below|is not below}} ..." },
-      "titleFormatted": { "en": "Current price !{{is below|is not below}} [[price]] p/kWh" },
+      "title": {
+        "en": "Current price !{{is below|is not below}} ..."
+      },
+      "titleFormatted": {
+        "en": "Current price !{{is below|is not below}} [[price]] p/kWh"
+      },
       "args": [
         {
           "type": "number",
@@ -128,14 +309,23 @@
           "min": -50,
           "max": 200,
           "step": 0.1,
-          "placeholder": { "en": "15" }
+          "placeholder": {
+            "en": "15"
+          },
+          "title": {
+            "en": "Price (p/kWh)"
+          }
         }
       ]
     },
     {
       "id": "is_cheapest_now",
-      "title": { "en": "Now !{{is|is not}} the cheapest half-hour" },
-      "titleFormatted": { "en": "Now !{{is|is not}} the cheapest half-hour in the next [[hours]] h" },
+      "title": {
+        "en": "Now !{{is|is not}} the cheapest half-hour"
+      },
+      "titleFormatted": {
+        "en": "Now !{{is|is not}} the cheapest half-hour in the next [[hours]] h"
+      },
       "args": [
         {
           "type": "number",
@@ -143,31 +333,67 @@
           "min": 1,
           "max": 48,
           "step": 1,
-          "placeholder": { "en": "12" }
+          "placeholder": {
+            "en": "12"
+          },
+          "title": {
+            "en": "Within the next (hours)"
+          }
         }
       ]
     },
     {
       "id": "price_level_is",
-      "title": { "en": "The price level !{{is|is not}} ..." },
-      "titleFormatted": { "en": "The price level !{{is|is not}} [[level]]" },
+      "title": {
+        "en": "The price level !{{is|is not}} ..."
+      },
+      "titleFormatted": {
+        "en": "The price level !{{is|is not}} [[level]]"
+      },
       "args": [
         {
           "type": "dropdown",
           "name": "level",
           "values": [
-            { "id": "plunge", "label": { "en": "Plunge (negative)" } },
-            { "id": "cheap", "label": { "en": "Cheap" } },
-            { "id": "normal", "label": { "en": "Normal" } },
-            { "id": "expensive", "label": { "en": "Expensive" } }
-          ]
+            {
+              "id": "plunge",
+              "label": {
+                "en": "Plunge (negative)"
+              }
+            },
+            {
+              "id": "cheap",
+              "label": {
+                "en": "Cheap"
+              }
+            },
+            {
+              "id": "normal",
+              "label": {
+                "en": "Normal"
+              }
+            },
+            {
+              "id": "expensive",
+              "label": {
+                "en": "Expensive"
+              }
+            }
+          ],
+          "title": {
+            "en": "Level"
+          }
         }
       ]
     },
     {
       "id": "within_cheapest_period",
-      "title": { "en": "Now !{{is|is not}} within the cheapest period" },
-      "titleFormatted": { "en": "Now !{{is|is not}} within the cheapest [[duration]] h block of the next [[within]] h" },
+      "title": {
+        "en": "Now !{{is|is not}} within the cheapest period"
+      },
+      "titleFormatted": {
+        "en": "Now !{{is|is not}} within the cheapest [[duration]] h block of the next [[within]] h"
+      },
       "args": [
         {
           "type": "number",
@@ -175,7 +401,12 @@
           "min": 0.5,
           "max": 12,
           "step": 0.5,
-          "placeholder": { "en": "3" }
+          "placeholder": {
+            "en": "3"
+          },
+          "title": {
+            "en": "Duration (hours)"
+          }
         },
         {
           "type": "number",
@@ -183,14 +414,23 @@
           "min": 1,
           "max": 48,
           "step": 1,
-          "placeholder": { "en": "12" }
+          "placeholder": {
+            "en": "12"
+          },
+          "title": {
+            "en": "Within the next (hours)"
+          }
         }
       ]
     },
     {
       "id": "in_cheapest_plan",
-      "title": { "en": "Now !{{is|is not}} in the cheapest charge plan" },
-      "titleFormatted": { "en": "Now !{{is|is not}} in the cheapest [[duration]] h before [[by]]" },
+      "title": {
+        "en": "Now !{{is|is not}} in the cheapest charge plan"
+      },
+      "titleFormatted": {
+        "en": "Now !{{is|is not}} in the cheapest [[duration]] h before [[by]]"
+      },
       "args": [
         {
           "type": "number",
@@ -198,99 +438,267 @@
           "min": 0.5,
           "max": 12,
           "step": 0.5,
-          "placeholder": { "en": "3" }
+          "placeholder": {
+            "en": "3"
+          },
+          "title": {
+            "en": "Duration (hours)"
+          }
         },
         {
           "type": "text",
           "name": "by",
-          "placeholder": { "en": "07:00" }
+          "placeholder": {
+            "en": "07:00"
+          },
+          "title": {
+            "en": "By time (HH:MM)"
+          }
         }
       ]
     },
     {
       "id": "carbon_below",
-      "title": { "en": "Carbon intensity !{{is below|is not below}} ..." },
-      "titleFormatted": { "en": "Carbon intensity !{{is below|is not below}} [[intensity]] gCO₂/kWh" },
+      "title": {
+        "en": "Carbon intensity !{{is below|is not below}} ..."
+      },
+      "titleFormatted": {
+        "en": "Carbon intensity !{{is below|is not below}} [[intensity]] gCO₂/kWh"
+      },
       "args": [
-        { "type": "number", "name": "intensity", "min": 0, "max": 600, "step": 5, "placeholder": { "en": "100" } }
+        {
+          "type": "number",
+          "name": "intensity",
+          "min": 0,
+          "max": 600,
+          "step": 5,
+          "placeholder": {
+            "en": "100"
+          },
+          "title": {
+            "en": "Carbon intensity (gCO₂/kWh)"
+          }
+        }
       ]
     },
     {
       "id": "is_greenest_now",
-      "title": { "en": "Now !{{is|is not}} the greenest half-hour" },
-      "titleFormatted": { "en": "Now !{{is|is not}} the greenest half-hour in the next [[hours]] h" },
+      "title": {
+        "en": "Now !{{is|is not}} the greenest half-hour"
+      },
+      "titleFormatted": {
+        "en": "Now !{{is|is not}} the greenest half-hour in the next [[hours]] h"
+      },
       "args": [
-        { "type": "number", "name": "hours", "min": 1, "max": 48, "step": 1, "placeholder": { "en": "12" } }
+        {
+          "type": "number",
+          "name": "hours",
+          "min": 1,
+          "max": 48,
+          "step": 1,
+          "placeholder": {
+            "en": "12"
+          },
+          "title": {
+            "en": "Within the next (hours)"
+          }
+        }
       ]
     },
     {
       "id": "carbon_level_is",
-      "title": { "en": "The carbon level !{{is|is not}} ..." },
-      "titleFormatted": { "en": "The carbon level !{{is|is not}} [[level]]" },
+      "title": {
+        "en": "The carbon level !{{is|is not}} ..."
+      },
+      "titleFormatted": {
+        "en": "The carbon level !{{is|is not}} [[level]]"
+      },
       "args": [
         {
           "type": "dropdown",
           "name": "level",
           "values": [
-            { "id": "very_low", "label": { "en": "Very low" } },
-            { "id": "low", "label": { "en": "Low" } },
-            { "id": "moderate", "label": { "en": "Moderate" } },
-            { "id": "high", "label": { "en": "High" } },
-            { "id": "very_high", "label": { "en": "Very high" } }
-          ]
+            {
+              "id": "very_low",
+              "label": {
+                "en": "Very low"
+              }
+            },
+            {
+              "id": "low",
+              "label": {
+                "en": "Low"
+              }
+            },
+            {
+              "id": "moderate",
+              "label": {
+                "en": "Moderate"
+              }
+            },
+            {
+              "id": "high",
+              "label": {
+                "en": "High"
+              }
+            },
+            {
+              "id": "very_high",
+              "label": {
+                "en": "Very high"
+              }
+            }
+          ],
+          "title": {
+            "en": "Level"
+          }
         }
       ]
     },
     {
       "id": "renewables_above",
-      "title": { "en": "Renewable generation !{{is above|is not above}} ..." },
-      "titleFormatted": { "en": "Renewable generation !{{is above|is not above}} [[percent]]%" },
-      "hint": { "en": "Wind + solar + hydro share of generation. Run loads when the grid is greenest." },
+      "title": {
+        "en": "Renewable generation !{{is above|is not above}} ..."
+      },
+      "titleFormatted": {
+        "en": "Renewable generation !{{is above|is not above}} [[percent]]%"
+      },
+      "hint": {
+        "en": "Wind + solar + hydro share of generation. Run loads when the grid is greenest."
+      },
       "args": [
-        { "type": "number", "name": "percent", "min": 0, "max": 100, "step": 5, "placeholder": { "en": "70" } }
+        {
+          "type": "number",
+          "name": "percent",
+          "min": 0,
+          "max": 100,
+          "step": 5,
+          "placeholder": {
+            "en": "70"
+          },
+          "title": {
+            "en": "Percentage (%)"
+          }
+        }
       ]
-    },
+    },
     {
       "id": "good_now",
-      "title": { "en": "Now !{{is|is not}} a good time to use power" },
-      "titleFormatted": { "en": "Now !{{is|is not}} below [[max_price]] p/kWh and [[max_carbon]] gCO₂/kWh" },
+      "title": {
+        "en": "Now !{{is|is not}} a good time to use power"
+      },
+      "titleFormatted": {
+        "en": "Now !{{is|is not}} below [[max_price]] p/kWh and [[max_carbon]] gCO₂/kWh"
+      },
       "args": [
-        { "type": "number", "name": "max_price", "min": -50, "max": 200, "step": 0.5, "placeholder": { "en": "15" } },
-        { "type": "number", "name": "max_carbon", "min": 0, "max": 600, "step": 5, "placeholder": { "en": "150" } }
+        {
+          "type": "number",
+          "name": "max_price",
+          "min": -50,
+          "max": 200,
+          "step": 0.5,
+          "placeholder": {
+            "en": "15"
+          },
+          "title": {
+            "en": "Max price (p/kWh)"
+          }
+        },
+        {
+          "type": "number",
+          "name": "max_carbon",
+          "min": 0,
+          "max": 600,
+          "step": 5,
+          "placeholder": {
+            "en": "150"
+          },
+          "title": {
+            "en": "Max carbon (gCO₂/kWh)"
+          }
+        }
       ]
     },
     {
       "id": "price_percentile_below",
-      "title": { "en": "Price is in the cheapest ...%" },
-      "titleFormatted": { "en": "Price !{{is|is not}} in the cheapest [[percent]]% of the next [[hours]] h" },
-      "hint": { "en": "A relative target — adapts as the market moves, unlike a fixed p/kWh threshold." },
+      "title": {
+        "en": "Price is in the cheapest ...%"
+      },
+      "titleFormatted": {
+        "en": "Price !{{is|is not}} in the cheapest [[percent]]% of the next [[hours]] h"
+      },
+      "hint": {
+        "en": "A relative target — adapts as the market moves, unlike a fixed p/kWh threshold."
+      },
       "args": [
-        { "type": "number", "name": "percent", "min": 1, "max": 100, "step": 1, "placeholder": { "en": "25" } },
-        { "type": "number", "name": "hours", "min": 1, "max": 48, "step": 1, "placeholder": { "en": "12" } }
+        {
+          "type": "number",
+          "name": "percent",
+          "min": 1,
+          "max": 100,
+          "step": 1,
+          "placeholder": {
+            "en": "25"
+          },
+          "title": {
+            "en": "Percentage (%)"
+          }
+        },
+        {
+          "type": "number",
+          "name": "hours",
+          "min": 1,
+          "max": 48,
+          "step": 1,
+          "placeholder": {
+            "en": "12"
+          },
+          "title": {
+            "en": "Within the next (hours)"
+          }
+        }
       ]
     },
     {
       "id": "is_night_rate",
-      "title": { "en": "Now !{{is|is not}} the Economy 7 night rate" },
-      "hint": { "en": "True when an Economy 7 meter is on its cheaper night register (per the configured night window)." }
+      "title": {
+        "en": "Now !{{is|is not}} the Economy 7 night rate"
+      },
+      "hint": {
+        "en": "True when an Economy 7 meter is on its cheaper night register (per the configured night window)."
+      }
     }
   ],
   "actions": [
     {
       "id": "refresh_now",
-      "title": { "en": "Refresh Octopus data" },
-      "hint": { "en": "Immediately refresh prices, usage and balance from Octopus Energy." }
+      "title": {
+        "en": "Refresh Octopus data"
+      },
+      "hint": {
+        "en": "Immediately refresh prices, usage and balance from Octopus Energy."
+      }
     },
     {
       "id": "bump_charge",
-      "title": { "en": "Start an EV bump charge (experimental)" },
-      "hint": { "en": "Triggers an immediate Intelligent Octopus Go boost charge. Experimental and only works on IOG with a supported charger." }
+      "title": {
+        "en": "Start an EV bump charge (experimental)"
+      },
+      "hint": {
+        "en": "Triggers an immediate Intelligent Octopus Go boost charge. Experimental and only works on IOG with a supported charger."
+      }
     },
     {
       "id": "find_cheapest_slot",
-      "title": { "en": "Find the cheapest upcoming slot" },
-      "titleFormatted": { "en": "Find the cheapest [[duration]] h slot in the next [[within]] h" },
-      "hint": { "en": "Returns the start time and average price of the cheapest block of half-hours ahead." },
+      "title": {
+        "en": "Find the cheapest upcoming slot"
+      },
+      "titleFormatted": {
+        "en": "Find the cheapest [[duration]] h slot in the next [[within]] h"
+      },
+      "hint": {
+        "en": "Returns the start time and average price of the cheapest block of half-hours ahead."
+      },
       "args": [
         {
           "type": "number",
@@ -298,7 +706,12 @@
           "min": 0.5,
           "max": 12,
           "step": 0.5,
-          "placeholder": { "en": "3" }
+          "placeholder": {
+            "en": "3"
+          },
+          "title": {
+            "en": "Duration (hours)"
+          }
         },
         {
           "type": "number",
@@ -306,19 +719,46 @@
           "min": 1,
           "max": 48,
           "step": 1,
-          "placeholder": { "en": "12" }
+          "placeholder": {
+            "en": "12"
+          },
+          "title": {
+            "en": "Within the next (hours)"
+          }
         }
       ],
       "tokens": [
-        { "name": "start_time", "type": "string", "title": { "en": "Start time" }, "example": { "en": "Mon 01:30" } },
-        { "name": "price", "type": "number", "title": { "en": "Average price (p/kWh)" }, "example": 8.4 }
+        {
+          "name": "start_time",
+          "type": "string",
+          "title": {
+            "en": "Start time"
+          },
+          "example": {
+            "en": "Mon 01:30"
+          }
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Average price (p/kWh)"
+          },
+          "example": 8.4
+        }
       ]
     },
     {
       "id": "find_cheapest_hours",
-      "title": { "en": "Plan the cheapest hours before a time" },
-      "titleFormatted": { "en": "Plan the cheapest [[duration]] h before [[by]]" },
-      "hint": { "en": "Selects the cheapest (non-contiguous) half-hours between now and the given time." },
+      "title": {
+        "en": "Plan the cheapest hours before a time"
+      },
+      "titleFormatted": {
+        "en": "Plan the cheapest [[duration]] h before [[by]]"
+      },
+      "hint": {
+        "en": "Selects the cheapest (non-contiguous) half-hours between now and the given time."
+      },
       "args": [
         {
           "type": "number",
@@ -326,69 +766,307 @@
           "min": 0.5,
           "max": 12,
           "step": 0.5,
-          "placeholder": { "en": "3" }
+          "placeholder": {
+            "en": "3"
+          },
+          "title": {
+            "en": "Duration (hours)"
+          }
         },
         {
           "type": "text",
           "name": "by",
-          "placeholder": { "en": "07:00" }
+          "placeholder": {
+            "en": "07:00"
+          },
+          "title": {
+            "en": "By time (HH:MM)"
+          }
         }
       ],
       "tokens": [
-        { "name": "count", "type": "number", "title": { "en": "Number of half-hours" }, "example": 6 },
-        { "name": "first_start", "type": "string", "title": { "en": "First slot start" }, "example": { "en": "Tue 01:00" } },
-        { "name": "price", "type": "number", "title": { "en": "Average price (p/kWh)" }, "example": 7.9 },
-        { "name": "saving_pct", "type": "number", "title": { "en": "Saving vs average (%)" }, "example": 38 }
+        {
+          "name": "count",
+          "type": "number",
+          "title": {
+            "en": "Number of half-hours"
+          },
+          "example": 6
+        },
+        {
+          "name": "first_start",
+          "type": "string",
+          "title": {
+            "en": "First slot start"
+          },
+          "example": {
+            "en": "Tue 01:00"
+          }
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Average price (p/kWh)"
+          },
+          "example": 7.9
+        },
+        {
+          "name": "saving_pct",
+          "type": "number",
+          "title": {
+            "en": "Saving vs average (%)"
+          },
+          "example": 38
+        }
       ]
     },
     {
       "id": "plan_charge",
-      "title": { "en": "Plan an EV/battery charge" },
-      "titleFormatted": { "en": "Plan charging [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]]" },
-      "hint": { "en": "Picks the cheapest half-hours before the deadline to deliver the energy you need." },
+      "title": {
+        "en": "Plan an EV/battery charge"
+      },
+      "titleFormatted": {
+        "en": "Plan charging [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]]"
+      },
+      "hint": {
+        "en": "Picks the cheapest half-hours before the deadline to deliver the energy you need."
+      },
       "args": [
-        { "type": "number", "name": "needed_kwh", "min": 0.5, "max": 200, "step": 0.5, "placeholder": { "en": "30" } },
-        { "type": "number", "name": "charge_rate", "min": 0.5, "max": 50, "step": 0.5, "placeholder": { "en": "7" } },
-        { "type": "text", "name": "by", "placeholder": { "en": "07:00" } }
+        {
+          "type": "number",
+          "name": "needed_kwh",
+          "min": 0.5,
+          "max": 200,
+          "step": 0.5,
+          "placeholder": {
+            "en": "30"
+          },
+          "title": {
+            "en": "Energy needed (kWh)"
+          }
+        },
+        {
+          "type": "number",
+          "name": "charge_rate",
+          "min": 0.5,
+          "max": 50,
+          "step": 0.5,
+          "placeholder": {
+            "en": "7"
+          },
+          "title": {
+            "en": "Charge rate (kW)"
+          }
+        },
+        {
+          "type": "text",
+          "name": "by",
+          "placeholder": {
+            "en": "07:00"
+          },
+          "title": {
+            "en": "By time (HH:MM)"
+          }
+        }
       ],
       "tokens": [
-        { "name": "count", "type": "number", "title": { "en": "Number of half-hours" }, "example": 9 },
-        { "name": "first_start", "type": "string", "title": { "en": "First slot start" }, "example": { "en": "Tue 00:30" } },
-        { "name": "price", "type": "number", "title": { "en": "Average price (p/kWh)" }, "example": 8.1 },
-        { "name": "cost", "type": "number", "title": { "en": "Estimated cost (£)" }, "example": 2.55 }
+        {
+          "name": "count",
+          "type": "number",
+          "title": {
+            "en": "Number of half-hours"
+          },
+          "example": 9
+        },
+        {
+          "name": "first_start",
+          "type": "string",
+          "title": {
+            "en": "First slot start"
+          },
+          "example": {
+            "en": "Tue 00:30"
+          }
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Average price (p/kWh)"
+          },
+          "example": 8.1
+        },
+        {
+          "name": "cost",
+          "type": "number",
+          "title": {
+            "en": "Estimated cost (£)"
+          },
+          "example": 2.55
+        }
       ]
     },
     {
       "id": "plan_green_charge",
-      "title": { "en": "Plan a green EV/battery charge" },
-      "titleFormatted": { "en": "Plan greenest charge of [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]] (greenness [[greenness]])" },
-      "hint": { "en": "Picks half-hours that balance low price and low carbon. Greenness 0 = cheapest, 1 = greenest." },
+      "title": {
+        "en": "Plan a green EV/battery charge"
+      },
+      "titleFormatted": {
+        "en": "Plan greenest charge of [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]] (greenness [[greenness]])"
+      },
+      "hint": {
+        "en": "Picks half-hours that balance low price and low carbon. Greenness 0 = cheapest, 1 = greenest."
+      },
       "args": [
-        { "type": "number", "name": "needed_kwh", "min": 0.5, "max": 200, "step": 0.5, "placeholder": { "en": "30" } },
-        { "type": "number", "name": "charge_rate", "min": 0.5, "max": 50, "step": 0.5, "placeholder": { "en": "7" } },
-        { "type": "text", "name": "by", "placeholder": { "en": "07:00" } },
-        { "type": "number", "name": "greenness", "min": 0, "max": 1, "step": 0.1, "placeholder": { "en": "0.5" } }
+        {
+          "type": "number",
+          "name": "needed_kwh",
+          "min": 0.5,
+          "max": 200,
+          "step": 0.5,
+          "placeholder": {
+            "en": "30"
+          },
+          "title": {
+            "en": "Energy needed (kWh)"
+          }
+        },
+        {
+          "type": "number",
+          "name": "charge_rate",
+          "min": 0.5,
+          "max": 50,
+          "step": 0.5,
+          "placeholder": {
+            "en": "7"
+          },
+          "title": {
+            "en": "Charge rate (kW)"
+          }
+        },
+        {
+          "type": "text",
+          "name": "by",
+          "placeholder": {
+            "en": "07:00"
+          },
+          "title": {
+            "en": "By time (HH:MM)"
+          }
+        },
+        {
+          "type": "number",
+          "name": "greenness",
+          "min": 0,
+          "max": 1,
+          "step": 0.1,
+          "placeholder": {
+            "en": "0.5"
+          },
+          "title": {
+            "en": "Min greenness (%)"
+          }
+        }
       ],
       "tokens": [
-        { "name": "count", "type": "number", "title": { "en": "Number of half-hours" }, "example": 9 },
-        { "name": "first_start", "type": "string", "title": { "en": "First slot start" }, "example": { "en": "Tue 01:00" } },
-        { "name": "price", "type": "number", "title": { "en": "Average price (p/kWh)" }, "example": 9.2 },
-        { "name": "carbon", "type": "number", "title": { "en": "Average carbon (gCO₂/kWh)" }, "example": 90 }
+        {
+          "name": "count",
+          "type": "number",
+          "title": {
+            "en": "Number of half-hours"
+          },
+          "example": 9
+        },
+        {
+          "name": "first_start",
+          "type": "string",
+          "title": {
+            "en": "First slot start"
+          },
+          "example": {
+            "en": "Tue 01:00"
+          }
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Average price (p/kWh)"
+          },
+          "example": 9.2
+        },
+        {
+          "name": "carbon",
+          "type": "number",
+          "title": {
+            "en": "Average carbon (gCO₂/kWh)"
+          },
+          "example": 90
+        }
       ]
-    },
+    },
     {
       "id": "find_best_tariff",
-      "title": { "en": "Compare my tariff" },
-      "titleFormatted": { "en": "Compare my tariff over the last [[days]] days" },
-      "hint": { "en": "Estimates the cheapest Octopus product for your usage and the annual saving versus your current tariff." },
+      "title": {
+        "en": "Compare my tariff"
+      },
+      "titleFormatted": {
+        "en": "Compare my tariff over the last [[days]] days"
+      },
+      "hint": {
+        "en": "Estimates the cheapest Octopus product for your usage and the annual saving versus your current tariff."
+      },
       "args": [
-        { "type": "number", "name": "days", "min": 7, "max": 90, "step": 1, "placeholder": { "en": "30" } }
+        {
+          "type": "number",
+          "name": "days",
+          "min": 7,
+          "max": 90,
+          "step": 1,
+          "placeholder": {
+            "en": "30"
+          },
+          "title": {
+            "en": "Days"
+          }
+        }
       ],
       "tokens": [
-        { "name": "best_product", "type": "string", "title": { "en": "Best product" }, "example": { "en": "Agile" } },
-        { "name": "annual_saving", "type": "number", "title": { "en": "Annual saving (£)" }, "example": 120.5 },
-        { "name": "current_annual", "type": "number", "title": { "en": "Current annual cost (£)" }, "example": 980 },
-        { "name": "best_annual", "type": "number", "title": { "en": "Best annual cost (£)" }, "example": 859.5 }
+        {
+          "name": "best_product",
+          "type": "string",
+          "title": {
+            "en": "Best product"
+          },
+          "example": {
+            "en": "Agile"
+          }
+        },
+        {
+          "name": "annual_saving",
+          "type": "number",
+          "title": {
+            "en": "Annual saving (£)"
+          },
+          "example": 120.5
+        },
+        {
+          "name": "current_annual",
+          "type": "number",
+          "title": {
+            "en": "Current annual cost (£)"
+          },
+          "example": 980
+        },
+        {
+          "name": "best_annual",
+          "type": "number",
+          "title": {
+            "en": "Best annual cost (£)"
+          },
+          "example": 859.5
+        }
       ]
     }
   ]

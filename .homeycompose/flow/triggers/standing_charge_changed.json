@@ -1,12 +1,32 @@
 {
   "id": "standing_charge_changed",
-  "title": { "en": "The standing charge changed" },
-  "titleFormatted": { "en": "The standing charge of [[device]] changed" },
-  "hint": { "en": "Triggers when your tariff's daily standing charge changes." },
+  "title": {
+    "en": "The standing charge changed"
+  },
+  "titleFormatted": {
+    "en": "The standing charge of [[device]] changed"
+  },
+  "hint": {
+    "en": "Triggers when your tariff's daily standing charge changes."
+  },
   "args": [
-    { "type": "device", "name": "device", "filter": "capabilities=octopus_standing_charge" }
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "capabilities=octopus_standing_charge",
+      "title": {
+        "en": "Device"
+      }
+    }
   ],
   "tokens": [
-    { "name": "charge", "type": "number", "title": { "en": "Standing charge (p/day)" }, "example": 48.5 }
+    {
+      "name": "charge",
+      "type": "number",
+      "title": {
+        "en": "Standing charge (p/day)"
+      },
+      "example": 48.5
+    }
   ]
 }

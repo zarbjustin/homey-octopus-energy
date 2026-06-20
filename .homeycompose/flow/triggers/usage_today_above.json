@@ -1,13 +1,45 @@
 {
   "id": "usage_today_above",
-  "title": { "en": "Today's usage rises above ..." },
-  "titleFormatted": { "en": "Usage (24h) of [[device]] rises above [[amount]] kWh" },
-  "hint": { "en": "Triggers when the last-24h energy usage exceeds the amount." },
+  "title": {
+    "en": "Today's usage rises above ..."
+  },
+  "titleFormatted": {
+    "en": "Usage (24h) of [[device]] rises above [[amount]] kWh"
+  },
+  "hint": {
+    "en": "Triggers when the last-24h energy usage exceeds the amount."
+  },
   "args": [
-    { "type": "device", "name": "device", "filter": "capabilities=octopus_usage_today" },
-    { "type": "number", "name": "amount", "min": 0, "max": 1000, "step": 0.5, "placeholder": { "en": "20" } }
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "capabilities=octopus_usage_today",
+      "title": {
+        "en": "Device"
+      }
+    },
+    {
+      "type": "number",
+      "name": "amount",
+      "min": 0,
+      "max": 1000,
+      "step": 0.5,
+      "placeholder": {
+        "en": "20"
+      },
+      "title": {
+        "en": "Amount (kWh)"
+      }
+    }
   ],
   "tokens": [
-    { "name": "usage", "type": "number", "title": { "en": "Usage (kWh)" }, "example": 22.4 }
+    {
+      "name": "usage",
+      "type": "number",
+      "title": {
+        "en": "Usage (kWh)"
+      },
+      "example": 22.4
+    }
   ]
 }

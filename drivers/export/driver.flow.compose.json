@@ -2,50 +2,167 @@
   "triggers": [
     {
       "id": "export_rate_changed",
-      "title": { "en": "The export rate changed" },
-      "hint": { "en": "Triggers each half hour when the export unit rate changes." },
+      "title": {
+        "en": "The export rate changed"
+      },
+      "hint": {
+        "en": "Triggers each half hour when the export unit rate changes."
+      },
       "tokens": [
-        { "name": "price", "type": "number", "title": { "en": "Export rate (p/kWh)" }, "example": 15 },
-        { "name": "previous", "type": "number", "title": { "en": "Previous rate" }, "example": 12 }
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Export rate (p/kWh)"
+          },
+          "example": 15
+        },
+        {
+          "name": "previous",
+          "type": "number",
+          "title": {
+            "en": "Previous rate"
+          },
+          "example": 12
+        }
       ]
     },
     {
       "id": "export_rate_above",
-      "title": { "en": "The export rate rises above ..." },
-      "titleFormatted": { "en": "The export rate rises above [[price]] p/kWh" },
-      "hint": { "en": "Triggers when the export rate climbs above your threshold — a good time to discharge a battery." },
+      "title": {
+        "en": "The export rate rises above ..."
+      },
+      "titleFormatted": {
+        "en": "The export rate rises above [[price]] p/kWh"
+      },
+      "hint": {
+        "en": "Triggers when the export rate climbs above your threshold — a good time to discharge a battery."
+      },
       "args": [
-        { "type": "number", "name": "price", "min": -50, "max": 200, "step": 0.5, "placeholder": { "en": "15" } }
+        {
+          "type": "number",
+          "name": "price",
+          "min": -50,
+          "max": 200,
+          "step": 0.5,
+          "placeholder": {
+            "en": "15"
+          },
+          "title": {
+            "en": "Price (p/kWh)"
+          }
+        }
       ],
       "tokens": [
-        { "name": "price", "type": "number", "title": { "en": "Export rate (p/kWh)" }, "example": 18 }
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Export rate (p/kWh)"
+          },
+          "example": 18
+        }
       ]
     }
   ],
   "actions": [
     {
       "id": "find_peak_export_slot",
-      "title": { "en": "Find the best time to export" },
-      "titleFormatted": { "en": "Find the highest-priced [[duration]] h export slot in the next [[within]] h" },
-      "hint": { "en": "Returns the start time and average price of the most expensive upcoming export block — the best time to sell." },
+      "title": {
+        "en": "Find the best time to export"
+      },
+      "titleFormatted": {
+        "en": "Find the highest-priced [[duration]] h export slot in the next [[within]] h"
+      },
+      "hint": {
+        "en": "Returns the start time and average price of the most expensive upcoming export block — the best time to sell."
+      },
       "args": [
-        { "type": "number", "name": "duration", "min": 0.5, "max": 12, "step": 0.5, "placeholder": { "en": "1" } },
-        { "type": "number", "name": "within", "min": 1, "max": 48, "step": 1, "placeholder": { "en": "12" } }
+        {
+          "type": "number",
+          "name": "duration",
+          "min": 0.5,
+          "max": 12,
+          "step": 0.5,
+          "placeholder": {
+            "en": "1"
+          },
+          "title": {
+            "en": "Duration (hours)"
+          }
+        },
+        {
+          "type": "number",
+          "name": "within",
+          "min": 1,
+          "max": 48,
+          "step": 1,
+          "placeholder": {
+            "en": "12"
+          },
+          "title": {
+            "en": "Within the next (hours)"
+          }
+        }
       ],
       "tokens": [
-        { "name": "start_time", "type": "string", "title": { "en": "Start time" }, "example": { "en": "Tue 17:30" } },
-        { "name": "price", "type": "number", "title": { "en": "Average export rate (p/kWh)" }, "example": 15 }
+        {
+          "name": "start_time",
+          "type": "string",
+          "title": {
+            "en": "Start time"
+          },
+          "example": {
+            "en": "Tue 17:30"
+          }
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Average export rate (p/kWh)"
+          },
+          "example": 15
+        }
       ]
     }
   ],
   "conditions": [
     {
       "id": "is_peak_export_now",
-      "title": { "en": "Now !{{is|is not}} the best time to export" },
-      "titleFormatted": { "en": "Now !{{is|is not}} within the highest-priced [[duration]] h of the next [[within]] h" },
+      "title": {
+        "en": "Now !{{is|is not}} the best time to export"
+      },
+      "titleFormatted": {
+        "en": "Now !{{is|is not}} within the highest-priced [[duration]] h of the next [[within]] h"
+      },
       "args": [
-        { "type": "number", "name": "duration", "min": 0.5, "max": 12, "step": 0.5, "placeholder": { "en": "1" } },
-        { "type": "number", "name": "within", "min": 1, "max": 48, "step": 1, "placeholder": { "en": "12" } }
+        {
+          "type": "number",
+          "name": "duration",
+          "min": 0.5,
+          "max": 12,
+          "step": 0.5,
+          "placeholder": {
+            "en": "1"
+          },
+          "title": {
+            "en": "Duration (hours)"
+          }
+        },
+        {
+          "type": "number",
+          "name": "within",
+          "min": 1,
+          "max": 48,
+          "step": 1,
+          "placeholder": {
+            "en": "12"
+          },
+          "title": {
+            "en": "Within the next (hours)"
+          }
+        }
       ]
     }
   ]

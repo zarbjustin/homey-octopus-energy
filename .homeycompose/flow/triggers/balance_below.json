@@ -1,13 +1,22 @@
 {
   "id": "balance_below",
-  "title": { "en": "The account balance drops below ..." },
-  "titleFormatted": { "en": "The balance of [[device]] drops below £[[amount]]" },
-  "hint": { "en": "Triggers when your Octopus account balance falls below the amount." },
+  "title": {
+    "en": "The account balance drops below ..."
+  },
+  "titleFormatted": {
+    "en": "The balance of [[device]] drops below £[[amount]]"
+  },
+  "hint": {
+    "en": "Triggers when your Octopus account balance falls below the amount."
+  },
   "args": [
     {
       "type": "device",
       "name": "device",
-      "filter": "capabilities=measure_octopus_balance"
+      "filter": "capabilities=measure_octopus_balance",
+      "title": {
+        "en": "Device"
+      }
     },
     {
       "type": "number",
@@ -15,10 +24,22 @@
       "min": -10000,
       "max": 10000,
       "step": 1,
-      "placeholder": { "en": "0" }
+      "placeholder": {
+        "en": "0"
+      },
+      "title": {
+        "en": "Amount (£)"
+      }
     }
   ],
   "tokens": [
-    { "name": "balance", "type": "number", "title": { "en": "Balance (£)" }, "example": -5.2 }
+    {
+      "name": "balance",
+      "type": "number",
+      "title": {
+        "en": "Balance (£)"
+      },
+      "example": -5.2
+    }
   ]
 }

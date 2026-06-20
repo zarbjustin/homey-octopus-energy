@@ -29,5 +29,10 @@
   "author": {
     "name": "Justin Zarb",
     "email": "justin.zarb@zarb.co.uk"
-  }
+  },
+  "support": "https://github.com/zarbjustin/homey-octopus-energy/issues",
+  "bugs": {
+    "url": "https://github.com/zarbjustin/homey-octopus-energy/issues"
+  },
+  "source": "https://github.com/zarbjustin/homey-octopus-energy"
 }

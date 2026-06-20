@@ -1,16 +1,32 @@
 {
   "id": "balance_changed",
-  "title": { "en": "The account balance changed" },
-  "titleFormatted": { "en": "The balance of [[device]] changed" },
-  "hint": { "en": "Triggers when your Octopus account balance changes." },
+  "title": {
+    "en": "The account balance changed"
+  },
+  "titleFormatted": {
+    "en": "The balance of [[device]] changed"
+  },
+  "hint": {
+    "en": "Triggers when your Octopus account balance changes."
+  },
   "args": [
     {
       "type": "device",
       "name": "device",
-      "filter": "capabilities=measure_octopus_balance"
+      "filter": "capabilities=measure_octopus_balance",
+      "title": {
+        "en": "Device"
+      }
     }
   ],
   "tokens": [
-    { "name": "balance", "type": "number", "title": { "en": "Balance (£)" }, "example": 124.5 }
+    {
+      "name": "balance",
+      "type": "number",
+      "title": {
+        "en": "Balance (£)"
+      },
+      "example": 124.5
+    }
   ]
 }

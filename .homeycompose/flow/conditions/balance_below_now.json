@@ -1,12 +1,19 @@
 {
   "id": "balance_below_now",
-  "title": { "en": "The account balance !{{is below|is not below}} ..." },
-  "titleFormatted": { "en": "The balance of [[device]] !{{is below|is not below}} £[[amount]]" },
+  "title": {
+    "en": "The account balance !{{is below|is not below}} ..."
+  },
+  "titleFormatted": {
+    "en": "The balance of [[device]] !{{is below|is not below}} £[[amount]]"
+  },
   "args": [
     {
       "type": "device",
       "name": "device",
-      "filter": "capabilities=measure_octopus_balance"
+      "filter": "capabilities=measure_octopus_balance",
+      "title": {
+        "en": "Device"
+      }
     },
     {
       "type": "number",
@@ -14,7 +21,12 @@
       "min": -10000,
       "max": 10000,
       "step": 1,
-      "placeholder": { "en": "0" }
+      "placeholder": {
+        "en": "0"
+      },
+      "title": {
+        "en": "Amount (£)"
+      }
     }
   ]
 }
