@@ -20,6 +20,10 @@ module.exports = class ExportDriver extends OctopusMeterDriver {
 
   private registerFlowCards(): void {
     const { flow } = this.homey;
+    flow.getDeviceTriggerCard('export_rate_above')
+      .registerRunListener(async (args: Args<{ price: number }>, state: { price: number; previous: number | null }) => (
+        state.price > args.price && (state.previous === null || state.previous <= args.price)
+      ));
     flow.getActionCard('find_peak_export_slot')
       .registerRunListener(async (args: Args<{ within: number; duration: number }>) => {
         const result = args.device.findPeakSlot(args.within, args.duration);

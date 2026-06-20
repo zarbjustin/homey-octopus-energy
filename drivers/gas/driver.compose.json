@@ -15,6 +15,7 @@
     "octopus_cost_projected",
     "octopus_standing_charge",
     "measure_octopus_balance",
+    "measure_gas_carbon",
     "octopus_updated",
     "alarm_generic"
   ],

@@ -1,0 +1,15 @@
+{
+  "name": { "en": "Export Earnings" },
+  "settings": [
+    {
+      "id": "device",
+      "type": "device",
+      "title": { "en": "Export meter" },
+      "filter": "driver_id=export"
+    }
+  ],
+  "height": 140,
+  "api": {
+    "getData": { "method": "GET", "path": "/" }
+  }
+}

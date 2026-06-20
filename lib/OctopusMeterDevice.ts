@@ -841,9 +841,20 @@ export class OctopusMeterDevice extends Homey.Device {
     }
   }
 
+  /** Capability for month-to-date cost (export overrides to earnings). */
+  protected monthCostCapability(): string {
+    return 'octopus_cost_month';
+  }
+
+  /** Capability for projected month cost (export overrides to earnings). */
+  protected monthProjectedCapability(): string {
+    return 'octopus_cost_projected';
+  }
+
   /** Compute month-to-date and projected monthly cost (incl. standing charge). */
   protected async refreshMonthlyCost(): Promise<void> {
-    if (!this.hasCapability('octopus_cost_month')) return;
+    const monthCap = this.monthCostCapability();
+    if (!this.hasCapability(monthCap)) return;
     const s = this.store();
     if (!s.mpxn || !s.serial || !s.productCode || !s.tariffCode) return;
 
@@ -873,13 +884,14 @@ export class OctopusMeterDevice extends Homey.Device {
       if (sc) pence += valueOf(sc, this.vatInc()) * Math.max(1, days);
     }
     const cost = pence / 100;
-    await this.setCapabilityValue('octopus_cost_month', Number(cost.toFixed(2))).catch(this.error);
+    await this.setCapabilityValue(monthCap, Number(cost.toFixed(2))).catch(this.error);
 
-    if (this.hasCapability('octopus_cost_projected')) {
+    const projectedCap = this.monthProjectedCapability();
+    if (this.hasCapability(projectedCap)) {
       const elapsed = Math.max(0.5, (now.getTime() - monthStart.getTime()) / 86_400_000);
       const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
       const projected = (cost / elapsed) * daysInMonth;
-      await this.setCapabilityValue('octopus_cost_projected', Number(projected.toFixed(2))).catch(this.error);
+      await this.setCapabilityValue(projectedCap, Number(projected.toFixed(2))).catch(this.error);
     }
   }
 

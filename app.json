@@ -683,6 +683,113 @@
             "filter": "driver_id=electricity"
           }
         ]
+      },
+      {
+        "id": "export_rate_changed",
+        "title": {
+          "en": "The export rate changed"
+        },
+        "hint": {
+          "en": "Triggers each half hour when the export unit rate changes."
+        },
+        "tokens": [
+          {
+            "name": "price",
+            "type": "number",
+            "title": {
+              "en": "Export rate (p/kWh)"
+            },
+            "example": 15
+          },
+          {
+            "name": "previous",
+            "type": "number",
+            "title": {
+              "en": "Previous rate"
+            },
+            "example": 12
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=export"
+          }
+        ]
+      },
+      {
+        "id": "export_rate_above",
+        "title": {
+          "en": "The export rate rises above ..."
+        },
+        "titleFormatted": {
+          "en": "The export rate rises above [[price]] p/kWh"
+        },
+        "hint": {
+          "en": "Triggers when the export rate climbs above your threshold — a good time to discharge a battery."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=export"
+          },
+          {
+            "type": "number",
+            "name": "price",
+            "min": -50,
+            "max": 200,
+            "step": 0.5,
+            "placeholder": {
+              "en": "15"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "price",
+            "type": "number",
+            "title": {
+              "en": "Export rate (p/kWh)"
+            },
+            "example": 18
+          }
+        ]
+      },
+      {
+        "id": "gas_price_changed",
+        "title": {
+          "en": "The gas price changed"
+        },
+        "hint": {
+          "en": "Triggers when the gas unit rate changes."
+        },
+        "tokens": [
+          {
+            "name": "price",
+            "type": "number",
+            "title": {
+              "en": "Price (p/kWh)"
+            },
+            "example": 6.2
+          },
+          {
+            "name": "previous",
+            "type": "number",
+            "title": {
+              "en": "Previous price"
+            },
+            "example": 7.1
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=gas"
+          }
+        ]
       }
     ],
     "conditions": [
@@ -1060,6 +1167,32 @@
             "step": 1,
             "placeholder": {
               "en": "12"
+            }
+          }
+        ]
+      },
+      {
+        "id": "gas_price_below",
+        "title": {
+          "en": "Gas price !{{is below|is not below}} ..."
+        },
+        "titleFormatted": {
+          "en": "Gas price !{{is below|is not below}} [[price]] p/kWh"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=gas"
+          },
+          {
+            "type": "number",
+            "name": "price",
+            "min": 0,
+            "max": 100,
+            "step": 0.1,
+            "placeholder": {
+              "en": "7"
             }
           }
         ]
@@ -1737,6 +1870,9 @@
         "meter_power.exported",
         "octopus_usage_today",
         "octopus_earnings_today",
+        "octopus_earnings_month",
+        "octopus_earnings_projected",
+        "octopus_standing_charge",
         "measure_octopus_balance",
         "octopus_updated",
         "alarm_generic"
@@ -1855,6 +1991,7 @@
         "octopus_cost_projected",
         "octopus_standing_charge",
         "measure_octopus_balance",
+        "measure_gas_carbon",
         "octopus_updated",
         "alarm_generic"
       ],
@@ -2008,6 +2145,29 @@
       },
       "id": "carbon"
     },
+    "export": {
+      "name": {
+        "en": "Export Earnings"
+      },
+      "settings": [
+        {
+          "id": "device",
+          "type": "device",
+          "title": {
+            "en": "Export meter"
+          },
+          "filter": "driver_id=export"
+        }
+      ],
+      "height": 140,
+      "api": {
+        "getData": {
+          "method": "GET",
+          "path": "/"
+        }
+      },
+      "id": "export"
+    },
     "price": {
       "name": {
         "en": "Octopus Price"
@@ -2079,6 +2239,21 @@
     }
   },
   "capabilities": {
+    "measure_gas_carbon": {
+      "type": "number",
+      "title": {
+        "en": "Carbon (gas, today)"
+      },
+      "units": {
+        "en": "kg"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/level.svg",
+      "insights": true
+    },
     "measure_octopus_balance": {
       "type": "number",
       "title": {
@@ -2243,6 +2418,36 @@
       "insightsTitleFalse": {
         "en": "No dispatch"
       }
+    },
+    "octopus_earnings_month": {
+      "type": "number",
+      "title": {
+        "en": "Earnings this month"
+      },
+      "units": {
+        "en": "£"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/cost.svg",
+      "insights": true
+    },
+    "octopus_earnings_projected": {
+      "type": "number",
+      "title": {
+        "en": "Projected month earnings"
+      },
+      "units": {
+        "en": "£"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/cost.svg",
+      "insights": true
     },
     "octopus_earnings_today": {
       "type": "number",
