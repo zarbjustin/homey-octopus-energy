@@ -53,6 +53,16 @@ All built, validated at publish level, 22 tests passing, lint clean, committed a
 Remaining to actually ship: add a HOMEY_PAT repo secret and run the Publish workflow
 (or `homey app publish`), then complete certification in the Homey Developer Tools.
 
+## Phase 3 — COMPLETE (Sprints 19–25)
+All built, validated at publish level, 23 tests passing, lint clean, committed and pushed.
+19. Economy 7 / two-register tariffs — done
+20. Health, status & resilience (connection alarm, last-updated) — done
+21. Proactive notifications (plunge, saving sessions, dispatch, low balance) — done
+22. Octoplus points & Free Electricity — done
+23. Best-time intelligence + EV/battery charge planner — done
+24. More widgets (timeline, carbon, summary) — done
+25. CI hardening, localization pass (nl/de/fr titles), manual pairing override — done
+
 ## Phase 3 — recommended next sprints
 19. **Economy 7 & multi-register tariffs** — detect E-2R/2-register meters; day/night
     unit-rate capabilities; register-aware cost. (Fixes the single-rate assumption — real gap.)
