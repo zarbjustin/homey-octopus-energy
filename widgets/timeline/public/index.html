@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="/homey.js" data-origin="widget"></script>
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--homey-text-color, #222); padding: 10px 12px; }
+    .name { font-size: 12px; color: var(--homey-text-color-light, #888); margin-bottom: 6px; }
+    .bars { display: flex; align-items: flex-end; gap: 2px; height: 90px; }
+    .bar { flex: 1; background: #888; border-radius: 2px 2px 0 0; min-height: 2px; }
+    .bar.cheap { background: #2ecc71; }
+    .bar.mid { background: #f39c12; }
+    .bar.exp { background: #e74c3c; }
+    .bar.neg { background: #6f42c1; }
+    .axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--homey-text-color-light, #888); margin-top: 4px; }
+    .err { font-size: 13px; color: var(--homey-text-color-light, #888); }
+  </style>
+</head>
+<body>
+  <div id="content"><div class="err">Loading…</div></div>
+
+  <script type="text/javascript">
+    function render(d) {
+      const el = document.getElementById('content');
+      if (!d || d.error || !d.prices || !d.prices.length) {
+        el.innerHTML = '<div class="err">' + ((d && d.error) || 'No price data yet') + '</div>';
+        return;
+      }
+      const prices = d.prices.slice(0, 24);
+      const vals = prices.map((p) => p.price);
+      const max = Math.max(...vals, 1);
+      const min = Math.min(...vals, 0);
+      const range = (max - min) || 1;
+      let bars = '';
+      prices.forEach((p) => {
+        const h = Math.max(2, Math.round(((p.price - min) / range) * 88));
+        let cls = 'mid';
+        if (p.price < 0) cls = 'neg';
+        else if (p.price <= 15) cls = 'cheap';
+        else if (p.price >= 30) cls = 'exp';
+        bars += '<div class="bar ' + cls + '" style="height:' + h + 'px" title="' + p.price + ' p/kWh"></div>';
+      });
+      function hh(iso) { const dt = new Date(iso); return ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2); }
+      el.innerHTML = '<div class="name">' + (d.name || 'Electricity') + ' — next ' + (prices.length / 2) + 'h</div>'
+        + '<div class="bars">' + bars + '</div>'
+        + '<div class="axis"><span>' + hh(prices[0].start) + '</span><span>' + hh(prices[prices.length - 1].start) + '</span></div>';
+    }
+
+    function onHomeyReady(Homey) {
+      let deviceId = '';
+      try { const s = Homey.getSettings(); if (s && s.device) deviceId = (typeof s.device === 'object') ? (s.device.id || '') : s.device; } catch (e) {}
+      async function load() {
+        try {
+          const data = await Homey.api('GET', '/?id=' + encodeURIComponent(deviceId));
+          render(data);
+          Homey.setHeight(document.body.scrollHeight);
+        } catch (err) { render({ error: (err && err.message) || 'Error' }); }
+      }
+      load();
+      setInterval(load, 60000);
+      Homey.ready();
+    }
+  </script>
+</body>
+</html>

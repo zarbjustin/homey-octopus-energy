@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="/homey.js" data-origin="widget"></script>
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--homey-text-color, #222); padding: 12px 14px; }
+    .name { font-size: 12px; color: var(--homey-text-color-light, #888); }
+    .big { font-size: 32px; font-weight: 700; margin: 4px 0; }
+    .big small { font-size: 13px; font-weight: 500; color: var(--homey-text-color-light, #888); }
+    .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; color: #fff; text-transform: capitalize; }
+    .very_low, .low { background: #2ecc71; }
+    .moderate { background: #f39c12; }
+    .high, .very_high { background: #e74c3c; }
+    .green { color: #2ecc71; font-size: 12px; margin-top: 6px; font-weight: 600; }
+    .err { font-size: 13px; color: var(--homey-text-color-light, #888); }
+  </style>
+</head>
+<body>
+  <div id="content"><div class="err">Loading…</div></div>
+  <script type="text/javascript">
+    function render(d) {
+      const el = document.getElementById('content');
+      if (!d || d.error || d.carbon === null || d.carbon === undefined) {
+        el.innerHTML = '<div class="err">' + ((d && d.error) || 'No carbon data yet') + '</div>';
+        return;
+      }
+      const level = d.level || 'moderate';
+      const label = level.replace('_', ' ');
+      let html = '<div class="name">' + (d.name || 'Carbon intensity') + '</div>';
+      html += '<div class="big">' + Math.round(d.carbon) + ' <small>gCO₂/kWh</small></div>';
+      html += '<span class="badge ' + level + '">' + label + '</span>';
+      if (d.greenest) html += '<div class="green">🌱 Greenest half-hour right now</div>';
+      el.innerHTML = html;
+    }
+    function onHomeyReady(Homey) {
+      let deviceId = '';
+      try { const s = Homey.getSettings(); if (s && s.device) deviceId = (typeof s.device === 'object') ? (s.device.id || '') : s.device; } catch (e) {}
+      async function load() {
+        try {
+          const data = await Homey.api('GET', '/?id=' + encodeURIComponent(deviceId));
+          render(data); Homey.setHeight(document.body.scrollHeight);
+        } catch (err) { render({ error: (err && err.message) || 'Error' }); }
+      }
+      load(); setInterval(load, 60000); Homey.ready();
+    }
+  </script>
+</body>
+</html>

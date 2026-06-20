@@ -1,0 +1,15 @@
+{
+  "name": { "en": "Price Timeline" },
+  "settings": [
+    {
+      "id": "device",
+      "type": "device",
+      "title": { "en": "Electricity meter" },
+      "filter": "driver_id=electricity"
+    }
+  ],
+  "height": 150,
+  "api": {
+    "getData": { "method": "GET", "path": "/" }
+  }
+}

@@ -118,6 +118,17 @@ export class OctopusMeterDevice extends Homey.Device {
     return this.rates;
   }
 
+  /** Upcoming half-hourly prices (VAT per setting) for the next `hours`. */
+  getUpcomingPrices(hours = 12): Array<{ start: string; price: number }> {
+    const now = Date.now();
+    const to = new Date(now + hours * 3600_000);
+    const from = new Date(now - 30 * 60_000);
+    return ratesInWindow(this.rates, from, to).map((r) => ({
+      start: r.valid_from,
+      price: Number(valueOf(r, this.vatInc()).toFixed(2)),
+    }));
+  }
+
   /** The current unit rate value (p/kWh), VAT per the device setting. */
   getCurrentPrice(): number | null {
     return this.currentPrice;

@@ -1575,6 +1575,29 @@
     }
   ],
   "widgets": {
+    "carbon": {
+      "name": {
+        "en": "Carbon Intensity"
+      },
+      "settings": [
+        {
+          "id": "device",
+          "type": "device",
+          "title": {
+            "en": "Electricity meter"
+          },
+          "filter": "driver_id=electricity"
+        }
+      ],
+      "height": 120,
+      "api": {
+        "getData": {
+          "method": "GET",
+          "path": "/"
+        }
+      },
+      "id": "carbon"
+    },
     "price": {
       "name": {
         "en": "Octopus Price"
@@ -1597,6 +1620,52 @@
         }
       },
       "id": "price"
+    },
+    "summary": {
+      "name": {
+        "en": "Octopus Summary"
+      },
+      "settings": [
+        {
+          "id": "device",
+          "type": "device",
+          "title": {
+            "en": "Meter"
+          },
+          "filter": "capabilities=octopus_balance"
+        }
+      ],
+      "height": 130,
+      "api": {
+        "getData": {
+          "method": "GET",
+          "path": "/"
+        }
+      },
+      "id": "summary"
+    },
+    "timeline": {
+      "name": {
+        "en": "Price Timeline"
+      },
+      "settings": [
+        {
+          "id": "device",
+          "type": "device",
+          "title": {
+            "en": "Electricity meter"
+          },
+          "filter": "driver_id=electricity"
+        }
+      ],
+      "height": 150,
+      "api": {
+        "getData": {
+          "method": "GET",
+          "path": "/"
+        }
+      },
+      "id": "timeline"
     }
   },
   "capabilities": {

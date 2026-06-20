@@ -1,0 +1,15 @@
+{
+  "name": { "en": "Carbon Intensity" },
+  "settings": [
+    {
+      "id": "device",
+      "type": "device",
+      "title": { "en": "Electricity meter" },
+      "filter": "driver_id=electricity"
+    }
+  ],
+  "height": 120,
+  "api": {
+    "getData": { "method": "GET", "path": "/" }
+  }
+}
