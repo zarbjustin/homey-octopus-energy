@@ -1,7 +1,10 @@
 {
   "type": "number",
   "title": {
-    "en": "Usage (last 24h)"
+    "en": "Usage (last 24h)",
+    "nl": "Verbruik (laatste 24u)",
+    "de": "Verbrauch (letzte 24h)",
+    "fr": "Consommation (24 h)"
   },
   "units": {
     "en": "kWh"

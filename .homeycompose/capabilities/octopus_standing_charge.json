@@ -1,7 +1,10 @@
 {
   "type": "number",
   "title": {
-    "en": "Standing charge"
+    "en": "Standing charge",
+    "nl": "Vastrecht",
+    "de": "Grundgebühr",
+    "fr": "Abonnement"
   },
   "units": {
     "en": "p/day"

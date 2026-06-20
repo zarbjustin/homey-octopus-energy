@@ -13,6 +13,10 @@ module.exports = class ExportDriver extends OctopusMeterDriver {
     return meter.fuel === 'electricity' && meter.isExport;
   }
 
+  protected manualIsExport(): boolean {
+    return true;
+  }
+
   protected deviceName(meter: { mpxn: string }): string {
     const tail = meter.mpxn ? ` ·${meter.mpxn.slice(-4)}` : '';
     return `Export Meter${tail}`;

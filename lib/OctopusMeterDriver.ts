@@ -2,6 +2,7 @@
 
 import Homey from 'homey';
 import { OctopusClient, FuelType, DiscoveredMeter } from './OctopusClient';
+import { productCodeFromTariff } from './rates';
 
 interface Creds {
   apiKey: string;
@@ -79,10 +80,30 @@ export class OctopusMeterDriver extends Homey.Driver {
     };
   }
 
+  /** Export driver overrides this so a manually-entered electricity meter is marked as export. */
+  protected manualIsExport(): boolean {
+    return false;
+  }
+
   async onPair(session: Homey.Driver.PairSession): Promise<void> {
-    session.setHandler('login', async (data: { apiKey: string; account: string }) => {
+    session.setHandler('login', async (data: {
+      apiKey: string; account: string;
+      manual_mpxn?: string; manual_serial?: string; manual_tariff?: string;
+    }) => {
       const creds = this.normalise(data.apiKey, data.account);
-      this.pairMeters = await this.discover(creds);
+      if (data.manual_mpxn && data.manual_serial && data.manual_tariff) {
+        const tariffCode = String(data.manual_tariff).trim().toUpperCase();
+        this.pairMeters = [{
+          fuel: this.fuel,
+          mpxn: String(data.manual_mpxn).trim(),
+          serial: String(data.manual_serial).trim(),
+          isExport: this.fuel === 'electricity' ? this.manualIsExport() : false,
+          tariffCode,
+          productCode: productCodeFromTariff(tariffCode),
+        }];
+      } else {
+        this.pairMeters = await this.discover(creds);
+      }
       this.pairCreds = creds;
       return true;
     });

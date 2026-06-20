@@ -1672,7 +1672,10 @@
     "octopus_balance": {
       "type": "number",
       "title": {
-        "en": "Account balance"
+        "en": "Account balance",
+        "nl": "Accountsaldo",
+        "de": "Kontostand",
+        "fr": "Solde du compte"
       },
       "units": {
         "en": "£"
@@ -1687,7 +1690,10 @@
     "octopus_carbon": {
       "type": "number",
       "title": {
-        "en": "Carbon intensity"
+        "en": "Carbon intensity",
+        "nl": "CO₂-intensiteit",
+        "de": "CO₂-Intensität",
+        "fr": "Intensité carbone"
       },
       "units": {
         "en": "gCO₂/kWh"
@@ -1774,7 +1780,10 @@
     "octopus_cost_today": {
       "type": "number",
       "title": {
-        "en": "Cost (last 24h)"
+        "en": "Cost (last 24h)",
+        "nl": "Kosten (laatste 24u)",
+        "de": "Kosten (letzte 24h)",
+        "fr": "Coût (24 h)"
       },
       "units": {
         "en": "£"
@@ -1836,7 +1845,10 @@
     "octopus_price": {
       "type": "number",
       "title": {
-        "en": "Current price"
+        "en": "Current price",
+        "nl": "Huidige prijs",
+        "de": "Aktueller Preis",
+        "fr": "Prix actuel"
       },
       "units": {
         "en": "p/kWh"
@@ -1884,7 +1896,10 @@
     "octopus_price_level": {
       "type": "enum",
       "title": {
-        "en": "Price level"
+        "en": "Price level",
+        "nl": "Prijsniveau",
+        "de": "Preisniveau",
+        "fr": "Niveau de prix"
       },
       "getable": true,
       "setable": false,
@@ -1997,7 +2012,10 @@
     "octopus_standing_charge": {
       "type": "number",
       "title": {
-        "en": "Standing charge"
+        "en": "Standing charge",
+        "nl": "Vastrecht",
+        "de": "Grundgebühr",
+        "fr": "Abonnement"
       },
       "units": {
         "en": "p/day"
@@ -2023,7 +2041,10 @@
     "octopus_usage_today": {
       "type": "number",
       "title": {
-        "en": "Usage (last 24h)"
+        "en": "Usage (last 24h)",
+        "nl": "Verbruik (laatste 24u)",
+        "de": "Verbrauch (letzte 24h)",
+        "fr": "Consommation (24 h)"
       },
       "units": {
         "en": "kWh"

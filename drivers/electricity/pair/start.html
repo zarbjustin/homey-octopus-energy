@@ -31,6 +31,23 @@
 
 <button id="next" class="homey-button-primary-full">Find my meters</button>
 
+<details style="margin-top:16px;">
+  <summary style="cursor:pointer;color:#888;font-size:13px;">Advanced: enter a meter manually</summary>
+  <p class="hint">Only needed if automatic discovery can't find your meter or tariff.</p>
+  <div class="field">
+    <label class="homey-form-label" for="m_mpxn">MPAN / MPRN</label>
+    <input class="homey-form-input" id="m_mpxn" type="text" placeholder="1234567890123" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label class="homey-form-label" for="m_serial">Meter serial number</label>
+    <input class="homey-form-input" id="m_serial" type="text" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label class="homey-form-label" for="m_tariff">Full tariff code</label>
+    <input class="homey-form-input" id="m_tariff" type="text" placeholder="E-1R-AGILE-FLEX-22-11-25-C" autocomplete="off" />
+  </div>
+</details>
+
 <script type="text/javascript">
   const nextBtn = document.getElementById('next');
   const apiKeyEl = document.getElementById('apiKey');
@@ -43,10 +60,19 @@
       Homey.alert('Please enter both your API key and account number.');
       return;
     }
+    const payload = { apiKey, account };
+    const mpxn = (document.getElementById('m_mpxn').value || '').trim();
+    const serial = (document.getElementById('m_serial').value || '').trim();
+    const tariff = (document.getElementById('m_tariff').value || '').trim();
+    if (mpxn && serial && tariff) {
+      payload.manual_mpxn = mpxn;
+      payload.manual_serial = serial;
+      payload.manual_tariff = tariff;
+    }
     nextBtn.disabled = true;
     Homey.showLoadingOverlay();
     try {
-      const result = await Homey.emit('login', { apiKey, account });
+      const result = await Homey.emit('login', payload);
       Homey.hideLoadingOverlay();
       if (result && result.done) {
         Homey.done();

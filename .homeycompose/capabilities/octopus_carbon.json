@@ -1,7 +1,10 @@
 {
   "type": "number",
   "title": {
-    "en": "Carbon intensity"
+    "en": "Carbon intensity",
+    "nl": "CO₂-intensiteit",
+    "de": "CO₂-Intensität",
+    "fr": "Intensité carbone"
   },
   "units": {
     "en": "gCO₂/kWh"

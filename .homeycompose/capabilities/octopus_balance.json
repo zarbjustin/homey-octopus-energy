@@ -1,7 +1,10 @@
 {
   "type": "number",
   "title": {
-    "en": "Account balance"
+    "en": "Account balance",
+    "nl": "Accountsaldo",
+    "de": "Kontostand",
+    "fr": "Solde du compte"
   },
   "units": {
     "en": "£"

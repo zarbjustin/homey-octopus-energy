@@ -1,7 +1,10 @@
 {
   "type": "number",
   "title": {
-    "en": "Cost (last 24h)"
+    "en": "Cost (last 24h)",
+    "nl": "Kosten (laatste 24u)",
+    "de": "Kosten (letzte 24h)",
+    "fr": "Coût (24 h)"
   },
   "units": {
     "en": "£"

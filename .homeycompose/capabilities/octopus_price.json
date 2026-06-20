@@ -1,7 +1,10 @@
 {
   "type": "number",
   "title": {
-    "en": "Current price"
+    "en": "Current price",
+    "nl": "Huidige prijs",
+    "de": "Aktueller Preis",
+    "fr": "Prix actuel"
   },
   "units": {
     "en": "p/kWh"
