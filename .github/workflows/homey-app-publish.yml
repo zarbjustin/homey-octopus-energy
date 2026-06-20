@@ -1,4 +1,13 @@
 name: Publish Homey App
+
+# Requires a repository secret named HOMEY_PAT (a Homey Personal Access Token).
+# 1. Create the token: https://tools.developer.homey.app -> account menu (top-right)
+#    -> Personal Access Tokens -> Create new token -> copy it.
+# 2. Store it as a secret (run in a terminal with the GitHub CLI authenticated):
+#       gh secret set HOMEY_PAT -R zarbjustin/homey-octopus-energy
+#    or via GitHub: repo -> Settings -> Secrets and variables -> Actions ->
+#    New repository secret -> name "HOMEY_PAT".
+# 3. Run this workflow from the Actions tab (Run workflow) to publish a build.
 on:
   workflow_dispatch:
 
