@@ -94,6 +94,26 @@
         { "name": "level", "type": "string", "title": { "en": "Level" }, "example": { "en": "low" } },
         { "name": "previous", "type": "string", "title": { "en": "Previous level" }, "example": { "en": "moderate" } }
       ]
+    },
+    {
+      "id": "rates_published",
+      "title": { "en": "New Agile prices were published" },
+      "hint": { "en": "Triggers when fresh half-hourly prices become available (typically ~16:00) — schedule tonight's automations." },
+      "tokens": [
+        { "name": "cheapest", "type": "number", "title": { "en": "Cheapest upcoming (p/kWh)" }, "example": 8.5 },
+        { "name": "cheapest_start", "type": "string", "title": { "en": "Cheapest slot start" }, "example": { "en": "Tue 02:30" } },
+        { "name": "most_expensive", "type": "number", "title": { "en": "Most expensive upcoming (p/kWh)" }, "example": 34 }
+      ]
+    },
+    {
+      "id": "night_rate_started",
+      "title": { "en": "The Economy 7 night rate started" },
+      "hint": { "en": "Triggers when the cheaper Economy 7 night rate period begins." }
+    },
+    {
+      "id": "night_rate_ended",
+      "title": { "en": "The Economy 7 night rate ended" },
+      "hint": { "en": "Triggers when the Economy 7 night rate period ends and the day rate resumes." }
     }
   ],
   "conditions": [
@@ -229,6 +249,21 @@
         { "type": "number", "name": "max_price", "min": -50, "max": 200, "step": 0.5, "placeholder": { "en": "15" } },
         { "type": "number", "name": "max_carbon", "min": 0, "max": 600, "step": 5, "placeholder": { "en": "150" } }
       ]
+    },
+    {
+      "id": "price_percentile_below",
+      "title": { "en": "Price is in the cheapest ...%" },
+      "titleFormatted": { "en": "Price !{{is|is not}} in the cheapest [[percent]]% of the next [[hours]] h" },
+      "hint": { "en": "A relative target — adapts as the market moves, unlike a fixed p/kWh threshold." },
+      "args": [
+        { "type": "number", "name": "percent", "min": 1, "max": 100, "step": 1, "placeholder": { "en": "25" } },
+        { "type": "number", "name": "hours", "min": 1, "max": 48, "step": 1, "placeholder": { "en": "12" } }
+      ]
+    },
+    {
+      "id": "is_night_rate",
+      "title": { "en": "Now !{{is|is not}} the Economy 7 night rate" },
+      "hint": { "en": "True when an Economy 7 meter is on its cheaper night register (per the configured night window)." }
     }
   ],
   "actions": [
@@ -288,7 +323,8 @@
       "tokens": [
         { "name": "count", "type": "number", "title": { "en": "Number of half-hours" }, "example": 6 },
         { "name": "first_start", "type": "string", "title": { "en": "First slot start" }, "example": { "en": "Tue 01:00" } },
-        { "name": "price", "type": "number", "title": { "en": "Average price (p/kWh)" }, "example": 7.9 }
+        { "name": "price", "type": "number", "title": { "en": "Average price (p/kWh)" }, "example": 7.9 },
+        { "name": "saving_pct", "type": "number", "title": { "en": "Saving vs average (%)" }, "example": 38 }
       ]
     },
     {

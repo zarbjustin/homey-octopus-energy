@@ -26,6 +26,36 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
   private dispatching = false;
 
+  private previousHorizon = 0;
+
+  private previousNight: boolean | null = null;
+
+  /** Detect when the rate cache extends to cover new (tomorrow's) prices. */
+  protected async onRatesUpdated(): Promise<void> {
+    const horizon = this.ratesHorizon();
+    if (this.previousHorizon !== 0 && horizon > this.previousHorizon + 3600_000) {
+      const ext = this.upcomingExtremes();
+      if (ext) {
+        this.trigger('rates_published', {
+          cheapest: ext.cheapest,
+          cheapest_start: ext.cheapestStart,
+          most_expensive: ext.expensive,
+        });
+      }
+    }
+    this.previousHorizon = horizon;
+  }
+
+  /** Is the current half-hour on the Economy 7 night (off-peak) register? */
+  isNightRate(): boolean {
+    return this.isTwoRegisterTariff() && this.isNightTime(new Date().toISOString());
+  }
+
+  /** Is the current price in the cheapest `percent`% of the next `hours`? */
+  isCheapestPercentile(percent: number, hours: number): boolean {
+    return this.isInCheapestPercentile(percent, hours);
+  }
+
   /** Enable live power polling if the setting is on (opt-in, Home Mini only). */
   protected async onInitExtra(): Promise<void> {
     if (this.getSetting('live_power')) {
@@ -39,8 +69,19 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   protected async refreshExtra(): Promise<void> {
     await super.refreshExtra();
     await this.updateSmartCharge();
+    await this.updateNightRate();
     await this.refreshDispatching().catch((err) => this.error('Dispatch refresh failed:', err));
     await this.refreshCarbon().catch((err) => this.error('Carbon refresh failed:', err));
+  }
+
+  /** Fire night-rate started/ended triggers for Economy 7 tariffs. */
+  private async updateNightRate(): Promise<void> {
+    if (!this.isTwoRegisterTariff()) return;
+    const night = this.isNightRate();
+    if (this.previousNight !== null && night !== this.previousNight) {
+      this.trigger(night ? 'night_rate_started' : 'night_rate_ended', {});
+    }
+    this.previousNight = night;
   }
 
   /** Reflect whether an Intelligent Octopus Go smart-charge dispatch is active now. */
@@ -120,6 +161,10 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     await this.setCapabilityValue('octopus_smart_charge', inPlan).catch(this.error);
     if (prev !== null && prev !== inPlan) {
       this.trigger(inPlan ? 'smart_charge_started' : 'smart_charge_ended', {});
+    }
+    if (this.hasCapability('octopus_charge_start')) {
+      const start = this.nextChargeStart(hours, by, this.smartChargeMaxPrice());
+      await this.setCapabilityValue('octopus_charge_start', start ?? '—').catch(this.error);
     }
   }
 

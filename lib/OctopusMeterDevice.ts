@@ -416,6 +416,7 @@ export class OctopusMeterDevice extends Homey.Device {
       this.periodWindow(),
     );
     this.rates = rates;
+    await this.onRatesUpdated();
     const current = rateAt(rates);
     if (current) {
       const value = Number(valueOf(current, this.vatInc()).toFixed(4));
@@ -435,6 +436,7 @@ export class OctopusMeterDevice extends Homey.Device {
     // day/night switch time is region-specific and set via device settings.
     this.rates = day;
     this.nightRates = night;
+    await this.onRatesUpdated();
     const dayRate = rateAt(day) ?? day[0];
     const nightRate = rateAt(night) ?? night[0];
     if (dayRate && this.hasCapability('octopus_price_day')) {
@@ -457,6 +459,66 @@ export class OctopusMeterDevice extends Homey.Device {
       const level = priceLevel(value, this.thresholds());
       await this.setCapabilityValue('octopus_price_level', level).catch(this.error);
     }
+  }
+
+  /** Hook fired after this.rates is replaced (subclasses detect new-rate horizons). */
+  protected async onRatesUpdated(): Promise<void> {
+    // no-op by default
+  }
+
+  /** The furthest-ahead instant covered by the cached rates (ms), or 0. */
+  ratesHorizon(): number {
+    let max = 0;
+    for (const r of this.rates) {
+      const end = r.valid_to ? new Date(r.valid_to).getTime() : new Date(r.valid_from).getTime() + 1800_000;
+      if (end > max) max = end;
+    }
+    return max;
+  }
+
+  /** Cheapest / most expensive upcoming rate values (p/kWh) for tonight tokens. */
+  upcomingExtremes(): { cheapest: number; cheapestStart: string; expensive: number } | null {
+    const now = Date.now();
+    const fwd = this.rates.filter((r) => {
+      const end = r.valid_to ? new Date(r.valid_to).getTime() : Infinity;
+      return end > now;
+    });
+    if (!fwd.length) return null;
+    let cheapest = fwd[0];
+    let expensive = fwd[0];
+    for (const r of fwd) {
+      if (valueOf(r, this.vatInc()) < valueOf(cheapest, this.vatInc())) cheapest = r;
+      if (valueOf(r, this.vatInc()) > valueOf(expensive, this.vatInc())) expensive = r;
+    }
+    return {
+      cheapest: Number(valueOf(cheapest, this.vatInc()).toFixed(2)),
+      cheapestStart: this.formatLocal(new Date(cheapest.valid_from)),
+      expensive: Number(valueOf(expensive, this.vatInc()).toFixed(2)),
+    };
+  }
+
+  /** Is the current price within the cheapest `percent`% of the next `hours`? */
+  isInCheapestPercentile(percent: number, hours: number, at: Date = new Date()): boolean {
+    const current = rateAt(this.rates, at);
+    if (!current) return false;
+    const to = new Date(at.getTime() + hours * 3600_000);
+    const window = ratesInWindow(this.rates, at, to)
+      .map((r) => valueOf(r, this.vatInc()))
+      .sort((a, b) => a - b);
+    if (!window.length) return false;
+    const cv = valueOf(current, this.vatInc());
+    const rank = window.filter((v) => v <= cv).length; // 1-based count at/below current
+    const pct = (rank / window.length) * 100;
+    return pct <= Math.max(0, Math.min(100, percent));
+  }
+
+  /** Local time string for the start of the next smart-charge slot, or null. */
+  nextChargeStart(durationHours: number, byTime: string, maxPrice?: number): string | null {
+    const plan = this.getCheapestPlan(durationHours, byTime, maxPrice);
+    const now = Date.now();
+    const upcoming = plan.find((r) => new Date(r.valid_from).getTime() >= now)
+      ?? plan.find((r) => rateCovers(r, new Date()));
+    return upcoming ? this.formatLocal(new Date(upcoming.valid_from)) : null;
   }
 
   /** Cheap/expensive thresholds (p/kWh) from settings, with sensible defaults. */
@@ -531,14 +593,19 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   /** Plan the cheapest (non-contiguous) `durationHours` before `byTime`, for the Flow action. */
-  findCheapestHours(durationHours: number, byTime: string, maxPrice?: number): { count: number; first_start: string; price: number } | null {
+  findCheapestHours(durationHours: number, byTime: string, maxPrice?: number): { count: number; first_start: string; price: number; saving_pct: number } | null {
     const plan = this.getCheapestPlan(durationHours, byTime, maxPrice);
     if (!plan.length) return null;
     const avg = plan.reduce((acc, r) => acc + valueOf(r, this.vatInc()), 0) / plan.length;
+    const window = ratesInWindow(this.rates, new Date(), this.nextLocalTime(byTime))
+      .map((r) => valueOf(r, this.vatInc()));
+    const dayAvg = window.length ? window.reduce((a, b) => a + b, 0) / window.length : avg;
+    const savingPct = dayAvg > 0 ? ((dayAvg - avg) / dayAvg) * 100 : 0;
     return {
       count: plan.length,
       first_start: this.formatLocal(new Date(plan[0].valid_from)),
       price: Number(avg.toFixed(2)),
+      saving_pct: Number(savingPct.toFixed(0)),
     };
   }
 

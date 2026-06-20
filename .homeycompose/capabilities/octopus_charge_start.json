@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "title": {
+    "en": "Next charge slot"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/standing.svg"
+}

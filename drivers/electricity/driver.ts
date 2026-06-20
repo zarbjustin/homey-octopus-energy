@@ -9,6 +9,8 @@ interface ElectricityDevice extends Homey.Device {
   isCheapestNow(hours?: number): boolean;
   isWithinCheapestPeriod(duration: number, within: number): boolean;
   isInCheapestPlan(duration: number, by: string): boolean;
+  isNightRate(): boolean;
+  isCheapestPercentile(percent: number, hours: number): boolean;
   refreshNow(): Promise<void>;
   findCheapestSlot(within: number, duration: number): { start_time: string; price: number } | null;
   findCheapestHours(duration: number, by: string): { count: number; first_start: string; price: number } | null;
@@ -63,6 +65,10 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ duration: number; within: number }>) => args.device.isWithinCheapestPeriod(args.duration, args.within));
     flow.getConditionCard('in_cheapest_plan')
       .registerRunListener(async (args: Args<{ duration: number; by: string }>) => args.device.isInCheapestPlan(args.duration, args.by));
+    flow.getConditionCard('price_percentile_below')
+      .registerRunListener(async (args: Args<{ percent: number; hours: number }>) => args.device.isCheapestPercentile(args.percent, args.hours));
+    flow.getConditionCard('is_night_rate')
+      .registerRunListener(async (args: Args<unknown>) => args.device.isNightRate());
     flow.getConditionCard('carbon_below')
       .registerRunListener(async (args: Args<{ intensity: number }>) => {
         const c = args.device.getCarbon();
