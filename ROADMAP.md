@@ -49,6 +49,17 @@ Commits are tagged `Sprint N: ...` (mirrors the Vestaboard app convention).
 ### Feature-review Top additions
 Agile new-rates-published trigger; export Flow triggers + parity (level/standing/earnings month/widget); gas Flow cards + gas embedded carbon; regional carbon + generation mix %; target-rate percentile condition; E7 night-rate condition/trigger; EV bump-charge; completed-dispatches trigger; tariff-change alert; adaptive refresh cadence; balance dedup; pairing key validation; calendar yesterday + peak/off-peak cost; next-charge-start capability.
 
+## Phase 4 — COMPLETE (Sprints 26–32) + original branding
+All built, validated at publish level, 26 tests passing, lint clean, reinstalled on the Homey Pro, pushed.
+26. Correctness & reliability — refresh single-flight, atomic/cursor-safe cumulative meter, threshold-crossing triggers, repair rebuilds clients + identity, future-tariff fix
+27. Time & tariff accuracy — DST-safe boundaries, Economy 7 register-aware cost, health price-failure, KrakenClient hardening, shared AccountPoller, starting-soon dedup
+28. Export & Gas parity — export rate triggers + earnings month/projected + standing charge + widget; gas Flow cards + gas embedded carbon
+29. Rate intelligence — Agile new-rates trigger, percentile condition, E7 night-rate cards, saving% token, next-charge-start capability
+30. Carbon & green — regional carbon intensity + generation-mix renewable %
+31. IOG deepening — completed-dispatch + bump-charge + tariff-change alert + repair-on-401 notification
+32. API optimisation & UX — balance dedup cache, pairing validation, calendar-yesterday + peak/off-peak cost, adaptive cadence
+Branding: original octopus app icon + images (NOT Octopus Energy's copyrighted mascot/logo).
+
 ## Phase 4 — recommended sprints (from the review)
 26. **Correctness & reliability** — refresh single-flight + atomic/cursor-safe cumulative meter; threshold-crossing triggers; rebuild clients + full identity on repair; activeTariff ignores future agreements.
 27. **Time & tariff accuracy** — DST-safe local boundaries; Economy 7 register-aware cost; health reflects price failure; KrakenClient hardening; shared AccountPoller; starting-soon dedup.
