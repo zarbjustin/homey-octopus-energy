@@ -102,6 +102,45 @@
         ]
       },
       {
+        "id": "cost_today_above",
+        "title": {
+          "en": "Today's cost rises above ..."
+        },
+        "titleFormatted": {
+          "en": "Cost (24h) of [[device]] rises above £[[amount]]"
+        },
+        "hint": {
+          "en": "Triggers when the last-24h energy cost exceeds your budget."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "capabilities=octopus_cost_today"
+          },
+          {
+            "type": "number",
+            "name": "amount",
+            "min": 0,
+            "max": 1000,
+            "step": 0.5,
+            "placeholder": {
+              "en": "5"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "cost",
+            "type": "number",
+            "title": {
+              "en": "Cost (£)"
+            },
+            "example": 6.2
+          }
+        ]
+      },
+      {
         "id": "dispatch_ended",
         "title": {
           "en": "A smart-charge dispatch ended"
@@ -289,6 +328,74 @@
               "en": "OctoPoints per kWh"
             },
             "example": 1800
+          }
+        ]
+      },
+      {
+        "id": "standing_charge_changed",
+        "title": {
+          "en": "The standing charge changed"
+        },
+        "titleFormatted": {
+          "en": "The standing charge of [[device]] changed"
+        },
+        "hint": {
+          "en": "Triggers when your tariff's daily standing charge changes."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "capabilities=octopus_standing_charge"
+          }
+        ],
+        "tokens": [
+          {
+            "name": "charge",
+            "type": "number",
+            "title": {
+              "en": "Standing charge (p/day)"
+            },
+            "example": 48.5
+          }
+        ]
+      },
+      {
+        "id": "usage_today_above",
+        "title": {
+          "en": "Today's usage rises above ..."
+        },
+        "titleFormatted": {
+          "en": "Usage (24h) of [[device]] rises above [[amount]] kWh"
+        },
+        "hint": {
+          "en": "Triggers when the last-24h energy usage exceeds the amount."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "capabilities=octopus_usage_today"
+          },
+          {
+            "type": "number",
+            "name": "amount",
+            "min": 0,
+            "max": 1000,
+            "step": 0.5,
+            "placeholder": {
+              "en": "20"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "usage",
+            "type": "number",
+            "title": {
+              "en": "Usage (kWh)"
+            },
+            "example": 22.4
           }
         ]
       },
@@ -536,6 +643,44 @@
               "en": "Carbon (gCO₂/kWh)"
             },
             "example": 85
+          }
+        ]
+      },
+      {
+        "id": "carbon_level_changed",
+        "title": {
+          "en": "The carbon level changed"
+        },
+        "hint": {
+          "en": "Triggers when grid carbon intensity moves between very low / low / moderate / high / very high."
+        },
+        "tokens": [
+          {
+            "name": "level",
+            "type": "string",
+            "title": {
+              "en": "Level"
+            },
+            "example": {
+              "en": "low"
+            }
+          },
+          {
+            "name": "previous",
+            "type": "string",
+            "title": {
+              "en": "Previous level"
+            },
+            "example": {
+              "en": "moderate"
+            }
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
           }
         ]
       }

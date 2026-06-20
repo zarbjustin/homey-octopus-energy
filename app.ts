@@ -19,6 +19,7 @@ module.exports = class OctopusEnergyApp extends Homey.App {
    */
   async onInit(): Promise<void> {
     this.registerBalanceFlowCards();
+    this.registerBudgetFlowCards();
     this.registerSavingSessionCards();
     this.savingSessions = new SavingSessionsPoller(this);
     this.savingSessions.start();
@@ -43,6 +44,27 @@ module.exports = class OctopusEnergyApp extends Homey.App {
   private registerDispatchCards(): void {
     this.homey.flow.getConditionCard('dispatch_active')
       .registerRunListener(async () => Boolean(this.dispatches?.isActive()));
+  }
+
+  /** App-level budget and standing-charge Flow triggers (device-scoped). */
+  private registerBudgetFlowCards(): void {
+    this.homey.flow.getTriggerCard('cost_today_above')
+      .registerRunListener(async (
+        args: { device: Homey.Device; amount: number },
+        state: { deviceId: string; cost: number },
+      ) => args.device.getData().id === state.deviceId && state.cost > args.amount);
+
+    this.homey.flow.getTriggerCard('usage_today_above')
+      .registerRunListener(async (
+        args: { device: Homey.Device; amount: number },
+        state: { deviceId: string; usage: number },
+      ) => args.device.getData().id === state.deviceId && state.usage > args.amount);
+
+    this.homey.flow.getTriggerCard('standing_charge_changed')
+      .registerRunListener(async (
+        args: { device: Homey.Device },
+        state: { deviceId: string },
+      ) => args.device.getData().id === state.deviceId);
   }
 
   /** App-level account-balance Flow cards, scoped to a chosen meter device. */

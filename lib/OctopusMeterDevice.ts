@@ -48,6 +48,12 @@ export class OctopusMeterDevice extends Homey.Device {
 
   protected currentBalance: number | null = null;
 
+  private previousUsage: number | null = null;
+
+  private previousCostToday: number | null = null;
+
+  private previousStanding: number | null = null;
+
   private refreshTimer: NodeJS.Timeout | null = null;
 
   private alignTimer: NodeJS.Timeout | null = null;
@@ -245,6 +251,10 @@ export class OctopusMeterDevice extends Homey.Device {
     if (hasUsage) {
       const usage = Number(this.toEnergyUnit(sumConsumption(last48)).toFixed(2));
       await this.setCapabilityValue('octopus_usage_today', usage).catch(this.error);
+      if (this.previousUsage !== null && usage !== this.previousUsage) {
+        this.fireAppTrigger('usage_today_above', { usage }, { deviceId: this.getData().id, usage });
+      }
+      this.previousUsage = usage;
     }
 
     if (hasCost) {
@@ -257,7 +267,12 @@ export class OctopusMeterDevice extends Homey.Device {
         const sc = rateAt(this.standingRates) ?? this.standingRates[0];
         if (sc) pence += valueOf(sc, this.vatInc());
       }
-      await this.setCapabilityValue(costCap, Number((pence / 100).toFixed(2))).catch(this.error);
+      const cost = Number((pence / 100).toFixed(2));
+      await this.setCapabilityValue(costCap, cost).catch(this.error);
+      if (costCap === 'octopus_cost_today' && this.previousCostToday !== null && cost !== this.previousCostToday) {
+        this.fireAppTrigger('cost_today_above', { cost }, { deviceId: this.getData().id, cost });
+      }
+      this.previousCostToday = cost;
     }
 
     if (hasMeter) {
@@ -689,6 +704,10 @@ export class OctopusMeterDevice extends Homey.Device {
     if (current) {
       const value = Number(valueOf(current, this.vatInc()).toFixed(4));
       await this.setCapabilityValue('octopus_standing_charge', value).catch(this.error);
+      if (this.previousStanding !== null && value !== this.previousStanding) {
+        this.fireAppTrigger('standing_charge_changed', { charge: value }, { deviceId: this.getData().id });
+      }
+      this.previousStanding = value;
     }
   }
 

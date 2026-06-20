@@ -85,6 +85,15 @@
       "tokens": [
         { "name": "carbon", "type": "number", "title": { "en": "Carbon (gCO₂/kWh)" }, "example": 85 }
       ]
+    },
+    {
+      "id": "carbon_level_changed",
+      "title": { "en": "The carbon level changed" },
+      "hint": { "en": "Triggers when grid carbon intensity moves between very low / low / moderate / high / very high." },
+      "tokens": [
+        { "name": "level", "type": "string", "title": { "en": "Level" }, "example": { "en": "low" } },
+        { "name": "previous", "type": "string", "title": { "en": "Previous level" }, "example": { "en": "moderate" } }
+      ]
     }
   ],
   "conditions": [

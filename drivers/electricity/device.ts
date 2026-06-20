@@ -22,6 +22,8 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
   private carbonForecast: CarbonPoint[] = [];
 
+  private previousCarbonLevel: string | null = null;
+
   /** Enable live power polling if the setting is on (opt-in, Home Mini only). */
   protected async onInitExtra(): Promise<void> {
     if (this.getSetting('live_power')) {
@@ -46,7 +48,12 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
       this.carbonNow = current.intensity;
       await this.setCapabilityValue('measure_octopus_carbon', Math.round(current.intensity)).catch(this.error);
       if (this.hasCapability('octopus_carbon_level')) {
-        await this.setCapabilityValue('octopus_carbon_level', carbonLevelId(current.index)).catch(this.error);
+        const level = carbonLevelId(current.index);
+        await this.setCapabilityValue('octopus_carbon_level', level).catch(this.error);
+        if (this.previousCarbonLevel !== null && level !== this.previousCarbonLevel) {
+          this.trigger('carbon_level_changed', { level, previous: this.previousCarbonLevel });
+        }
+        this.previousCarbonLevel = level;
       }
       if (prev !== null && Math.round(prev) !== Math.round(current.intensity)) {
         this.trigger('carbon_below', { carbon: Math.round(current.intensity) }, { carbon: current.intensity });
