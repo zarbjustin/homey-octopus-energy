@@ -1,5 +1,8 @@
 {
   "1.0.0": {
     "en": "Initial release: Electricity, Gas and Export meter devices with automatic discovery, half-hourly prices, standing charge, price level, last-24h usage and cost/earnings, Homey Energy integration, account balance, smart-charge planner, carbon intensity, tariff comparison, reporting, and a rich set of dynamic-pricing, saving-session, dispatch and balance Flow cards."
+  },
+  "1.0.1": {
+    "en": "Initial public release: electricity, gas and export meters with automatic discovery, half-hourly Agile pricing, standing charges, Homey Energy integration, account balance, smart-charge planner, carbon intensity and a rich set of dynamic-pricing Flow cards."
   }
 }
