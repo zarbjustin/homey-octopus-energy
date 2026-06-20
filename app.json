@@ -2426,7 +2426,7 @@
           }
         }
       ],
-      "height": 330,
+      "height": 350,
       "api": {
         "getData": {
           "method": "GET",
