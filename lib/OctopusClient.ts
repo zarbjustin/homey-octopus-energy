@@ -264,6 +264,19 @@ export class OctopusClient {
     );
   }
 
+  /** Day or night unit rates for a two-register (Economy 7) electricity tariff. */
+  async registerUnitRates(
+    register: 'day' | 'night',
+    productCode: string,
+    tariffCode: string,
+    params: { period_from?: string; period_to?: string; page_size?: number } = {},
+  ): Promise<Rate[]> {
+    return this.getAll<Rate>(
+      `/products/${productCode}/electricity-tariffs/${tariffCode}/${register}-unit-rates/`,
+      { page_size: 1500, ...params },
+    );
+  }
+
   async standingCharges(
     fuel: FuelType,
     productCode: string,

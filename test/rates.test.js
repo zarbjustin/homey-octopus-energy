@@ -35,6 +35,13 @@ test('regionFromTariff extracts the GSP letter', () => {
   assert.strictEqual(r.regionFromTariff('NO-REGION'), null);
 });
 
+test('isTwoRegister detects Economy 7 / 2-register tariffs', () => {
+  assert.strictEqual(r.isTwoRegister('E-2R-VAR-22-11-01-C'), true);
+  assert.strictEqual(r.isTwoRegister('E-1R-AGILE-FLEX-22-11-25-C'), false);
+  assert.strictEqual(r.isTwoRegister('G-1R-VAR-22-11-01-A'), false);
+  assert.strictEqual(r.isTwoRegister(''), false);
+});
+
 test('rateAt finds the rate covering an instant', () => {
   const at = new Date('2024-01-01T00:45:00Z');
   assert.strictEqual(r.rateAt(SAMPLE, at).value_inc_vat, 5);

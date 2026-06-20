@@ -6,7 +6,7 @@ import { KrakenClient } from './KrakenClient';
 import {
   Rate, rateAt, valueOf, sumConsumption, cheapestRate, cheapestWindow,
   isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers, ratesInWindow,
-  regionFromTariff,
+  regionFromTariff, isTwoRegister,
 } from './rates';
 import { estimateAnnualCost } from './compare';
 
@@ -56,10 +56,27 @@ export class OctopusMeterDevice extends Homey.Device {
 
   async onInit(): Promise<void> {
     this.buildClients();
+    await this.ensureRegisterCapabilities();
     await this.onInitExtra();
     await this.refresh().catch((err) => this.error('Initial refresh failed:', err));
     this.scheduleRefresh();
     this.log(`${this.store().fuel} meter initialised: ${this.getName()}`);
+  }
+
+  /** Add/remove day & night rate capabilities depending on the tariff type. */
+  protected async ensureRegisterCapabilities(): Promise<void> {
+    const two = this.isTwoRegisterTariff();
+    for (const cap of ['octopus_price_day', 'octopus_price_night']) {
+      if (two && !this.hasCapability(cap)) {
+        await this.addCapability(cap).catch((err) => this.error(`Add ${cap} failed:`, err));
+      } else if (!two && this.hasCapability(cap)) {
+        await this.removeCapability(cap).catch((err) => this.error(`Remove ${cap} failed:`, err));
+      }
+    }
+  }
+
+  protected isTwoRegisterTariff(): boolean {
+    return isTwoRegister(this.store().tariffCode ?? '');
   }
 
   /** Hook for subclasses to add capabilities/listeners before the first refresh. */
@@ -270,6 +287,12 @@ export class OctopusMeterDevice extends Homey.Device {
   protected async refreshPrices(): Promise<void> {
     const s = this.store();
     if (!s.productCode || !s.tariffCode) return;
+
+    if (this.isTwoRegisterTariff()) {
+      await this.refreshTwoRegisterPrices(s.productCode, s.tariffCode);
+      return;
+    }
+
     const rates = await this.client.standardUnitRates(
       s.fuel,
       s.productCode,
@@ -283,6 +306,31 @@ export class OctopusMeterDevice extends Homey.Device {
       this.currentPrice = value;
       await this.setCapabilityValue('octopus_price', value).catch(this.error);
       await this.onPriceUpdated(value, current);
+    }
+  }
+
+  /** Economy 7 / two-register tariffs: fetch separate day and night unit rates. */
+  protected async refreshTwoRegisterPrices(productCode: string, tariffCode: string): Promise<void> {
+    const [day, night] = await Promise.all([
+      this.client.registerUnitRates('day', productCode, tariffCode, this.periodWindow()),
+      this.client.registerUnitRates('night', productCode, tariffCode, this.periodWindow()),
+    ]);
+    // Use the day rates for the headline price and cost approximation; the exact
+    // day/night switch time is region-specific and not exposed by the API.
+    this.rates = day;
+    const dayRate = rateAt(day) ?? day[0];
+    const nightRate = rateAt(night) ?? night[0];
+    if (dayRate && this.hasCapability('octopus_price_day')) {
+      await this.setCapabilityValue('octopus_price_day', Number(valueOf(dayRate, this.vatInc()).toFixed(2))).catch(this.error);
+    }
+    if (nightRate && this.hasCapability('octopus_price_night')) {
+      await this.setCapabilityValue('octopus_price_night', Number(valueOf(nightRate, this.vatInc()).toFixed(2))).catch(this.error);
+    }
+    if (dayRate) {
+      const value = Number(valueOf(dayRate, this.vatInc()).toFixed(4));
+      this.currentPrice = value;
+      await this.setCapabilityValue('octopus_price', value).catch(this.error);
+      await this.onPriceUpdated(value, dayRate);
     }
   }
 

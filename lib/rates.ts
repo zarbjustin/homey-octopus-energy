@@ -227,3 +227,12 @@ export function regionFromTariff(tariffCode: string): string | null {
   const m = tariffCode.match(/-([A-P])$/);
   return m ? m[1] : null;
 }
+
+/**
+ * Whether a tariff is a two-register (e.g. Economy 7) tariff, which uses
+ * separate day and night unit rates rather than a single standard rate.
+ * e.g. "E-2R-..." is two-register; "E-1R-..." is single-register.
+ */
+export function isTwoRegister(tariffCode: string): boolean {
+  return /^[A-Z]-2R-/.test(tariffCode || '');
+}

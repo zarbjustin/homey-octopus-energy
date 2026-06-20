@@ -1594,6 +1594,21 @@
       "icon": "/assets/price.svg",
       "insights": true
     },
+    "octopus_price_day": {
+      "type": "number",
+      "title": {
+        "en": "Day rate"
+      },
+      "units": {
+        "en": "p/kWh"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/price.svg",
+      "insights": true
+    },
     "octopus_price_level": {
       "type": "enum",
       "title": {
@@ -1664,6 +1679,21 @@
       "type": "number",
       "title": {
         "en": "Next price"
+      },
+      "units": {
+        "en": "p/kWh"
+      },
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/price.svg",
+      "insights": true
+    },
+    "octopus_price_night": {
+      "type": "number",
+      "title": {
+        "en": "Night rate"
       },
       "units": {
         "en": "p/kWh"
