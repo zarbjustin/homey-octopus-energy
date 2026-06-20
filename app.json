@@ -1011,12 +1011,19 @@
         "octopus_price_max_today",
         "octopus_price_avg_today",
         "octopus_standing_charge",
-        "octopus_balance"
+        "octopus_balance",
+        "octopus_updated",
+        "alarm_generic"
       ],
       "capabilitiesOptions": {
         "meter_power": {
           "title": {
             "en": "Total consumption"
+          }
+        },
+        "alarm_generic": {
+          "title": {
+            "en": "Connection problem"
           }
         }
       },
@@ -1173,7 +1180,9 @@
         "meter_power",
         "octopus_usage_today",
         "octopus_earnings_today",
-        "octopus_balance"
+        "octopus_balance",
+        "octopus_updated",
+        "alarm_generic"
       ],
       "capabilitiesOptions": {
         "meter_power": {
@@ -1189,6 +1198,11 @@
         "octopus_usage_today": {
           "title": {
             "en": "Exported (last 24h)"
+          }
+        },
+        "alarm_generic": {
+          "title": {
+            "en": "Connection problem"
           }
         }
       },
@@ -1283,12 +1297,19 @@
         "octopus_cost_month",
         "octopus_cost_projected",
         "octopus_standing_charge",
-        "octopus_balance"
+        "octopus_balance",
+        "octopus_updated",
+        "alarm_generic"
       ],
       "capabilitiesOptions": {
         "meter_gas": {
           "title": {
             "en": "Total gas"
+          }
+        },
+        "alarm_generic": {
+          "title": {
+            "en": "Connection problem"
           }
         }
       },
@@ -1736,6 +1757,17 @@
       "uiComponent": "sensor",
       "icon": "/assets/standing.svg",
       "insights": true
+    },
+    "octopus_updated": {
+      "type": "string",
+      "title": {
+        "en": "Last updated"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/standing.svg",
+      "insights": false
     },
     "octopus_usage_today": {
       "type": "number",

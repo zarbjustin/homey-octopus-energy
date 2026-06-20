@@ -11,7 +11,9 @@
     "meter_power",
     "octopus_usage_today",
     "octopus_earnings_today",
-    "octopus_balance"
+    "octopus_balance",
+    "octopus_updated",
+    "alarm_generic"
   ],
   "capabilitiesOptions": {
     "meter_power": {
@@ -27,6 +29,11 @@
     "octopus_usage_today": {
       "title": {
         "en": "Exported (last 24h)"
+      }
+    },
+    "alarm_generic": {
+      "title": {
+        "en": "Connection problem"
       }
     }
   },

@@ -22,12 +22,19 @@
     "octopus_price_max_today",
     "octopus_price_avg_today",
     "octopus_standing_charge",
-    "octopus_balance"
+    "octopus_balance",
+    "octopus_updated",
+    "alarm_generic"
   ],
   "capabilitiesOptions": {
     "meter_power": {
       "title": {
         "en": "Total consumption"
+      }
+    },
+    "alarm_generic": {
+      "title": {
+        "en": "Connection problem"
       }
     }
   },

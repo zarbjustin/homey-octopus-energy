@@ -132,30 +132,22 @@ export class OctopusMeterDevice extends Homey.Device {
   /** Refresh prices, standing charge and balance. Subclasses extend this. */
   protected async refresh(): Promise<void> {
     let ok = false;
-    try {
-      await this.refreshPrices();
-      ok = true;
-    } catch (err) {
-      this.error('Price refresh failed:', err);
-    }
-    try {
-      await this.refreshStandingCharge();
-      ok = true;
-    } catch (err) {
-      this.error('Standing-charge refresh failed:', err);
-    }
-    try {
-      await this.refreshBalance();
-      ok = true;
-    } catch (err) {
-      this.error('Balance refresh failed:', err);
-    }
-    try {
-      await this.refreshExtra();
-      ok = true;
-    } catch (err) {
-      this.error('Extra refresh failed:', err);
-    }
+    let firstErr: unknown = null;
+    const run = async (label: string, fn: () => Promise<void>): Promise<void> => {
+      try {
+        await fn();
+        ok = true;
+      } catch (err) {
+        if (!firstErr) firstErr = err;
+        this.error(`${label} failed:`, err);
+      }
+    };
+
+    await run('Price refresh', () => this.refreshPrices());
+    await run('Standing-charge refresh', () => this.refreshStandingCharge());
+    await run('Balance refresh', () => this.refreshBalance());
+    await run('Extra refresh', () => this.refreshExtra());
+    // Non-critical reporting: failures here do not affect device health.
     try {
       await this.refreshPriceStats();
     } catch (err) {
@@ -166,11 +158,31 @@ export class OctopusMeterDevice extends Homey.Device {
     } catch (err) {
       this.error('Monthly-cost refresh failed:', err);
     }
+
+    await this.setHealth(ok, firstErr);
+  }
+
+  /** Reflect refresh success/failure on the connection alarm and availability. */
+  private async setHealth(ok: boolean, err: unknown): Promise<void> {
+    if (this.hasCapability('alarm_generic')) {
+      await this.setCapabilityValue('alarm_generic', !ok).catch(this.error);
+    }
     if (ok) {
+      if (this.hasCapability('octopus_updated')) {
+        await this.setCapabilityValue('octopus_updated', this.formatLocal(new Date())).catch(this.error);
+      }
       if (!this.getAvailable()) await this.setAvailable().catch(this.error);
     } else {
-      await this.setUnavailable('Could not reach Octopus Energy.').catch(this.error);
+      await this.setUnavailable(this.healthMessage(err)).catch(this.error);
     }
+  }
+
+  private healthMessage(err: unknown): string {
+    const m = err instanceof Error ? err.message : String(err ?? '');
+    if (/401|authenticat/i.test(m)) {
+      return 'Authentication failed — repair the device to update your API key.';
+    }
+    return 'Could not reach Octopus Energy.';
   }
 
   /** Hook for subclasses to add fuel-specific refresh work (e.g. consumption). */

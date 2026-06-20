@@ -14,12 +14,19 @@
     "octopus_cost_month",
     "octopus_cost_projected",
     "octopus_standing_charge",
-    "octopus_balance"
+    "octopus_balance",
+    "octopus_updated",
+    "alarm_generic"
   ],
   "capabilitiesOptions": {
     "meter_gas": {
       "title": {
         "en": "Total gas"
+      }
+    },
+    "alarm_generic": {
+      "title": {
+        "en": "Connection problem"
       }
     }
   },
