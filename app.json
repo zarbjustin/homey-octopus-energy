@@ -2077,6 +2077,7 @@
         }
       },
       "energy": {
+        "cumulative": true,
         "cumulativeImportedCapability": "meter_power"
       },
       "platforms": [
@@ -2315,6 +2316,7 @@
         }
       },
       "energy": {
+        "cumulative": true,
         "cumulativeExportedCapability": "meter_power.exported"
       },
       "platforms": [

@@ -44,6 +44,7 @@
     }
   },
   "energy": {
+    "cumulative": true,
     "cumulativeImportedCapability": "meter_power"
   },
   "platforms": [
