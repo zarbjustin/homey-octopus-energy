@@ -7,5 +7,8 @@
   },
   "1.0.2": {
     "en": "Adds an Agile Prices widget with a Today/Tomorrow toggle, a half-hourly chart that highlights the current slot, and a ranked “best times to use power” list (cheapest first, configurable). Clearer live-power setting and reliability improvements."
+  },
+  "1.0.3": {
+    "en": "Fixed Energy integration so the electricity, export and gas meters now appear in Homey Energy as whole-home cumulative meters."
   }
 }
