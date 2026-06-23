@@ -10,5 +10,8 @@
   },
   "1.0.3": {
     "en": "Fixed Energy integration so the electricity, export and gas meters now appear in Homey Energy as whole-home cumulative meters."
+  },
+  "1.0.4": {
+    "en": "Renamed the app to Octopus Energy and refreshed the meter driver images with pink illustrations on white backgrounds for App Store certification."
   }
 }

@@ -1,6 +1,6 @@
 # Octopus Energy for Homey
 
-Unofficial [Homey](https://homey.app) app that brings your **Octopus Energy** account into Homey — live half-hourly prices, energy usage and cost, standing charge, account balance, and a rich set of Flow cards for automating around dynamic (Agile/Go) pricing.
+[Homey](https://homey.app) app that brings your **Octopus Energy** account into Homey — live half-hourly prices, energy usage and cost, standing charge, account balance, and a rich set of Flow cards for automating around dynamic (Agile/Go) pricing.
 
 > Not affiliated with, or endorsed by, Octopus Energy.
 
@@ -61,4 +61,3 @@ To publish to the Homey App Store:
 4. Finish the submission and certification in the Homey Developer Tools.
 
 The app validates at `publish` level. The two `energy.cumulative … cumulative{Imported,Exported}Capability` warnings are expected: the import meters declare only import and the export meter declares only export.
-
