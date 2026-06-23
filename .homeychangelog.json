@@ -16,5 +16,8 @@
   },
   "1.0.5": {
     "en": "Improves the Agile Prices widget refresh behavior so it reloads when reopened and recovers from stale overnight price data."
+  },
+  "1.0.6": {
+    "en": "Clarifies the Agile Prices widget chart timeline by showing the full day through 24:00."
   }
 }
