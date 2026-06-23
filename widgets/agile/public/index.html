@@ -213,7 +213,10 @@
         return { deviceId: deviceId, cheapest: cheapest };
       }
 
+      var loading = false;
       async function load() {
+        if (loading) return;
+        loading = true;
         // Re-read settings each poll so changing "cheapest slots" updates live.
         var s = readSettings();
         try {
@@ -224,11 +227,17 @@
         } catch (err) {
           STATE.data = { error: (err && err.message) ? err.message : 'Error' };
           render();
+        } finally {
+          loading = false;
         }
       }
 
       load();
       setInterval(load, 60000);
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) load();
+      });
+      window.addEventListener('focus', load);
       Homey.ready();
     }
   </script>

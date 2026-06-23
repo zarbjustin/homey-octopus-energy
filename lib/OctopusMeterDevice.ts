@@ -217,6 +217,23 @@ export class OctopusMeterDevice extends Homey.Device {
     };
   }
 
+  /**
+   * Return Agile widget data, refreshing first when cached rates no longer cover
+   * the current day/current half-hour. This prevents stale overnight caches from
+   * rendering an empty widget until the next scheduled poll.
+   */
+  async getFreshAgileDayData(cheapestCount = 6): Promise<AgileDayData> {
+    let data = this.getAgileDayData(cheapestCount);
+    if (data.today.length > 0 && data.currentStart) return data;
+
+    await this.refresh();
+    data = this.getAgileDayData(cheapestCount);
+    if (data.today.length === 0 || !data.currentStart) {
+      throw new Error('No current price data yet.');
+    }
+    return data;
+  }
+
   /** Local HH:MM label for an instant, in the Homey timezone. */
   private hourMinuteLabel(d: Date): string {
     const tz = this.homey.clock.getTimezone();
@@ -1217,14 +1234,14 @@ export class OctopusMeterDevice extends Homey.Device {
       this.scheduleAgilePublication();
       return;
     }
-    // Align the first tick to the next half-hour boundary (prices change then),
-    // after which we fall back to the configured polling interval.
+    // Start polling immediately so a failed startup refresh retries promptly.
+    // Keep the aligned tick as an extra refresh on the next price boundary.
+    this.startInterval();
     const now = new Date();
     const msToHalfHour = (30 - (now.getMinutes() % 30)) * 60_000
       - now.getSeconds() * 1000 - now.getMilliseconds();
     this.alignTimer = this.homey.setTimeout(() => {
       this.refresh().catch((err) => this.error('Aligned refresh failed:', err));
-      this.startInterval();
     }, Math.max(1000, msToHalfHour));
     this.scheduleAgilePublication();
   }

@@ -17,7 +17,9 @@ module.exports = {
 
     let data;
     try {
-      data = device.getAgileDayData(cheapestCount);
+      data = typeof device.getFreshAgileDayData === 'function'
+        ? await device.getFreshAgileDayData(cheapestCount)
+        : device.getAgileDayData(cheapestCount);
     } catch (err) {
       return { error: (err && err.message) ? err.message : 'No price data yet.' };
     }

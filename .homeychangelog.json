@@ -13,5 +13,8 @@
   },
   "1.0.4": {
     "en": "Renamed the app to Octopus Energy and refreshed the meter driver images with pink illustrations on white backgrounds for App Store certification."
+  },
+  "1.0.5": {
+    "en": "Improves the Agile Prices widget refresh behavior so it reloads when reopened and recovers from stale overnight price data."
   }
 }
