@@ -67,6 +67,8 @@ export interface OctopusClientOptions {
   baseUrl?: string;
   /** Max attempts for transient failures (429 / 5xx). */
   maxRetries?: number;
+  /** Per-request timeout in ms; a hung request would otherwise stall refreshes. */
+  timeoutMs?: number;
   /** Override the fetch implementation (for testing). */
   fetchImpl?: typeof fetch;
 }
@@ -83,6 +85,8 @@ export class OctopusClient {
 
   private readonly maxRetries: number;
 
+  private readonly timeoutMs: number;
+
   private readonly fetchImpl: typeof fetch;
 
   constructor(opts: OctopusClientOptions) {
@@ -90,7 +94,24 @@ export class OctopusClient {
     this.apiKey = opts.apiKey;
     this.baseUrl = opts.baseUrl ?? BASE_URL;
     this.maxRetries = opts.maxRetries ?? 3;
+    this.timeoutMs = opts.timeoutMs ?? 20_000;
     this.fetchImpl = opts.fetchImpl ?? fetch;
+  }
+
+  /**
+   * fetch with a hard timeout. Without this, a stalled socket leaves the
+   * awaiting refresh pending forever, which (combined with the single-flight
+   * guard in the device) permanently freezes all future price updates.
+   */
+  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    // eslint-disable-next-line homey-app/global-timers
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      return await this.fetchImpl(url, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private authHeader(): string {
@@ -116,7 +137,7 @@ export class OctopusClient {
     let lastErr: unknown;
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
-        const res = await this.fetchImpl(url, {
+        const res = await this.fetchWithTimeout(url, {
           method: 'GET',
           headers: {
             Authorization: this.authHeader(),

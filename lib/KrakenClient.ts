@@ -51,11 +51,20 @@ export class KrakenClient {
     let lastErr: unknown;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const res = await fetch(this.url, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ query, variables }),
-        });
+        const controller = new AbortController();
+        // eslint-disable-next-line homey-app/global-timers
+        const timer = setTimeout(() => controller.abort(), 20_000);
+        let res: Response;
+        try {
+          res = await fetch(this.url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ query, variables }),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
         if (res.status === 429 || res.status >= 500) {
           throw new Error(`Transient Kraken error ${res.status}`);
         }
@@ -66,7 +75,7 @@ export class KrakenClient {
         return await res.json() as GraphQLResponse<T>;
       } catch (err) {
         lastErr = err;
-        const transient = err instanceof Error && /Transient Kraken error|fetch failed|network/i.test(err.message);
+        const transient = err instanceof Error && /Transient Kraken error|fetch failed|network|abort/i.test(err.message);
         if (!transient || attempt === maxAttempts - 1) throw err;
         await new Promise((resolve) => {
           // eslint-disable-next-line homey-app/global-timers

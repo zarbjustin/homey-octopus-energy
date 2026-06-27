@@ -83,6 +83,9 @@ export class OctopusMeterDevice extends Homey.Device {
 
   private refreshing = false;
 
+  /** Epoch ms when the current refresh began, for the stuck-lock watchdog. */
+  private refreshStartedAt = 0;
+
   private lastTariffCheck = 0;
 
   private notified401 = false;
@@ -261,8 +264,14 @@ export class OctopusMeterDevice extends Homey.Device {
 
   /** Refresh prices, standing charge and balance. Subclasses extend this. */
   protected async refresh(): Promise<void> {
-    if (this.refreshing) return; // single-flight: avoid concurrent cumulative-meter races
+    if (this.refreshing) {
+      // Watchdog: if a previous refresh somehow never released the lock (e.g. a
+      // hung await that escaped the per-request timeouts), don't freeze forever.
+      if (Date.now() - this.refreshStartedAt < 90_000) return;
+      this.error('Refresh lock stuck > 90s — forcing reset.');
+    }
     this.refreshing = true;
+    this.refreshStartedAt = Date.now();
     try {
       await this.runRefresh();
     } finally {
@@ -1235,15 +1244,28 @@ export class OctopusMeterDevice extends Homey.Device {
       return;
     }
     // Start polling immediately so a failed startup refresh retries promptly.
-    // Keep the aligned tick as an extra refresh on the next price boundary.
+    // Keep an aligned tick that re-fires at EVERY half-hour boundary so the
+    // Agile current price rolls within seconds of each new slot (not just once).
     this.startInterval();
+    this.scheduleAlignedTick();
+    this.scheduleAgilePublication();
+  }
+
+  /**
+   * Refresh just after each :00/:30 boundary so the live Agile price rolls
+   * promptly, then reschedule for the following boundary. A one-shot timer
+   * would only roll the price once and then drift with the coarse poll interval.
+   */
+  private scheduleAlignedTick(): void {
     const now = new Date();
     const msToHalfHour = (30 - (now.getMinutes() % 30)) * 60_000
       - now.getSeconds() * 1000 - now.getMilliseconds();
+    // Fire ~2s after the boundary so the new slot's price is current.
+    const delay = Math.max(1000, msToHalfHour) + 2000;
     this.alignTimer = this.homey.setTimeout(() => {
       this.refresh().catch((err) => this.error('Aligned refresh failed:', err));
-    }, Math.max(1000, msToHalfHour));
-    this.scheduleAgilePublication();
+      this.scheduleAlignedTick();
+    }, delay);
   }
 
   /** Refresh shortly after 16:05 daily, when Agile publishes next-day prices. */
