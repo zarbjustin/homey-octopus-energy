@@ -25,5 +25,8 @@
   },
   "1.0.8": {
     "en": "Improves Agile and Timeline widgets for negative prices, hardens refresh and month-cost calculations, clears dependency audit findings, strengthens CI/publish checks, adds a gas price-below trigger, and improves Economy 7 tariff comparison accuracy."
+  },
+  "1.0.9": {
+    "en": "Improved meter capability icons and reorganised electricity, gas, and export device capability layouts."
   }
 }
