@@ -6,7 +6,7 @@
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/level.svg",
+  "icon": "/assets/charge-active.svg",
   "insights": true,
   "insightsTitleTrue": {
     "en": "In cheapest window"

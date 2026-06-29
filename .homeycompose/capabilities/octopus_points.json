@@ -10,6 +10,6 @@
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/balance.svg",
+  "icon": "/assets/points.svg",
   "insights": true
 }

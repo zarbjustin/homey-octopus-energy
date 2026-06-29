@@ -6,6 +6,6 @@
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/price.svg",
+  "icon": "/assets/price-high.svg",
   "insights": true
 }

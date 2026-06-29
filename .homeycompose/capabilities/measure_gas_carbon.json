@@ -6,6 +6,6 @@
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/level.svg",
+  "icon": "/assets/gas-carbon.svg",
   "insights": true
 }

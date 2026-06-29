@@ -5,15 +5,15 @@
   "class": "sensor",
   "capabilities": [
     "measure_octopus_price",
-    "meter_gas",
+    "octopus_standing_charge",
     "octopus_usage_today",
+    "meter_gas",
     "octopus_cost_today",
     "octopus_cost_yesterday",
     "octopus_cost_month",
     "octopus_cost_projected",
-    "octopus_standing_charge",
-    "measure_octopus_balance",
     "measure_gas_carbon",
+    "measure_octopus_balance",
     "octopus_updated",
     "alarm_generic"
   ],

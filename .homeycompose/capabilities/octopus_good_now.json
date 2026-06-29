@@ -6,7 +6,7 @@
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/level.svg",
+  "icon": "/assets/good-time.svg",
   "insights": true,
   "insightsTitleTrue": {
     "en": "Cheap and green"

@@ -5,12 +5,12 @@
   "class": "sensor",
   "capabilities": [
     "measure_octopus_price",
-    "meter_power.exported",
+    "octopus_standing_charge",
     "octopus_usage_today",
+    "meter_power.exported",
     "octopus_earnings_today",
     "octopus_earnings_month",
     "octopus_earnings_projected",
-    "octopus_standing_charge",
     "measure_octopus_balance",
     "octopus_updated",
     "alarm_generic"

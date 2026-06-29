@@ -6,5 +6,5 @@
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/standing.svg"
+  "icon": "/assets/charge-clock.svg"
 }

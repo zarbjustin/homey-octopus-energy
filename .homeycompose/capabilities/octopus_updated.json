@@ -6,6 +6,6 @@
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/standing.svg",
+  "icon": "/assets/clock-refresh.svg",
   "insights": false
 }

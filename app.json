@@ -2090,15 +2090,16 @@
         "measure_octopus_price",
         "octopus_price_level",
         "octopus_price_next",
+        "octopus_good_now",
         "octopus_smart_charge",
         "octopus_charge_start",
         "octopus_dispatching",
-        "octopus_good_now",
         "measure_octopus_carbon",
         "octopus_carbon_level",
         "measure_renewable_percent",
         "meter_power",
         "octopus_usage_today",
+        "octopus_standing_charge",
         "octopus_cost_today",
         "octopus_cost_yesterday",
         "octopus_cost_peak_today",
@@ -2108,7 +2109,6 @@
         "octopus_price_min_today",
         "octopus_price_max_today",
         "octopus_price_avg_today",
-        "octopus_standing_charge",
         "measure_octopus_balance",
         "octopus_points",
         "octopus_updated",
@@ -2333,12 +2333,12 @@
       "class": "sensor",
       "capabilities": [
         "measure_octopus_price",
-        "meter_power.exported",
+        "octopus_standing_charge",
         "octopus_usage_today",
+        "meter_power.exported",
         "octopus_earnings_today",
         "octopus_earnings_month",
         "octopus_earnings_projected",
-        "octopus_standing_charge",
         "measure_octopus_balance",
         "octopus_updated",
         "alarm_generic"
@@ -2447,15 +2447,15 @@
       "class": "sensor",
       "capabilities": [
         "measure_octopus_price",
-        "meter_gas",
+        "octopus_standing_charge",
         "octopus_usage_today",
+        "meter_gas",
         "octopus_cost_today",
         "octopus_cost_yesterday",
         "octopus_cost_month",
         "octopus_cost_projected",
-        "octopus_standing_charge",
-        "measure_octopus_balance",
         "measure_gas_carbon",
+        "measure_octopus_balance",
         "octopus_updated",
         "alarm_generic"
       ],
@@ -2751,7 +2751,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/level.svg",
+      "icon": "/assets/gas-carbon.svg",
       "insights": true
     },
     "measure_octopus_balance": {
@@ -2787,7 +2787,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/level.svg",
+      "icon": "/assets/carbon.svg",
       "insights": true
     },
     "measure_octopus_price": {
@@ -2823,7 +2823,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/level.svg",
+      "icon": "/assets/renewables.svg",
       "insights": true
     },
     "octopus_carbon_level": {
@@ -2834,7 +2834,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/level.svg",
+      "icon": "/assets/carbon.svg",
       "values": [
         {
           "id": "very_low",
@@ -2877,7 +2877,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/standing.svg"
+      "icon": "/assets/charge-clock.svg"
     },
     "octopus_cost_month": {
       "type": "number",
@@ -2891,7 +2891,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/cost.svg",
+      "icon": "/assets/month-cost.svg",
       "insights": true
     },
     "octopus_cost_offpeak_today": {
@@ -2906,7 +2906,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/cost.svg",
+      "icon": "/assets/night-price.svg",
       "insights": true
     },
     "octopus_cost_peak_today": {
@@ -2921,7 +2921,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/cost.svg",
+      "icon": "/assets/peak-cost.svg",
       "insights": true
     },
     "octopus_cost_projected": {
@@ -2936,7 +2936,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/cost.svg",
+      "icon": "/assets/projected-cost.svg",
       "insights": true
     },
     "octopus_cost_today": {
@@ -2954,7 +2954,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/cost.svg",
+      "icon": "/assets/calendar-cost.svg",
       "insights": true
     },
     "octopus_cost_yesterday": {
@@ -2969,7 +2969,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/cost.svg",
+      "icon": "/assets/calendar-cost.svg",
       "insights": true
     },
     "octopus_dispatching": {
@@ -2980,7 +2980,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/level.svg",
+      "icon": "/assets/charge-active.svg",
       "insights": true,
       "insightsTitleTrue": {
         "en": "Dispatch active"
@@ -3001,7 +3001,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/cost.svg",
+      "icon": "/assets/coin-up.svg",
       "insights": true
     },
     "octopus_earnings_projected": {
@@ -3016,7 +3016,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/cost.svg",
+      "icon": "/assets/projected-cost.svg",
       "insights": true
     },
     "octopus_earnings_today": {
@@ -3031,7 +3031,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/cost.svg",
+      "icon": "/assets/export.svg",
       "insights": true
     },
     "octopus_good_now": {
@@ -3042,7 +3042,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/level.svg",
+      "icon": "/assets/good-time.svg",
       "insights": true,
       "insightsTitleTrue": {
         "en": "Cheap and green"
@@ -3063,7 +3063,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/balance.svg",
+      "icon": "/assets/points.svg",
       "insights": true
     },
     "octopus_price_avg_today": {
@@ -3078,7 +3078,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/price.svg",
+      "icon": "/assets/avg-price.svg",
       "insights": true
     },
     "octopus_price_day": {
@@ -3093,7 +3093,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/price.svg",
+      "icon": "/assets/day-price.svg",
       "insights": true
     },
     "octopus_price_level": {
@@ -3148,7 +3148,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/price.svg",
+      "icon": "/assets/price-high.svg",
       "insights": true
     },
     "octopus_price_min_today": {
@@ -3163,7 +3163,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/price.svg",
+      "icon": "/assets/price-low.svg",
       "insights": true
     },
     "octopus_price_next": {
@@ -3178,7 +3178,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/price.svg",
+      "icon": "/assets/next-price.svg",
       "insights": true
     },
     "octopus_price_night": {
@@ -3193,7 +3193,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/price.svg",
+      "icon": "/assets/night-price.svg",
       "insights": true
     },
     "octopus_smart_charge": {
@@ -3204,7 +3204,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/level.svg",
+      "icon": "/assets/charge-active.svg",
       "insights": true,
       "insightsTitleTrue": {
         "en": "In cheapest window"
@@ -3228,7 +3228,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/standing.svg",
+      "icon": "/assets/standing-cost.svg",
       "insights": true
     },
     "octopus_updated": {
@@ -3239,7 +3239,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/standing.svg",
+      "icon": "/assets/clock-refresh.svg",
       "insights": false
     },
     "octopus_usage_today": {
