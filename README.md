@@ -60,4 +60,13 @@ To publish to the Homey App Store:
 
 4. Finish the submission and certification in the Homey Developer Tools.
 
-The app validates at `publish` level. The two `energy.cumulative … cumulative{Imported,Exported}Capability` warnings are expected: the import meters declare only import and the export meter declares only export.
+The app validates at `publish` level. Homey currently reports two expected
+`energy.cumulative` warnings:
+
+- `drivers.electricity` declares only `cumulativeImportedCapability` because an
+  import meter should not report exported production.
+- `drivers.export` declares only `cumulativeExportedCapability` because an SEG
+  export meter should not report imported consumption.
+
+Those warnings are intentionally left visible rather than adding fake zero-value
+capabilities; the Homey publish validator still accepts the app.

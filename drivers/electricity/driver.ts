@@ -2,6 +2,7 @@
 
 import Homey from 'homey';
 import { OctopusMeterDriver } from '../../lib/OctopusMeterDriver';
+import { crossedBelow } from '../../lib/rates';
 
 interface ElectricityDevice extends Homey.Device {
   getCurrentPrice(): number | null;
@@ -44,13 +45,13 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
     // Filtered triggers.
     flow.getDeviceTriggerCard('price_below')
       .registerRunListener(async (args: Args<{ price: number }>, state: { price: number; previous: number | null }) => (
-        state.price < args.price && (state.previous === null || state.previous >= args.price)
+        crossedBelow(state.price, state.previous, args.price)
       ));
     flow.getDeviceTriggerCard('cheapest_slot_started')
       .registerRunListener(async (args: Args<{ hours: number }>) => args.device.isCheapestNow(args.hours));
     flow.getDeviceTriggerCard('carbon_below')
       .registerRunListener(async (args: Args<{ threshold: number }>, state: { carbon: number; previous: number | null }) => (
-        state.carbon < args.threshold && (state.previous === null || state.previous >= args.threshold)
+        crossedBelow(state.carbon, state.previous, args.threshold)
       ));
 
     // Conditions.

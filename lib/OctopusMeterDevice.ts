@@ -8,7 +8,7 @@ import {
   isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers, ratesInWindow,
   regionFromTariff, isTwoRegister, expensiveWindow, ConsumptionRecord,
 } from './rates';
-import { estimateAnnualCost } from './compare';
+import { daysSpanned, estimateAnnualCost } from './compare';
 
 export interface MeterStore {
   apiKey: string;
@@ -82,6 +82,8 @@ export class OctopusMeterDevice extends Homey.Device {
   private refreshTimer: NodeJS.Timeout | null = null;
 
   private refreshing = false;
+
+  private refreshPromise: Promise<void> | null = null;
 
   /** Epoch ms when the current refresh began, for the stuck-lock watchdog. */
   private refreshStartedAt = 0;
@@ -264,19 +266,24 @@ export class OctopusMeterDevice extends Homey.Device {
 
   /** Refresh prices, standing charge and balance. Subclasses extend this. */
   protected async refresh(): Promise<void> {
-    if (this.refreshing) {
+    if (this.refreshPromise) {
       // Watchdog: if a previous refresh somehow never released the lock (e.g. a
       // hung await that escaped the per-request timeouts), don't freeze forever.
-      if (Date.now() - this.refreshStartedAt < 90_000) return;
+      if (Date.now() - this.refreshStartedAt < 90_000) {
+        return this.refreshPromise;
+      }
       this.error('Refresh lock stuck > 90s — forcing reset.');
+      this.refreshPromise = null;
+      this.refreshing = false;
     }
     this.refreshing = true;
     this.refreshStartedAt = Date.now();
-    try {
-      await this.runRefresh();
-    } finally {
-      this.refreshing = false;
-    }
+    this.refreshPromise = this.runRefresh()
+      .finally(() => {
+        this.refreshing = false;
+        this.refreshPromise = null;
+      });
+    return this.refreshPromise;
   }
 
   private async runRefresh(): Promise<void> {
@@ -939,7 +946,8 @@ export class OctopusMeterDevice extends Homey.Device {
     const records = await this.client.consumption(s.fuel, s.mpxn, s.serial, { ...window, order_by: 'period' });
     if (!records.length) return null;
 
-    const prefix = s.fuel === 'electricity' ? 'E-1R' : 'G-1R';
+    const currentPrefix = s.tariffCode.match(/^[EG]-\d+R/)?.[0];
+    const prefix = currentPrefix ?? (s.fuel === 'electricity' ? 'E-1R' : 'G-1R');
     const candidates: Array<{ name: string; productCode: string; tariffCode: string }> = [
       { name: 'Current', productCode: s.productCode, tariffCode: s.tariffCode },
     ];
@@ -956,15 +964,34 @@ export class OctopusMeterDevice extends Homey.Device {
     const results: Array<{ name: string; annual: number }> = [];
     for (const c of candidates) {
       try {
-        // eslint-disable-next-line no-await-in-loop
-        const [rates, standing] = await Promise.all([
-          this.client.standardUnitRates(s.fuel, c.productCode, c.tariffCode, window),
-          this.client.standingCharges(s.fuel, c.productCode, c.tariffCode, window),
-        ]);
-        if (!rates.length) continue;
-        const sc = rateAt(standing) ?? standing[0];
-        const standingPence = sc ? valueOf(sc, this.vatInc()) : 0;
-        results.push({ name: c.name, annual: estimateAnnualCost(records, rates, standingPence, this.vatInc()) });
+        if (isTwoRegister(c.tariffCode)) {
+          // eslint-disable-next-line no-await-in-loop
+          const [dayRates, nightRates, standing] = await Promise.all([
+            this.client.registerUnitRates('day', c.productCode, c.tariffCode, window),
+            this.client.registerUnitRates('night', c.productCode, c.tariffCode, window),
+            this.client.standingCharges(s.fuel, c.productCode, c.tariffCode, window),
+          ]);
+          if (!dayRates.length && !nightRates.length) continue;
+          let pence = 0;
+          for (const r of records) {
+            const rate = this.rateForRecord(r.interval_start, dayRates, nightRates);
+            if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
+          }
+          const sc = rateAt(standing) ?? standing[0];
+          const standingPence = sc ? valueOf(sc, this.vatInc()) : 0;
+          const days = daysSpanned(records);
+          results.push({ name: c.name, annual: (((pence + standingPence * days) / days) * 365) / 100 });
+        } else {
+          // eslint-disable-next-line no-await-in-loop
+          const [rates, standing] = await Promise.all([
+            this.client.standardUnitRates(s.fuel, c.productCode, c.tariffCode, window),
+            this.client.standingCharges(s.fuel, c.productCode, c.tariffCode, window),
+          ]);
+          if (!rates.length) continue;
+          const sc = rateAt(standing) ?? standing[0];
+          const standingPence = sc ? valueOf(sc, this.vatInc()) : 0;
+          results.push({ name: c.name, annual: estimateAnnualCost(records, rates, standingPence, this.vatInc()) });
+        }
       } catch (err) {
         this.error(`Tariff comparison failed for ${c.name}:`, err);
       }
@@ -1034,6 +1061,38 @@ export class OctopusMeterDevice extends Homey.Device {
     return this.zonedTime(Number(parts.year), Number(parts.month), 1);
   }
 
+  private localDateParts(date: Date = new Date()): { year: number; month: number; day: number; hour: number; minute: number } {
+    const tz = this.homey.clock.getTimezone();
+    const parts: Record<string, string> = {};
+    for (const p of new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date)) parts[p.type] = p.value;
+    return {
+      year: Number(parts.year),
+      month: Number(parts.month),
+      day: Number(parts.day),
+      hour: Number(parts.hour),
+      minute: Number(parts.minute),
+    };
+  }
+
+  private daysInLocalMonth(date: Date = new Date()): number {
+    const { year, month } = this.localDateParts(date);
+    return new Date(Date.UTC(year, month, 0)).getUTCDate();
+  }
+
+  private elapsedLocalMonthDays(date: Date = new Date()): number {
+    const { day, hour, minute } = this.localDateParts(date);
+    const dayFraction = (hour * 60 + minute) / 1440;
+    return Math.max(0.5, (day - 1) + dayFraction);
+  }
+
   /** Compute today's price min/max/avg and the next half-hour price. */
   protected async refreshPriceStats(): Promise<void> {
     if (!this.hasCapability('octopus_price_avg_today')) return;
@@ -1094,7 +1153,7 @@ export class OctopusMeterDevice extends Homey.Device {
     }
     if (this.includeStandingChargeInCost()) {
       const sc = rateAt(this.standingRates) ?? this.standingRates[0];
-      const days = Math.ceil((now.getTime() - monthStart.getTime()) / 86_400_000);
+      const days = this.localDateParts(now).day;
       if (sc) pence += valueOf(sc, this.vatInc()) * Math.max(1, days);
     }
     const cost = pence / 100;
@@ -1102,8 +1161,8 @@ export class OctopusMeterDevice extends Homey.Device {
 
     const projectedCap = this.monthProjectedCapability();
     if (this.hasCapability(projectedCap)) {
-      const elapsed = Math.max(0.5, (now.getTime() - monthStart.getTime()) / 86_400_000);
-      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const elapsed = this.elapsedLocalMonthDays(now);
+      const daysInMonth = this.daysInLocalMonth(now);
       const projected = (cost / elapsed) * daysInMonth;
       await this.setCapabilityValue(projectedCap, Number(projected.toFixed(2))).catch(this.error);
     }
@@ -1190,7 +1249,7 @@ export class OctopusMeterDevice extends Homey.Device {
     const prev = this.currentBalance;
     this.currentBalance = balance;
     if (prev !== null && balance !== prev) {
-      const state = { deviceId: this.getData().id, balance };
+      const state = { deviceId: this.getData().id, balance, previous: prev };
       this.fireAppTrigger('balance_changed', { balance }, state);
       this.fireAppTrigger('balance_below', { balance }, state);
       const threshold = Number(this.homey.settings.get('low_balance_threshold') ?? 0);

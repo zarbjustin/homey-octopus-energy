@@ -26,6 +26,51 @@
           "example": 7.1
         }
       ]
+    },
+    {
+      "id": "gas_price_below",
+      "title": {
+        "en": "The gas price drops below ..."
+      },
+      "titleFormatted": {
+        "en": "The gas price drops below [[price]] p/kWh"
+      },
+      "hint": {
+        "en": "Triggers when the gas unit rate crosses below your threshold."
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "price",
+          "min": 0,
+          "max": 100,
+          "step": 0.1,
+          "placeholder": {
+            "en": "7"
+          },
+          "title": {
+            "en": "Price (p/kWh)"
+          }
+        }
+      ],
+      "tokens": [
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Price (p/kWh)"
+          },
+          "example": 6.2
+        },
+        {
+          "name": "previous",
+          "type": "number",
+          "title": {
+            "en": "Previous price"
+          },
+          "example": 7.1
+        }
+      ]
     }
   ],
   "conditions": [

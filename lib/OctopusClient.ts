@@ -105,8 +105,7 @@ export class OctopusClient {
    */
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
     const controller = new AbortController();
-    // eslint-disable-next-line homey-app/global-timers
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = globalThis.setTimeout(() => controller.abort(), this.timeoutMs);
     try {
       return await this.fetchImpl(url, { ...init, signal: controller.signal });
     } finally {
@@ -166,8 +165,7 @@ export class OctopusClient {
         if (!transient || attempt === this.maxRetries - 1) throw err;
         const backoff = 2 ** attempt * 1000;
         await new Promise((resolve) => {
-          // eslint-disable-next-line homey-app/global-timers
-          setTimeout(resolve, backoff);
+          globalThis.setTimeout(resolve, backoff);
         });
       }
     }

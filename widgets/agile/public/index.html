@@ -40,11 +40,20 @@
     .axis { display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--homey-text-color-light, #888); text-align: right; min-width: 30px; padding: 2px 0 14px; }
     .chart-col { flex: 1; }
     .chart {
-      position: relative; display: flex; align-items: flex-end; gap: 1px;
+      position: relative; display: flex; align-items: stretch; gap: 1px;
       height: 86px;
     }
-    .bar { flex: 1 1 0; background: linear-gradient(180deg, #e64bff, #b521e0); border-radius: 1px 1px 0 0; min-height: 1px; position: relative; }
-    .bar.neg { background: linear-gradient(180deg, #8e44ff, #6f42c1); }
+    .zero-line {
+      position: absolute; left: 0; right: 0; height: 1px;
+      background: rgba(127,127,127,0.42); pointer-events: none;
+    }
+    .bar-slot { flex: 1 1 0; min-width: 0; position: relative; }
+    .bar {
+      position: absolute; left: 0; right: 0;
+      background: linear-gradient(180deg, #e64bff, #b521e0);
+      border-radius: 1px 1px 0 0; min-height: 1px;
+    }
+    .bar.neg { background: linear-gradient(180deg, #8e44ff, #6f42c1); border-radius: 0 0 1px 1px; }
     .bar.cheap { background: linear-gradient(180deg, #4dffa6, #16c172); }
     .bar.current { outline: 2px solid var(--homey-text-color, #fff); outline-offset: -1px; }
     .ticks { display: flex; justify-content: space-between; font-size: 9px; color: var(--homey-text-color-light, #888); margin-top: 2px; }
@@ -94,25 +103,29 @@
       var prices = slots.map(function (s) { return s.price; });
       var max = Math.max.apply(null, prices);
       var min = Math.min.apply(null, prices);
+      var ceiling = Math.max(0, max);
       var floor = Math.min(0, min);
-      var span = (max - floor) || 1;
+      var span = (ceiling - floor) || 1;
+      var zeroTop = Math.round(((ceiling - 0) / span) * 1000) / 10;
 
       var bars = slots.map(function (s) {
-        var pct = Math.max(2, Math.round(((s.price - floor) / span) * 100));
+        var valueTop = Math.round(((ceiling - s.price) / span) * 1000) / 10;
+        var top = s.price < 0 ? zeroTop : valueTop;
+        var height = Math.max(2, Math.abs(zeroTop - valueTop));
         var cls = 'bar';
         if (s.price < 0) cls += ' neg';
         else if (s.cheapest) cls += ' cheap';
         if (s.current) cls += ' current';
         var title = s.label + ' · ' + fmt(s.price) + 'p';
-        return '<div class="' + cls + '" style="height:' + pct + '%" title="' + title + '"></div>';
+        return '<div class="bar-slot"><div class="' + cls + '" style="top:' + top + '%;height:' + height + '%" title="' + title + '"></div></div>';
       }).join('');
 
       return ''
         + '<div class="chart-wrap">'
-        +   '<div class="axis"><span>' + fmt(max, max >= 100 ? 0 : 1) + 'p</span>'
+        +   '<div class="axis"><span>' + fmt(ceiling, ceiling >= 100 ? 0 : 1) + 'p</span>'
         +     '<span>' + fmt(min, min >= 100 ? 0 : 1) + 'p</span></div>'
         +   '<div class="chart-col">'
-        +     '<div class="chart">' + bars + '</div>'
+        +     '<div class="chart"><div class="zero-line" style="top:' + zeroTop + '%"></div>' + bars + '</div>'
         +     '<div class="ticks"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>'
         +   '</div>'
         + '</div>';

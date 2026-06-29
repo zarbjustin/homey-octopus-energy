@@ -22,5 +22,8 @@
   },
   "1.0.7": {
     "en": "Fix a rare price-feed stall: add request timeouts and roll the Agile price reliably at every half-hour so price triggers fire on time."
+  },
+  "1.0.8": {
+    "en": "Improves Agile and Timeline widgets for negative prices, hardens refresh and month-cost calculations, clears dependency audit findings, strengthens CI/publish checks, adds a gas price-below trigger, and improves Economy 7 tariff comparison accuracy."
   }
 }

@@ -108,6 +108,20 @@ test('priceLevel classifies plunge/cheap/normal/expensive', () => {
   assert.strictEqual(r.priceLevel(35, th), 'expensive');
 });
 
+test('crossedBelow fires only when moving below a threshold', () => {
+  assert.strictEqual(r.crossedBelow(9, 10, 10), true);
+  assert.strictEqual(r.crossedBelow(9, 12, 10), true);
+  assert.strictEqual(r.crossedBelow(9, 9, 10), false);
+  assert.strictEqual(r.crossedBelow(10, 11, 10), false);
+});
+
+test('crossedAbove fires only when moving above a threshold', () => {
+  assert.strictEqual(r.crossedAbove(11, 10, 10), true);
+  assert.strictEqual(r.crossedAbove(11, 8, 10), true);
+  assert.strictEqual(r.crossedAbove(11, 11, 10), false);
+  assert.strictEqual(r.crossedAbove(10, 9, 10), false);
+});
+
 test('consumptionBetween sums records within a day window', () => {
   const records = [
     { consumption: 0.5, interval_start: '2024-01-01T00:00:00Z', interval_end: '2024-01-01T00:30:00Z' },

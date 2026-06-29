@@ -1,6 +1,6 @@
 {
   "name": "uk.co.zarb.octopusenergy",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "engines": {
     "node": ">=16"
   },
@@ -13,8 +13,14 @@
     "@tsconfig/node16": "^16.1.8",
     "@types/homey": "npm:homey-apps-sdk-v3-types@^0.3.12",
     "@types/node": "^22.10.0",
-    "eslint": "^7.32.0",
+    "eslint": "^8.57.1",
     "eslint-config-athom": "^3.1.5",
+    "eslint-plugin-homey-app": "^1.0.2",
     "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^9.0.7"
+    }
   }
 }

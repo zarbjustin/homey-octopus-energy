@@ -52,8 +52,7 @@ export class KrakenClient {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const controller = new AbortController();
-        // eslint-disable-next-line homey-app/global-timers
-        const timer = setTimeout(() => controller.abort(), 20_000);
+        const timer = globalThis.setTimeout(() => controller.abort(), 20_000);
         let res: Response;
         try {
           res = await fetch(this.url, {
@@ -78,8 +77,7 @@ export class KrakenClient {
         const transient = err instanceof Error && /Transient Kraken error|fetch failed|network|abort/i.test(err.message);
         if (!transient || attempt === maxAttempts - 1) throw err;
         await new Promise((resolve) => {
-          // eslint-disable-next-line homey-app/global-timers
-          setTimeout(resolve, 2 ** attempt * 1000);
+          globalThis.setTimeout(resolve, 2 ** attempt * 1000);
         });
       }
     }

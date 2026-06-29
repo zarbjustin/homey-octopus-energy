@@ -40,6 +40,9 @@ module.exports = class GasDevice extends OctopusMeterDevice {
       this.homey.flow.getDeviceTriggerCard('gas_price_changed')
         .trigger(this, { price: value, previous: prev })
         .catch((err) => this.error('Trigger gas_price_changed failed:', err));
+      this.homey.flow.getDeviceTriggerCard('gas_price_below')
+        .trigger(this, { price: value, previous: prev }, { price: value, previous: prev })
+        .catch((err) => this.error('Trigger gas_price_below failed:', err));
     }
     this.previousGasPrice = value;
   }

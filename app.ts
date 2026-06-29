@@ -4,6 +4,7 @@ import Homey from 'homey';
 import { SavingSessionsPoller } from './lib/SavingSessionsPoller';
 import { DispatchPoller } from './lib/DispatchPoller';
 import { KrakenClient } from './lib/KrakenClient';
+import { crossedAbove, crossedBelow } from './lib/rates';
 
 interface BalanceDevice extends Homey.Device {
   getBalance(): number | null;
@@ -65,14 +66,14 @@ module.exports = class OctopusEnergyApp extends Homey.App {
         args: { device: Homey.Device; amount: number },
         state: { deviceId: string; cost: number; previous: number },
       ) => args.device.getData().id === state.deviceId
-        && state.previous <= args.amount && state.cost > args.amount);
+        && crossedAbove(state.cost, state.previous, args.amount));
 
     this.homey.flow.getTriggerCard('usage_today_above')
       .registerRunListener(async (
         args: { device: Homey.Device; amount: number },
         state: { deviceId: string; usage: number; previous: number },
       ) => args.device.getData().id === state.deviceId
-        && state.previous <= args.amount && state.usage > args.amount);
+        && crossedAbove(state.usage, state.previous, args.amount));
 
     this.homey.flow.getTriggerCard('standing_charge_changed')
       .registerRunListener(async (
@@ -100,8 +101,8 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     flow.getTriggerCard('balance_below')
       .registerRunListener(async (
         args: { device: Homey.Device; amount: number },
-        state: { deviceId: string; balance: number },
-      ) => args.device.getData().id === state.deviceId && state.balance < args.amount);
+        state: { deviceId: string; balance: number; previous?: number | null },
+      ) => args.device.getData().id === state.deviceId && crossedBelow(state.balance, state.previous, args.amount));
 
     flow.getConditionCard('balance_below_now')
       .registerRunListener(async (args: { device: BalanceDevice; amount: number }) => {

@@ -2,6 +2,7 @@
 
 import Homey from 'homey';
 import { OctopusMeterDriver } from '../../lib/OctopusMeterDriver';
+import { crossedAbove } from '../../lib/rates';
 
 interface ExportDevice extends Homey.Device {
   findPeakSlot(within: number, duration: number): { start_time: string; price: number } | null;
@@ -22,7 +23,7 @@ module.exports = class ExportDriver extends OctopusMeterDriver {
     const { flow } = this.homey;
     flow.getDeviceTriggerCard('export_rate_above')
       .registerRunListener(async (args: Args<{ price: number }>, state: { price: number; previous: number | null }) => (
-        state.price > args.price && (state.previous === null || state.previous <= args.price)
+        crossedAbove(state.price, state.previous, args.price)
       ));
     flow.getActionCard('find_peak_export_slot')
       .registerRunListener(async (args: Args<{ within: number; duration: number }>) => {

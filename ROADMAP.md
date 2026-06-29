@@ -36,6 +36,15 @@ Commits are tagged `Sprint N: ...` (mirrors the Vestaboard app convention).
 
 ## Multi-model review (Opus + GPT-5.5 code review, Sonnet feature review)
 
+## Maintenance notes
+- Dependency audit is clean with ESLint 8 plus a targeted `minimatch` override.
+- `.npmrc` keeps `legacy-peer-deps=true` because Athom's current Homey ESLint
+  config still declares older ESLint peer ranges. Revisit when
+  `eslint-config-athom` supports the newer `eslint-plugin-homey-app@2` /
+  ESLint 10 stack without raising the app's Node support beyond Homey's target.
+- Homey publish validation intentionally keeps the import-only/export-only
+  cumulative energy warnings visible; see the README publishing section.
+
 ### Code-review findings (convergent)
 - HIGH: budget/threshold "above/below" triggers re-fire every refresh (rolling 24h value changes constantly) — need crossing semantics.
 - HIGH: no single-flight guard on refresh() → concurrent runs over-count the cumulative meter (read-modify-write race); store writes of cumulativeMeter + lastConsumptionEnd are non-atomic.
@@ -130,4 +139,3 @@ All built, validated at publish level, 23 tests passing, lint clean, committed a
 18. **Quality & reach** — inject HTTP layer for cost/gas/planner tests with fixtures;
     persist rates + align refresh to ~16:00 Agile publication; localization (nl/de/fr);
     real branding/screenshots; wire publish workflow to Homey token and certify.
-

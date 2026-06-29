@@ -227,6 +227,16 @@ export function priceLevel(
   return 'normal';
 }
 
+/** True when a value moves from at/above a threshold to below it. */
+export function crossedBelow(current: number, previous: number | null | undefined, threshold: number): boolean {
+  return current < threshold && (previous === null || previous === undefined || previous >= threshold);
+}
+
+/** True when a value moves from at/below a threshold to above it. */
+export function crossedAbove(current: number, previous: number | null | undefined, threshold: number): boolean {
+  return current > threshold && (previous === null || previous === undefined || previous <= threshold);
+}
+
 /** Sum the consumption (kWh) of a set of half-hourly records. */
 export function sumConsumption(records: ConsumptionRecord[]): number {
   return records.reduce((acc, r) => acc + (Number(r.consumption) || 0), 0);
