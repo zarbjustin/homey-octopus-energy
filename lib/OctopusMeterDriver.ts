@@ -87,6 +87,9 @@ export class OctopusMeterDriver extends Homey.Driver {
       }
 
       if (hasAllManual) {
+        // Manual meter entry bypasses discovery, but credentials must still
+        // authenticate successfully before any secret is persisted.
+        await new OctopusClient({ apiKey: creds.apiKey }).getAccount(creds.accountNumber);
         const manual = normaliseManualMeter({
           mpxn: data.manual_mpxn,
           serial: data.manual_serial,
