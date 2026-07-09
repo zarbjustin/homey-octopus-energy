@@ -3,11 +3,7 @@
 import Homey from 'homey';
 import { OctopusClient, FuelType, DiscoveredMeter } from './OctopusClient';
 import { productCodeFromTariff } from './rates';
-
-interface Creds {
-  apiKey: string;
-  accountNumber: string;
-}
+import { Credentials, normaliseCredentials, normaliseManualMeter } from './credentials';
 
 interface PairDevice {
   name: string;
@@ -18,32 +14,19 @@ interface PairDevice {
 
 /**
  * Shared driver base providing credential-based pairing and repair for a given
- * fuel type. The custom `start` pairing view collects an API key + account
- * number, we validate them by discovering meters, then present the matching
- * meters as devices to add.
+ * fuel type. Pairing state is scoped to each PairSession so overlapping pairing
+ * sessions cannot see or overwrite one another's credentials or meter results.
  */
 export class OctopusMeterDriver extends Homey.Driver {
 
   protected fuel: FuelType = 'electricity';
 
-  private pairCreds: Creds | null = null;
-
-  private pairMeters: DiscoveredMeter[] = [];
-
-  private normalise(apiKey: unknown, account: unknown): Creds {
-    const key = String(apiKey ?? '').trim();
-    const acc = String(account ?? '').trim().toUpperCase();
-    if (!key) throw new Error('Please enter your Octopus API key.');
-    if (!acc) throw new Error('Please enter your account number (e.g. A-AAAA1111).');
-    return { apiKey: key, accountNumber: acc };
-  }
-
-  private async discover(creds: Creds): Promise<DiscoveredMeter[]> {
+  private async discover(creds: Credentials): Promise<DiscoveredMeter[]> {
     const client = new OctopusClient({ apiKey: creds.apiKey });
     const meters = await client.discoverMeters(creds.accountNumber);
     const matching = meters.filter((m) => this.accepts(m));
     if (!matching.length) {
-      throw new Error(`No matching meters were found on account ${creds.accountNumber}.`);
+      throw new Error('No matching meters were found on this Octopus account.');
     }
     return matching;
   }
@@ -63,7 +46,7 @@ export class OctopusMeterDriver extends Homey.Driver {
     return `${label}${suffix}${tail}`;
   }
 
-  private toDevice(meter: DiscoveredMeter, creds: Creds): PairDevice {
+  private toDevice(meter: DiscoveredMeter, creds: Credentials): PairDevice {
     return {
       name: this.deviceName(meter),
       data: { id: `${meter.fuel}-${meter.mpxn}-${meter.serial}` },
@@ -86,53 +69,95 @@ export class OctopusMeterDriver extends Homey.Driver {
   }
 
   async onPair(session: Homey.Driver.PairSession): Promise<void> {
+    // Never put these on the singleton Driver: one isolated state per session.
+    let pairCreds: Credentials | null = null;
+    let pairMeters: DiscoveredMeter[] = [];
+
     session.setHandler('login', async (data: {
       apiKey: string; account: string;
       manual_mpxn?: string; manual_serial?: string; manual_tariff?: string;
     }) => {
-      const creds = this.normalise(data.apiKey, data.account);
-      if (data.manual_mpxn && data.manual_serial && data.manual_tariff) {
-        const tariffCode = String(data.manual_tariff).trim().toUpperCase();
-        this.pairMeters = [{
+      const creds = normaliseCredentials(data.apiKey, data.account);
+      const manualValues = [data.manual_mpxn, data.manual_serial, data.manual_tariff];
+      const hasAnyManual = manualValues.some((value) => String(value ?? '').trim() !== '');
+      const hasAllManual = manualValues.every((value) => String(value ?? '').trim() !== '');
+
+      if (hasAnyManual && !hasAllManual) {
+        throw new Error('Enter the meter point, serial number and tariff code, or leave all three blank.');
+      }
+
+      if (hasAllManual) {
+        const manual = normaliseManualMeter({
+          mpxn: data.manual_mpxn,
+          serial: data.manual_serial,
+          tariffCode: data.manual_tariff,
+        }, this.fuel);
+        const productCode = productCodeFromTariff(manual.tariffCode);
+        if (!productCode) throw new Error('The tariff code could not be recognised.');
+        pairMeters = [{
           fuel: this.fuel,
-          mpxn: String(data.manual_mpxn).trim(),
-          serial: String(data.manual_serial).trim(),
+          mpxn: manual.mpxn,
+          serial: manual.serial,
           isExport: this.fuel === 'electricity' ? this.manualIsExport() : false,
-          tariffCode,
-          productCode: productCodeFromTariff(tariffCode),
+          tariffCode: manual.tariffCode,
+          productCode,
         }];
       } else {
-        this.pairMeters = await this.discover(creds);
+        pairMeters = await this.discover(creds);
       }
-      this.pairCreds = creds;
+      pairCreds = creds;
       return true;
     });
 
     session.setHandler('list_devices', async () => {
-      if (!this.pairCreds) return [];
-      return this.pairMeters.map((m) => this.toDevice(m, this.pairCreds as Creds));
+      if (!pairCreds) return [];
+      return pairMeters.map((meter) => this.toDevice(meter, pairCreds as Credentials));
     });
   }
 
   async onRepair(session: Homey.Driver.PairSession, device: Homey.Device): Promise<void> {
     session.setHandler('login', async (data: { apiKey: string; account: string }) => {
-      const creds = this.normalise(data.apiKey, data.account);
+      const creds = normaliseCredentials(data.apiKey, data.account);
       const meters = await this.discover(creds);
-      const wanted = device.getStoreValue('mpxn');
-      const match = meters.find((m) => m.mpxn === wanted) ?? meters[0];
-      await device.setStoreValue('apiKey', creds.apiKey);
-      await device.setStoreValue('accountNumber', creds.accountNumber);
-      await device.setStoreValue('mpxn', match.mpxn);
-      await device.setStoreValue('serial', match.serial);
-      await device.setStoreValue('fuel', match.fuel);
-      await device.setStoreValue('isExport', match.isExport);
-      await device.setStoreValue('productCode', match.productCode);
-      await device.setStoreValue('tariffCode', match.tariffCode);
-      // Rebuild the API clients so the new key takes effect immediately.
-      const meterDevice = device as Homey.Device & { applyCredentials?: () => Promise<void> };
-      if (typeof meterDevice.applyCredentials === 'function') {
-        await meterDevice.applyCredentials();
+      const wanted = String(device.getStoreValue('mpxn') ?? '');
+      const match = meters.find((meter) => meter.mpxn === wanted);
+      if (!match) {
+        throw new Error('The existing meter was not found on this Octopus account.');
       }
+
+      const replacement: Record<string, unknown> = {
+        apiKey: creds.apiKey,
+        accountNumber: creds.accountNumber,
+        mpxn: match.mpxn,
+        serial: match.serial,
+        fuel: match.fuel,
+        isExport: match.isExport,
+        productCode: match.productCode,
+        tariffCode: match.tariffCode,
+      };
+      const previous = Object.fromEntries(
+        Object.keys(replacement).map((key) => [key, device.getStoreValue(key)]),
+      );
+      const meterDevice = device as Homey.Device & { applyCredentials?: () => Promise<void> };
+
+      try {
+        for (const [key, value] of Object.entries(replacement)) {
+          await device.setStoreValue(key, value);
+        }
+        if (typeof meterDevice.applyCredentials === 'function') {
+          await meterDevice.applyCredentials();
+        }
+      } catch (err) {
+        // Best-effort rollback keeps a failed repair from leaving mixed state.
+        for (const [key, value] of Object.entries(previous)) {
+          await device.setStoreValue(key, value).catch(() => undefined);
+        }
+        if (typeof meterDevice.applyCredentials === 'function') {
+          await meterDevice.applyCredentials().catch(() => undefined);
+        }
+        throw new Error('The device could not be repaired; its previous credentials were restored.');
+      }
+
       return { done: true };
     });
   }
