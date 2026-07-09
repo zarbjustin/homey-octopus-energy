@@ -92,3 +92,101 @@ test('getAll follows pagination via the next link', async () => {
   const all = await client.getAll('/x/');
   assert.deepStrictEqual(all, [{ a: 1 }, { a: 2 }]);
 });
+
+
+test('rejects cross-origin pagination before sending credentials', async () => {
+  let calls = 0;
+  const client = new OctopusClient({
+    apiKey: 'sk_test',
+    fetchImpl: async () => {
+      calls += 1;
+      return jsonResponse({
+        count: 2,
+        next: 'https://attacker.example/collect',
+        previous: null,
+        results: [{ a: 1 }],
+      });
+    },
+  });
+
+  await assert.rejects(
+    () => client.getAll('/x/'),
+    /unexpected Octopus API origin/,
+  );
+  assert.strictEqual(calls, 1);
+});
+
+test('does not follow HTTP redirects', async () => {
+  const client = new OctopusClient({
+    apiKey: 'sk_test',
+    fetchImpl: async () => ({
+      ok: false,
+      status: 302,
+      headers: { get: () => null },
+      json: async () => ({}),
+      text: async () => '',
+    }),
+  });
+
+  await assert.rejects(
+    () => client.getAccount('A-ABCD1234'),
+    /redirects are not permitted/,
+  );
+});
+
+test('rejects malformed paginated responses', async () => {
+  const client = new OctopusClient({
+    apiKey: 'sk_test',
+    fetchImpl: async () => jsonResponse({
+      count: 1,
+      next: null,
+      previous: null,
+      results: 'not-an-array',
+    }),
+  });
+
+  await assert.rejects(
+    () => client.getAll('/x/'),
+    /invalid paginated response/,
+  );
+});
+
+test('honours Retry-After for throttled requests', async () => {
+  let calls = 0;
+  const client = new OctopusClient({
+    apiKey: 'sk_test',
+    maxRetries: 2,
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) {
+        return {
+          ok: false,
+          status: 429,
+          headers: { get: (name) => name.toLowerCase() === 'retry-after' ? '0' : null },
+          json: async () => ({}),
+          text: async () => '',
+        };
+      }
+      return jsonResponse(ACCOUNT);
+    },
+  });
+
+  const account = await client.getAccount('A-ABCD1234');
+  assert.strictEqual(account.number, 'A-ABCD1234');
+  assert.strictEqual(calls, 2);
+});
+
+test('encodes meter identifiers used in consumption paths', async () => {
+  let seenUrl;
+  const client = new OctopusClient({
+    apiKey: 'sk_test',
+    fetchImpl: async (url) => {
+      seenUrl = url;
+      return jsonResponse({ count: 0, next: null, previous: null, results: [] });
+    },
+  });
+
+  await client.consumption('electricity', '123/456', 'SERIAL/1');
+  assert.match(seenUrl, /123%2F456/);
+  assert.match(seenUrl, /SERIAL%2F1/);
+});
