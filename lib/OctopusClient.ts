@@ -176,9 +176,12 @@ export class OctopusClient {
           const retryAfter = res.headers?.get?.('retry-after');
           const seconds = retryAfter === null || retryAfter === undefined ? NaN : Number(retryAfter);
           const retryDate = retryAfter ? Date.parse(retryAfter) : NaN;
-          const retryAfterMs = Number.isFinite(seconds)
-            ? Math.max(0, seconds * 1000)
-            : (Number.isFinite(retryDate) ? Math.max(0, retryDate - Date.now()) : undefined);
+          let retryAfterMs: number | undefined;
+          if (Number.isFinite(seconds)) {
+            retryAfterMs = Math.max(0, seconds * 1000);
+          } else if (Number.isFinite(retryDate)) {
+            retryAfterMs = Math.max(0, retryDate - Date.now());
+          }
           // Transient — back off and retry without exposing response content.
           throw new OctopusApiError(res.status, `Temporary Octopus API error (${res.status}).`, retryAfterMs);
         }
