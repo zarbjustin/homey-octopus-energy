@@ -28,5 +28,8 @@
   },
   "1.0.9": {
     "en": "Improved meter capability icons and reorganised electricity, gas, and export device capability layouts."
+  },
+  "1.0.10": {
+    "en": "Improved price and charging automations, refresh reliability, multi-account support, security, API efficiency, and billing accuracy."
   }
 }
