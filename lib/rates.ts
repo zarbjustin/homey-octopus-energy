@@ -106,15 +106,27 @@ export function cheapestWindow(
   if (slots <= 0 || pool.length < slots) return null;
   let bestStart = 0;
   let bestSum = Infinity;
+  let found = false;
   for (let i = 0; i + slots <= pool.length; i++) {
+    const candidate = pool.slice(i, i + slots);
+    const contiguous = candidate.every((rate, index) => {
+      if (index === 0) return true;
+      const previous = candidate[index - 1];
+      const previousEnd = previous.valid_to
+        ? new Date(previous.valid_to).getTime()
+        : new Date(previous.valid_from).getTime() + 30 * 60_000;
+      return previousEnd === new Date(rate.valid_from).getTime();
+    });
+    if (!contiguous) continue;
     let sum = 0;
     for (let j = i; j < i + slots; j++) sum += valueOf(pool[j], incVat);
     if (sum < bestSum) {
       bestSum = sum;
       bestStart = i;
+      found = true;
     }
   }
-  return pool.slice(bestStart, bestStart + slots);
+  return found ? pool.slice(bestStart, bestStart + slots) : null;
 }
 
 /**
@@ -195,15 +207,27 @@ export function expensiveWindow(
   if (slots <= 0 || pool.length < slots) return null;
   let bestStart = 0;
   let bestSum = -Infinity;
+  let found = false;
   for (let i = 0; i + slots <= pool.length; i++) {
+    const candidate = pool.slice(i, i + slots);
+    const contiguous = candidate.every((rate, index) => {
+      if (index === 0) return true;
+      const previous = candidate[index - 1];
+      const previousEnd = previous.valid_to
+        ? new Date(previous.valid_to).getTime()
+        : new Date(previous.valid_from).getTime() + 30 * 60_000;
+      return previousEnd === new Date(rate.valid_from).getTime();
+    });
+    if (!contiguous) continue;
     let sum = 0;
     for (let j = i; j < i + slots; j++) sum += valueOf(pool[j], incVat);
     if (sum > bestSum) {
       bestSum = sum;
       bestStart = i;
+      found = true;
     }
   }
-  return pool.slice(bestStart, bestStart + slots);
+  return found ? pool.slice(bestStart, bestStart + slots) : null;
 }
 
 /** Whether a rate's half-hour covers the instant `at`. */

@@ -1,8 +1,8 @@
 {
   "name": "uk.co.zarb.octopusenergy",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "engines": {
-    "node": ">=16"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc",

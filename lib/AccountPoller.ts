@@ -13,6 +13,8 @@ export abstract class AccountPoller {
 
   private timer: NodeJS.Timeout | null = null;
 
+  private polling = false;
+
   protected abstract readonly intervalMs: number;
 
   constructor(app: Homey.App) {
@@ -21,9 +23,9 @@ export abstract class AccountPoller {
 
   start(): void {
     this.stop();
-    this.poll().catch((err) => this.app.error('Poll failed:', err));
+    this.runPoll();
     this.timer = this.app.homey.setInterval(() => {
-      this.poll().catch((err) => this.app.error('Poll failed:', err));
+      this.runPoll();
     }, this.intervalMs);
   }
 
@@ -36,8 +38,19 @@ export abstract class AccountPoller {
 
   protected abstract poll(): Promise<void>;
 
-  /** Borrow API credentials from the first added meter device. */
-  protected credentials(): { apiKey: string; accountNumber: string } | null {
+  private runPoll(): void {
+    if (this.polling) return;
+    this.polling = true;
+    this.poll()
+      .catch((err) => this.app.error('Poll failed:', err))
+      .finally(() => {
+        this.polling = false;
+      });
+  }
+
+  /** Collect one credential set per distinct account across all meter devices. */
+  protected accounts(): Array<{ apiKey: string; accountNumber: string }> {
+    const accounts = new Map<string, { apiKey: string; accountNumber: string }>();
     for (const driverId of ['electricity', 'gas', 'export']) {
       let driver: Homey.Driver;
       try {
@@ -48,10 +61,12 @@ export abstract class AccountPoller {
       for (const device of driver.getDevices()) {
         const apiKey = device.getStoreValue('apiKey');
         const accountNumber = device.getStoreValue('accountNumber');
-        if (apiKey && accountNumber) return { apiKey, accountNumber };
+        if (apiKey && accountNumber && !accounts.has(accountNumber)) {
+          accounts.set(accountNumber, { apiKey, accountNumber });
+        }
       }
     }
-    return null;
+    return [...accounts.values()];
   }
 
   protected fmt(iso: string): string {

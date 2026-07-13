@@ -119,7 +119,11 @@ export class OctopusMeterDriver extends Homey.Driver {
       const creds = this.normalise(data.apiKey, data.account);
       const meters = await this.discover(creds);
       const wanted = device.getStoreValue('mpxn');
-      const match = meters.find((m) => m.mpxn === wanted) ?? meters[0];
+      const wantedSerial = device.getStoreValue('serial');
+      const match = meters.find((m) => m.mpxn === wanted && m.serial === wantedSerial);
+      if (!match) {
+        throw new Error('The original meter was not found on this account. Add it as a new device if the meter has been replaced.');
+      }
       await device.setStoreValue('apiKey', creds.apiKey);
       await device.setStoreValue('accountNumber', creds.accountNumber);
       await device.setStoreValue('mpxn', match.mpxn);

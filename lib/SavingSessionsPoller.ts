@@ -20,9 +20,14 @@ export class SavingSessionsPoller extends AccountPoller {
   protected readonly intervalMs = 15 * 60_000;
 
   protected async poll(): Promise<void> {
-    const creds = this.credentials();
-    if (!creds) return;
+    for (const creds of this.accounts()) {
+      // Keep account state writes ordered and deterministic.
+      // eslint-disable-next-line no-await-in-loop
+      await this.pollAccount(creds);
+    }
+  }
 
+  private async pollAccount(creds: { apiKey: string; accountNumber: string }): Promise<void> {
     let sessions: SavingSession[] = [];
     try {
       sessions = await new KrakenClient(creds.apiKey).getSavingSessions(creds.accountNumber);
@@ -30,7 +35,8 @@ export class SavingSessionsPoller extends AccountPoller {
       return; // Account may not support saving sessions.
     }
 
-    const state: PollerState = this.app.homey.settings.get('saving_sessions_state')
+    const allState = (this.app.homey.settings.get('saving_sessions_state_v2') || {}) as Record<string, PollerState>;
+    const state: PollerState = allState[creds.accountNumber]
       || { known: [], started: [], ended: [] };
     state.feStarted = state.feStarted ?? [];
     state.feEnded = state.feEnded ?? [];
@@ -88,12 +94,13 @@ export class SavingSessionsPoller extends AccountPoller {
 
     // Keep the persisted id lists bounded.
     const trim = (arr: string[]) => arr.slice(-50);
-    this.app.homey.settings.set('saving_sessions_state', {
+    allState[creds.accountNumber] = {
       known: trim(state.known),
       started: trim(state.started),
       ended: trim(state.ended),
       feStarted: trim(state.feStarted),
       feEnded: trim(state.feEnded),
-    });
+    };
+    this.app.homey.settings.set('saving_sessions_state_v2', allState);
   }
 }

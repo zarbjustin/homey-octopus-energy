@@ -85,9 +85,32 @@ export class CarbonClient {
     this.baseUrl = baseUrl;
   }
 
+  private async request(path: string): Promise<Response> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const controller = new AbortController();
+      const timer = globalThis.setTimeout(() => controller.abort(), 15_000);
+      try {
+        const response = await fetch(`${this.baseUrl}${path}`, {
+          headers: { Accept: 'application/json' }, signal: controller.signal,
+        });
+        if (response.status !== 429 && response.status < 500) return response;
+        lastError = new Error(`Transient Carbon API error ${response.status}`);
+      } catch (err) {
+        lastError = err;
+      } finally {
+        clearTimeout(timer);
+      }
+      if (attempt < 2) {
+        await new Promise((resolve) => globalThis.setTimeout(resolve, 500 * (2 ** attempt)));
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error('Carbon API request failed.');
+  }
+
   /** Current national carbon intensity (gCO₂/kWh) and index, or null. */
   async getCurrent(): Promise<CarbonPoint | null> {
-    const res = await fetch(`${this.baseUrl}/intensity`, { headers: { Accept: 'application/json' } });
+    const res = await this.request('/intensity');
     if (!res.ok) return null;
     const json = await res.json() as { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; actual?: number; index?: string } }> };
     const d = json?.data?.[0];
@@ -103,7 +126,7 @@ export class CarbonClient {
   /** 48-hour forward national carbon-intensity forecast (half-hourly). */
   async getForecast(): Promise<CarbonPoint[]> {
     const fromIso = new Date().toISOString();
-    const res = await fetch(`${this.baseUrl}/intensity/${fromIso}/fw48h`, { headers: { Accept: 'application/json' } });
+    const res = await this.request(`/intensity/${fromIso}/fw48h`);
     if (!res.ok) return [];
     const json = await res.json() as { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string } }> };
     return (json?.data ?? []).map((d) => ({
@@ -116,7 +139,7 @@ export class CarbonClient {
 
   /** Current regional carbon intensity + index + renewable %, or null. */
   async getRegional(regionId: number): Promise<(CarbonPoint & { renewable: number }) | null> {
-    const res = await fetch(`${this.baseUrl}/regional/regionid/${regionId}`, { headers: { Accept: 'application/json' } });
+    const res = await this.request(`/regional/regionid/${regionId}`);
     if (!res.ok) return null;
     const json = await res.json() as {
       data?: Array<{ data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string }; generationmix?: Array<{ fuel: string; perc: number }> }> }>;
@@ -135,7 +158,7 @@ export class CarbonClient {
   /** 48-hour forward regional carbon-intensity forecast (half-hourly). */
   async getRegionalForecast(regionId: number): Promise<CarbonPoint[]> {
     const fromIso = new Date().toISOString();
-    const res = await fetch(`${this.baseUrl}/regional/intensity/${fromIso}/fw48h/regionid/${regionId}`, { headers: { Accept: 'application/json' } });
+    const res = await this.request(`/regional/intensity/${fromIso}/fw48h/regionid/${regionId}`);
     if (!res.ok) return [];
     const json = await res.json() as { data?: { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string } }> } };
     return (json?.data?.data ?? []).map((d) => ({

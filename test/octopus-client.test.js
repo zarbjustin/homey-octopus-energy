@@ -92,3 +92,11 @@ test('getAll follows pagination via the next link', async () => {
   const all = await client.getAll('/x/');
   assert.deepStrictEqual(all, [{ a: 1 }, { a: 2 }]);
 });
+
+test('getAll refuses pagination links on an unexpected origin', async () => {
+  const client = new OctopusClient({
+    apiKey: 'secret',
+    fetchImpl: async () => jsonResponse({ count: 1, next: 'https://evil.example/steal', previous: null, results: [] }),
+  });
+  await assert.rejects(() => client.getAll('/products/'), /unexpected origin/);
+});

@@ -18,13 +18,22 @@ module.exports = class OctopusEnergyApp extends Homey.App {
 
   private balanceCache = new Map<string, { value: number; ts: number }>();
 
+  private balanceInflight = new Map<string, Promise<number>>();
+
   /** Account-wide balance with a short TTL cache (dedupes per-device calls). */
   async getCachedBalance(apiKey: string, accountNumber: string): Promise<number> {
     const cached = this.balanceCache.get(accountNumber);
     if (cached && Date.now() - cached.ts < 10 * 60_000) return cached.value;
-    const value = await new KrakenClient(apiKey).getBalance(accountNumber);
-    this.balanceCache.set(accountNumber, { value, ts: Date.now() });
-    return value;
+    const inflight = this.balanceInflight.get(accountNumber);
+    if (inflight) return inflight;
+    const request = new KrakenClient(apiKey).getBalance(accountNumber)
+      .then((value) => {
+        this.balanceCache.set(accountNumber, { value, ts: Date.now() });
+        return value;
+      })
+      .finally(() => this.balanceInflight.delete(accountNumber));
+    this.balanceInflight.set(accountNumber, request);
+    return request;
   }
 
   /**

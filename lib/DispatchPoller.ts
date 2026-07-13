@@ -12,21 +12,35 @@ export class DispatchPoller extends AccountPoller {
 
   protected readonly intervalMs = 5 * 60_000;
 
-  private active = false;
+  private activeAccounts = new Set<string>();
 
-  private currentEnd: string | null = null;
+  private currentEnds = new Map<string, string>();
 
-  private completed = new Set<string>();
+  private completed = new Map<string, Set<string>>();
+
+  private seededCompleted = new Set<string>();
 
   /** Whether a smart-charge dispatch is currently in progress. */
   isActive(): boolean {
-    return this.active;
+    return this.activeAccounts.size > 0;
   }
 
   protected async poll(): Promise<void> {
-    const creds = this.credentials();
-    if (!creds) return;
+    const accounts = this.accounts();
+    const configured = new Set(accounts.map((account) => account.accountNumber));
+    for (const account of this.activeAccounts) {
+      if (!configured.has(account)) this.activeAccounts.delete(account);
+    }
+    await Promise.all(accounts.map((creds) => this.pollAccount(creds)));
+  }
 
+  private async pollAccount(creds: { apiKey: string; accountNumber: string }): Promise<void> {
+    const knownEnd = this.currentEnds.get(creds.accountNumber);
+    if (knownEnd && new Date(knownEnd).getTime() <= Date.now()) {
+      this.activeAccounts.delete(creds.accountNumber);
+      this.currentEnds.delete(creds.accountNumber);
+      this.fire('dispatch_ended', {});
+    }
     const client = new KrakenClient(creds.apiKey);
     let dispatches: Dispatch[] = [];
     try {
@@ -42,40 +56,37 @@ export class DispatchPoller extends AccountPoller {
       return now >= start && now < end;
     });
     const nowActive = Boolean(current);
+    const wasActive = this.activeAccounts.has(creds.accountNumber);
 
-    if (nowActive && !this.active) {
-      this.currentEnd = current ? current.end : null;
-      this.fire('dispatch_started', { end: this.currentEnd ? this.fmt(this.currentEnd) : '' });
+    if (nowActive && !wasActive) {
+      if (current) this.currentEnds.set(creds.accountNumber, current.end);
+      this.activeAccounts.add(creds.accountNumber);
+      this.fire('dispatch_started', { end: current ? this.fmt(current.end) : '' });
       if (this.notifyEnabled('notify_dispatch', false)) {
         await this.notify('🚗 Intelligent Octopus Go smart-charge dispatch has started.');
       }
-    } else if (!nowActive && this.active) {
+    } else if (!nowActive && wasActive) {
       this.fire('dispatch_ended', {});
-      this.currentEnd = null;
+      this.activeAccounts.delete(creds.accountNumber);
+      this.currentEnds.delete(creds.accountNumber);
     }
-    this.active = nowActive;
 
     // Completed dispatches → fire once per newly-seen completed window.
     try {
       const done = await client.getCompletedDispatches(creds.accountNumber);
+      const completed = this.completed.get(creds.accountNumber) ?? new Set<string>();
+      const seeded = this.seededCompleted.has(creds.accountNumber);
       for (const d of done) {
         const key = `${d.start}|${d.end}`;
-        if (!this.completed.has(key)) {
-          this.completed.add(key);
-          // Avoid firing on the very first poll for historical completions.
-          if (this.completed.size <= 50 && this.seededCompleted) {
-            this.fire('dispatch_completed', { end: this.fmt(d.end) });
-          }
+        if (!completed.has(key)) {
+          completed.add(key);
+          if (seeded) this.fire('dispatch_completed', { end: this.fmt(d.end) });
         }
       }
-      this.seededCompleted = true;
-      if (this.completed.size > 100) {
-        this.completed = new Set(Array.from(this.completed).slice(-50));
-      }
+      this.seededCompleted.add(creds.accountNumber);
+      this.completed.set(creds.accountNumber, new Set(Array.from(completed).slice(-100)));
     } catch (err) {
       // No completed-dispatch support — ignore.
     }
   }
-
-  private seededCompleted = false;
 }

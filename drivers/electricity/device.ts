@@ -113,15 +113,21 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     let current: { intensity: number; index: string } | null = null;
     let renewable: number | null = null;
     if (regionId) {
-      const r = await this.carbon.getRegional(regionId);
+      const [r, forecast] = await Promise.all([
+        this.carbon.getRegional(regionId),
+        this.carbon.getRegionalForecast(regionId),
+      ]);
       if (r) {
         current = r;
         renewable = r.renewable;
       }
-      this.carbonForecast = await this.carbon.getRegionalForecast(regionId);
+      this.carbonForecast = forecast;
     } else {
-      current = await this.carbon.getCurrent();
-      this.carbonForecast = await this.carbon.getForecast();
+      const [national, forecast] = await Promise.all([
+        this.carbon.getCurrent(), this.carbon.getForecast(),
+      ]);
+      current = national;
+      this.carbonForecast = forecast;
     }
     if (current) {
       const prev = this.carbonNow;

@@ -32,6 +32,16 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
 9. **Real-time consumption (Octopus Home Mini)** — GraphQL Kraken token, `smartMeterTelemetry` → live `measure_power`.
 10. **Dashboard widget** — current price / cheapest slot / usage summary.
 
+## Phase 5 - Bug bash hardening (Sprints 33-39)
+
+33. **Automation correctness** - current-slot planning, contiguous windows, and complete energy plans.
+34. **Refresh resilience** - bounded requests, generation-safe refresh locks, stale-price health, and poller single-flight.
+35. **Meter and account safety** - identity-safe repair plus account-scoped dispatch and Saving Session state.
+36. **Release security** - immutable Actions, least-privilege workflow tokens, authenticated-origin checks, and aligned runtime metadata.
+37. **API optimisation** - in-flight balance deduplication, refresh caching, parallel independent calls, and tariff-specific timers.
+38. **Integration coverage** - device planning, poller history, multi-account state, flow contracts, and release-policy tests.
+39. **Reporting accuracy** - historical standing charges, DST-safe deadlines, stale dispatch expiry, and responsive settings.
+
 Commits are tagged `Sprint N: ...` (mirrors the Vestaboard app convention).
 
 ## Multi-model review (Opus + GPT-5.5 code review, Sonnet feature review)

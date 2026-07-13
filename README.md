@@ -70,3 +70,10 @@ The app validates at `publish` level. Homey currently reports two expected
 
 Those warnings are intentionally left visible rather than adding fake zero-value
 capabilities; the Homey publish validator still accepts the app.
+
+## Security
+
+Octopus API keys and account numbers are stored only in the Homey device store
+and sent to Octopus Energy over authenticated HTTPS requests. Never include real
+credentials in issue reports, screenshots, logs, or test fixtures. Report
+suspected vulnerabilities privately as described in [SECURITY.md](SECURITY.md).

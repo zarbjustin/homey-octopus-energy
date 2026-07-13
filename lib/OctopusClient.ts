@@ -120,6 +120,10 @@ export class OctopusClient {
 
   private buildUrl(path: string, params?: Record<string, string | number | undefined>): string {
     const url = new URL(path.startsWith('http') ? path : `${this.baseUrl}${path}`);
+    const base = new URL(this.baseUrl);
+    if (url.origin !== base.origin) {
+      throw new Error('Refusing to send Octopus credentials to an unexpected origin.');
+    }
     if (params) {
       for (const [key, value] of Object.entries(params)) {
         if (value !== undefined && value !== null && value !== '') {

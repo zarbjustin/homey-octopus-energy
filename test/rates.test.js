@@ -63,6 +63,14 @@ test('cheapestWindow finds the cheapest contiguous block', () => {
   assert.strictEqual(r.cheapestWindow(SAMPLE, 10), null);
 });
 
+test('cheapestWindow rejects adjacent array entries separated by a rate gap', () => {
+  const withGap = [
+    rate('2025-01-01T00:00:00Z', '2025-01-01T00:30:00Z', 1),
+    rate('2025-01-01T01:00:00Z', '2025-01-01T01:30:00Z', 2),
+  ];
+  assert.equal(r.cheapestWindow(withGap, 2), null);
+});
+
 test('cheapestSlots selects the n cheapest non-contiguous slots, sorted by time', () => {
   const slots = r.cheapestSlots(SAMPLE, 2);
   // Two cheapest values are -2 (01:30) and 5 (00:30); returned in time order.
@@ -86,6 +94,14 @@ test('expensiveWindow finds the most expensive contiguous block', () => {
   assert.strictEqual(win[0].value_inc_vat, 5);
   assert.strictEqual(win[1].value_inc_vat, 30);
   assert.strictEqual(r.expensiveWindow(SAMPLE, 10), null);
+});
+
+test('expensiveWindow rejects adjacent array entries separated by a rate gap', () => {
+  const withGap = [
+    rate('2025-01-01T00:00:00Z', '2025-01-01T00:30:00Z', 20),
+    rate('2025-01-01T01:00:00Z', '2025-01-01T01:30:00Z', 30),
+  ];
+  assert.equal(r.expensiveWindow(withGap, 2), null);
 });
 
 test('rateCovers respects half-open interval', () => {
