@@ -32,7 +32,11 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
 9. **Real-time consumption (Octopus Home Mini)** — GraphQL Kraken token, `smartMeterTelemetry` → live `measure_power`.
 10. **Dashboard widget** — current price / cheapest slot / usage summary.
 
-## Phase 5 - Bug bash hardening (Sprints 33-39)
+## Phase 5 - COMPLETE: Bug bash hardening (Sprints 33-39)
+
+Released as `v1.0.10`, installed on the local Homey Pro, and submitted as Homey
+Build 10 for certification. All 44 tests pass; lint, audit, and publish
+validation are clean apart from the two intentional cumulative-direction warnings.
 
 33. **Automation correctness** - current-slot planning, contiguous windows, and complete energy plans.
 34. **Refresh resilience** - bounded requests, generation-safe refresh locks, stale-price health, and poller single-flight.
@@ -42,7 +46,7 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
 38. **Integration coverage** - device planning, poller history, multi-account state, flow contracts, and release-policy tests.
 39. **Reporting accuracy** - historical standing charges, DST-safe deadlines, stale dispatch expiry, and responsive settings.
 
-Commits are tagged `Sprint N: ...` (mirrors the Vestaboard app convention).
+Release commits are tagged by semantic app version.
 
 ## Multi-model review (Opus + GPT-5.5 code review, Sonnet feature review)
 
@@ -55,7 +59,7 @@ Commits are tagged `Sprint N: ...` (mirrors the Vestaboard app convention).
 - Homey publish validation intentionally keeps the import-only/export-only
   cumulative energy warnings visible; see the README publishing section.
 
-### Code-review findings (convergent)
+### Resolved code-review findings that drove Sprints 26-39
 - HIGH: budget/threshold "above/below" triggers re-fire every refresh (rolling 24h value changes constantly) — need crossing semantics.
 - HIGH: no single-flight guard on refresh() → concurrent runs over-count the cumulative meter (read-modify-write race); store writes of cumulativeMeter + lastConsumptionEnd are non-atomic.
 - HIGH: repair updates store creds but never rebuilds OctopusClient/KrakenClient → stale API key until restart; repair also doesn't update mpxn/serial identity.
@@ -105,8 +109,7 @@ All built, validated at publish level, 22 tests passing, lint clean, committed a
 17. Tariff comparison — done
 18. Quality, localization (nl/de/fr) & publish prep — done
 
-Remaining to actually ship: add a HOMEY_PAT repo secret and run the Publish workflow
-(or `homey app publish`), then complete certification in the Homey Developer Tools.
+Shipping status: superseded by `v1.0.10`, which is currently in Homey certification.
 
 ## Phase 3 — COMPLETE (Sprints 19–25)
 All built, validated at publish level, 23 tests passing, lint clean, committed and pushed.

@@ -6,15 +6,17 @@
 
 ## Features
 
-- **Electricity Meter** and **Gas Meter** devices, auto-discovered from your account.
+- **Electricity**, **Gas**, and **Export/SEG** meter devices, auto-discovered from one or more accounts.
 - Current **unit rate** and **standing charge** for your real tariff (Agile, Go, fixed, variable, Economy 7, …).
 - **Price level** (plunge / cheap / normal / expensive) from thresholds you set.
 - **Usage** and **cost** over the last 24 hours, plus a cumulative meter shown in **Homey Energy**.
-- **Account balance** with Insights history (via Octopus's GraphQL).
+- **Account balance**, Octoplus points, Saving Sessions, Free Electricity, and Intelligent dispatches.
+- Regional **carbon intensity**, renewable generation percentage, and price/carbon-aware charging plans.
+- Agile, price, carbon, export, account summary, and upcoming-price timeline widgets.
 - **Flow cards**
-  - Triggers: price changed, price below threshold, price plunge (negative), price level changed, cheapest half-hour started, balance changed, balance below.
-  - Conditions: price below X, is cheapest now, price level is, within cheapest period, balance below.
-  - Actions: refresh now, find cheapest upcoming slot (returns start time + average price).
+  - Triggers cover prices, thresholds, charge windows, carbon, tariffs, dispatches, account balance, and Saving Sessions.
+  - Conditions cover cheapest/peak periods, price and carbon levels, renewables, dispatch state, and account balance.
+  - Actions refresh data, plan price/carbon-aware charging, find export peaks, and compare tariffs.
 
 ## Setup
 
@@ -39,6 +41,14 @@ homey app run        # run on a connected Homey
 - API client in `lib/OctopusClient.ts` (REST) and `lib/KrakenClient.ts` (GraphQL, balance).
 - Pure tariff helpers in `lib/rates.ts` (unit-tested in `test/`).
 - Shared device/driver bases in `lib/OctopusMeterDevice.ts` and `lib/OctopusMeterDriver.ts`.
+- Current release and operational context in [`HANDOVER.md`](HANDOVER.md).
+
+## Current release
+
+Version `1.0.10` (Homey Build 10) is in App Store certification with automatic
+publication enabled after approval. The same version is installed on the local
+Homey Pro. The current quality baseline is 44 passing tests, clean lint and
+dependency audit, and successful Homey publish validation.
 
 ## API reference
 
