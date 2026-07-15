@@ -1,19 +1,26 @@
 # Project Handover
 
-Last updated: 13 July 2026
+Last updated: 15 July 2026
 
 ## Current state
 
 - Repository: `zarbjustin/homey-octopus-energy` (private), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current version: `1.0.10`; release tag: `v1.0.10`.
-- Homey Developer Tools: Build 10 is submitted for certification and is under review.
+- Current version: `1.0.11`; release tag: `v1.0.11`.
+- Homey Developer Tools: Build 11 is submitted for certification and is under review.
 - Automatic publication after certification approval is enabled.
 - Test channel: https://homey.app/a/uk.co.zarb.octopusenergy/test/
-- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/10
-- Version `1.0.10` is installed successfully on the local Homey Pro.
+- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/11
+- Version `1.0.10` remains installed on the local Homey Pro; `1.0.11` is a
+  metadata-only App Store release with no app functionality changes.
 - Validation baseline: 44 tests pass, lint passes, dependency audit reports zero
   known vulnerabilities, and Homey `publish` validation passes.
+
+## What v1.0.11 contains
+
+- Adds Homey's native optional PayPal donation metadata for PayPal.me user
+  `zarbie`.
+- Homey only displays the Donate button for non-verified developers.
 
 ## What v1.0.10 contains
 
@@ -91,7 +98,7 @@ validation error should be investigated.
 
 ## Next actions
 
-1. Monitor Build 10 certification and respond to Homey reviewer feedback.
+1. Monitor Build 11 certification and respond to Homey reviewer feedback.
 2. Smoke-test the Test-channel build on real Agile, gas, export, Economy 7, and
    Home Mini configurations where available.
 3. Record user-reported defects as focused GitHub issues with sanitized logs.

@@ -45,10 +45,11 @@ homey app run        # run on a connected Homey
 
 ## Current release
 
-Version `1.0.10` (Homey Build 10) is in App Store certification with automatic
-publication enabled after approval. The same version is installed on the local
-Homey Pro. The current quality baseline is 44 passing tests, clean lint and
-dependency audit, and successful Homey publish validation.
+Version `1.0.11` (Homey Build 11) adds optional PayPal donations through Homey's
+native Donate button and is in App Store certification with automatic publication
+enabled after approval. Homey only displays the Donate button for non-verified
+developers. The quality baseline is 44 passing tests, clean lint and dependency
+audit, and successful Homey publish validation.
 
 ## API reference
 

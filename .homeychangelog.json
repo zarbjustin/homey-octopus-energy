@@ -31,5 +31,8 @@
   },
   "1.0.10": {
     "en": "Improved price and charging automations, refresh reliability, multi-account support, security, API efficiency, and billing accuracy."
+  },
+  "1.0.11": {
+    "en": "Adds optional PayPal donation support through Homey's native Donate button."
   }
 }

@@ -1,6 +1,6 @@
 {
   "id": "uk.co.zarb.octopusenergy",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -26,6 +26,13 @@
   "author": {
     "name": "Justin Zarb",
     "email": "justin.zarb@zarb.co.uk"
+  },
+  "contributing": {
+    "donate": {
+      "paypal": {
+        "username": "zarbie"
+      }
+    }
   },
   "support": "https://github.com/zarbjustin/homey-octopus-energy/issues",
   "bugs": {
