@@ -1,6 +1,6 @@
 {
   "id": "uk.co.zarb.octopusenergy",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -17,6 +17,18 @@
   "category": [
     "energy"
   ],
+  "tags": {
+    "en": [
+      "Agile",
+      "Tracker",
+      "smart meter",
+      "energy prices",
+      "electricity",
+      "gas",
+      "solar",
+      "export"
+    ]
+  },
   "permissions": [],
   "images": {
     "small": "/assets/images/small.png",
@@ -34,9 +46,6 @@
       }
     }
   },
-  "support": "https://github.com/zarbjustin/homey-octopus-energy/issues",
-  "bugs": {
-    "url": "https://github.com/zarbjustin/homey-octopus-energy/issues"
-  },
-  "source": "https://github.com/zarbjustin/homey-octopus-energy"
+  "support": "https://community.homey.app/t/app-pro-octopus-energy-dynamic-tariffs-usage-export-and-smart-energy-automation-for-uk-users/156860",
+  "homeyCommunityTopicId": 156860
 }

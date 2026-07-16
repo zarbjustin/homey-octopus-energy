@@ -45,11 +45,10 @@ homey app run        # run on a connected Homey
 
 ## Current release
 
-Version `1.0.11` (Homey Build 11) adds optional PayPal donations through Homey's
-native Donate button and is in App Store certification with automatic publication
-enabled after approval. Homey only displays the Donate button for non-verified
-developers. The quality baseline is 44 passing tests, clean lint and dependency
-audit, and successful Homey publish validation.
+Version `1.0.12` (Homey Build 12) improves App Store discovery and links support
+to the public Homey Community topic. It is in App Store certification with
+automatic publication enabled after approval. The quality baseline is 44 passing
+tests, clean lint and dependency audit, and successful Homey publish validation.
 
 ## API reference
 

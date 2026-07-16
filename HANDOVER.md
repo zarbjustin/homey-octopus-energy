@@ -1,20 +1,27 @@
 # Project Handover
 
-Last updated: 15 July 2026
+Last updated: 16 July 2026
 
 ## Current state
 
 - Repository: `zarbjustin/homey-octopus-energy` (private), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current version: `1.0.11`; release tag: `v1.0.11`.
-- Homey Developer Tools: Build 11 is submitted for certification and is under review.
+- Current version: `1.0.12`; release tag: `v1.0.12`.
+- Homey Developer Tools: Build 12 is submitted for certification and is under review.
 - Automatic publication after certification approval is enabled.
 - Test channel: https://homey.app/a/uk.co.zarb.octopusenergy/test/
-- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/11
-- Version `1.0.10` remains installed on the local Homey Pro; `1.0.11` is a
-  metadata-only App Store release with no app functionality changes.
+- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/12
+- Community support topic: https://community.homey.app/t/156860
+- Version `1.0.10` remains installed on the local Homey Pro; `1.0.11` and
+  `1.0.12` are metadata-only App Store releases with no functionality changes.
 - Validation baseline: 44 tests pass, lint passes, dependency audit reports zero
   known vulnerabilities, and Homey `publish` validation passes.
+
+## What v1.0.12 contains
+
+- Links the App Store listing to the public Homey Community support topic.
+- Adds searchable tags for tariffs, meters, prices, gas, solar, and export.
+- Removes App Store links to the private development repository.
 
 ## What v1.0.11 contains
 
@@ -98,7 +105,7 @@ validation error should be investigated.
 
 ## Next actions
 
-1. Monitor Build 11 certification and respond to Homey reviewer feedback.
+1. Monitor Build 12 certification and respond to Homey reviewer feedback.
 2. Smoke-test the Test-channel build on real Agile, gas, export, Economy 7, and
    Home Mini configurations where available.
 3. Record user-reported defects as focused GitHub issues with sanitized logs.

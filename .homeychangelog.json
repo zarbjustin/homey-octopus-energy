@@ -34,5 +34,8 @@
   },
   "1.0.11": {
     "en": "Adds optional PayPal donation support through Homey's native Donate button."
+  },
+  "1.0.12": {
+    "en": "Improves App Store discovery and directs support to the Octopus Energy Homey Community topic."
   }
 }
