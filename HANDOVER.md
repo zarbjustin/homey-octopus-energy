@@ -10,8 +10,8 @@ Last updated: 19 July 2026
 - Homey App Store: Build 13 / version `1.0.13` is live.
 - Automatic publication after certification approval is enabled.
 - Test channel: https://homey.app/a/uk.co.zarb.octopusenergy/test/
-- Build 14 / version `1.0.14` has been uploaded but has not yet been promoted to
-  Test or submitted for certification.
+- Build 14 / version `1.0.14` is published to Test and under certification review.
+  Automatic publication after approval is enabled.
 - Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/14
 - Community support topic: https://community.homey.app/t/156860
 - Version `1.0.14` was installed successfully on `Justin's Homey Pro` on
@@ -150,8 +150,8 @@ validation error should be investigated.
 1. Confirm the installed `1.0.14` meters continue refreshing normally.
 2. Smoke-test Repair for one electricity meter plus gas/export where available;
    confirm invalid credentials leave the existing device unchanged.
-3. Publish Build 14 to Test and submit it for certification after the local meter
-   and Repair checks pass.
+3. Monitor Build 14 certification; Homey will publish it automatically after
+   approval.
 4. Monitor the new integration diagnostics and community feedback after release.
 
 ## Useful release commits
