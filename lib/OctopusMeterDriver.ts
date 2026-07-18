@@ -3,6 +3,7 @@
 import Homey from 'homey';
 import { OctopusClient, FuelType, DiscoveredMeter } from './OctopusClient';
 import { productCodeFromTariff } from './rates';
+import type { MeterStore } from './OctopusMeterDevice';
 
 interface Creds {
   apiKey: string;
@@ -124,18 +125,28 @@ export class OctopusMeterDriver extends Homey.Driver {
       if (!match) {
         throw new Error('The original meter was not found on this account. Add it as a new device if the meter has been replaced.');
       }
-      await device.setStoreValue('apiKey', creds.apiKey);
-      await device.setStoreValue('accountNumber', creds.accountNumber);
-      await device.setStoreValue('mpxn', match.mpxn);
-      await device.setStoreValue('serial', match.serial);
-      await device.setStoreValue('fuel', match.fuel);
-      await device.setStoreValue('isExport', match.isExport);
-      await device.setStoreValue('productCode', match.productCode);
-      await device.setStoreValue('tariffCode', match.tariffCode);
-      // Rebuild the API clients so the new key takes effect immediately.
-      const meterDevice = device as Homey.Device & { applyCredentials?: () => Promise<void> };
+      const nextStore: MeterStore = {
+        apiKey: creds.apiKey,
+        accountNumber: creds.accountNumber,
+        mpxn: match.mpxn,
+        serial: match.serial,
+        fuel: match.fuel,
+        isExport: match.isExport,
+        productCode: match.productCode,
+        tariffCode: match.tariffCode,
+      };
+      // Let the meter device wait for any in-flight refresh, write the new
+      // credentials, clear account-scoped caches, and refresh as one operation.
+      const meterDevice = device as Homey.Device & {
+        applyCredentials?: (store: MeterStore) => Promise<void>;
+      };
       if (typeof meterDevice.applyCredentials === 'function') {
-        await meterDevice.applyCredentials();
+        await meterDevice.applyCredentials(nextStore);
+      } else {
+        for (const [key, value] of Object.entries(nextStore)) {
+          // eslint-disable-next-line no-await-in-loop
+          await device.setStoreValue(key, value);
+        }
       }
       return { done: true };
     });

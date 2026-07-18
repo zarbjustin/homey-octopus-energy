@@ -5,7 +5,11 @@ module.exports = {
   async getData({ homey, query }) {
     const driver = homey.drivers.getDriver('export');
     const devices = driver.getDevices();
-    const device = devices.find((d) => d.getData().id === (query && query.id)) || devices[0];
+    const wanted = query && query.id;
+    const device = wanted
+      ? devices.find((d) => d.getData().id === wanted)
+      : devices[0];
+    if (wanted && !device) return { error: 'The selected export meter is no longer available.' };
     if (!device) return { error: 'No export meter added yet.' };
     const cap = (c) => (device.hasCapability(c) ? device.getCapabilityValue(c) : null);
     let peak = null;

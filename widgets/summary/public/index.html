@@ -18,9 +18,14 @@
   <div id="content"><div class="err">Loading…</div></div>
   <script type="text/javascript">
     function n(v, dp) { return (v === null || v === undefined || isNaN(v)) ? '–' : Number(v).toFixed(dp === undefined ? 2 : dp); }
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, function (char) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
+      });
+    }
     function render(d) {
       const el = document.getElementById('content');
-      if (!d || d.error) { el.innerHTML = '<div class="err">' + ((d && d.error) || 'No data') + '</div>'; return; }
+      if (!d || d.error) { el.innerHTML = '<div class="err">' + esc((d && d.error) || 'No data') + '</div>'; return; }
       let cells = '';
       cells += '<div class="cell"><div class="k">Balance</div><div class="v">£' + n(d.balance) + '</div></div>';
       cells += '<div class="cell"><div class="k">Used (24h)</div><div class="v">' + n(d.usage) + ' kWh</div></div>';
@@ -29,7 +34,7 @@
       if (d.points !== null && d.points !== undefined) {
         cells += '<div class="cell"><div class="k">Octoplus</div><div class="v">' + n(d.points, 0) + ' pts</div></div>';
       }
-      el.innerHTML = '<div class="name">' + (d.name || 'Octopus') + '</div><div class="grid">' + cells + '</div>';
+      el.innerHTML = '<div class="name">' + esc(d.name || 'Octopus') + '</div><div class="grid">' + cells + '</div>';
     }
     function onHomeyReady(Homey) {
       let deviceId = '';

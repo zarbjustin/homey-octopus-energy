@@ -27,6 +27,7 @@ function deviceWithRates(rates) {
   device.rates = rates;
   device.getSettings = () => ({ vat: 'inc' });
   device.nextLocalTime = () => new Date(Date.now() + 3 * 3600_000);
+  device.formatLocal = (date) => date.toISOString();
   return device;
 }
 
@@ -48,4 +49,64 @@ test('peak-now evaluation includes the current export slot', () => {
   const start = Math.floor(Date.now() / (30 * 60_000)) * 30 * 60_000;
   const device = deviceWithRates([slot(start, 50), slot(start + 30 * 60_000, 5)]);
   assert.equal(device.isPeakNow(2, 0.5), true);
+});
+
+test('charge planning prices only the energy requested in the final slot', () => {
+  const start = Math.floor(Date.now() / (30 * 60_000)) * 30 * 60_000;
+  const device = deviceWithRates([slot(start, 20), slot(start + 30 * 60_000, 30)]);
+  const plan = device.planCharge(4, 7, '07:00');
+
+  assert.equal(plan.count, 2);
+  assert.equal(plan.cost, 0.85); // 3.5 kWh at 20p plus 0.5 kWh at 30p.
+});
+
+test('charge planning rejects non-positive energy or charge rates', () => {
+  const start = Math.floor(Date.now() / (30 * 60_000)) * 30 * 60_000;
+  const device = deviceWithRates([slot(start, 20)]);
+  assert.equal(device.planCharge(0, 7, '07:00'), null);
+  assert.equal(device.planCharge(7, 0, '07:00'), null);
+});
+
+test('tariff comparison uses one-register codes for candidates from an Economy 7 tariff', async () => {
+  const recordStart = '2026-07-01T00:00:00.000Z';
+  const records = [{
+    consumption: 1,
+    interval_start: recordStart,
+    interval_end: '2026-07-01T00:30:00.000Z',
+  }];
+  const rates = [{
+    valid_from: '2026-01-01T00:00:00.000Z',
+    valid_to: null,
+    value_inc_vat: 20,
+    value_exc_vat: 20,
+    payment_method: null,
+  }];
+  const candidateTariffs = [];
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({
+    fuel: 'electricity', mpxn: '123', serial: 'meter-1',
+    productCode: 'CURRENT', tariffCode: 'E-2R-CURRENT-A',
+  });
+  device.client = {
+    consumption: async () => records,
+    findProductCode: async (fragment) => fragment.toUpperCase(),
+    registerUnitRates: async () => rates,
+    standardUnitRates: async (_fuel, _product, tariff) => {
+      candidateTariffs.push(tariff);
+      return rates;
+    },
+    standingCharges: async () => [],
+  };
+  device.rateForRecord = () => rates[0];
+  device.toEnergyUnit = (value) => value;
+  device.vatInc = () => true;
+  device.error = () => {};
+
+  await device.compareTariffs(30);
+
+  assert.deepEqual(candidateTariffs, [
+    'E-1R-AGILE-A',
+    'E-1R-GO-A',
+    'E-1R-FLEXIBLE-A',
+  ]);
 });

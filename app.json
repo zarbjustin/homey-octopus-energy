@@ -227,19 +227,19 @@
       {
         "id": "free_electricity_ended",
         "title": {
-          "en": "A Free Electricity session ended"
+          "en": "A Power Up session ended"
         },
         "hint": {
-          "en": "Triggers when an Octopus Free Electricity session finishes."
+          "en": "Triggers when an Octopus Power Up session finishes."
         }
       },
       {
         "id": "free_electricity_started",
         "title": {
-          "en": "A Free Electricity session started"
+          "en": "A Power Up session started"
         },
         "hint": {
-          "en": "Triggers when an Octopus Free Electricity session begins — electricity is free now."
+          "en": "Triggers when an Octopus Power Up session begins — electricity is free now."
         },
         "tokens": [
           {

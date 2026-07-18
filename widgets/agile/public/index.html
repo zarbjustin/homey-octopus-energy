@@ -94,6 +94,12 @@
       return Number(v).toFixed(dp === undefined ? 2 : dp);
     }
 
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, function (char) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
+      });
+    }
+
     function slotsFor(d, tab) {
       return tab === 'tomorrow' ? (d.tomorrow || []) : (d.today || []);
     }
@@ -116,7 +122,7 @@
         if (s.price < 0) cls += ' neg';
         else if (s.cheapest) cls += ' cheap';
         if (s.current) cls += ' current';
-        var title = s.label + ' · ' + fmt(s.price) + 'p';
+        var title = esc(s.label + ' · ' + fmt(s.price) + 'p');
         return '<div class="bar-slot"><div class="' + cls + '" style="top:' + top + '%;height:' + height + '%" title="' + title + '"></div></div>';
       }).join('');
 
@@ -149,7 +155,7 @@
         var cls = 'li';
         if (s.price < 0) cls += ' plunge';
         if (s.current) cls += ' current';
-        var range = s.label + ' – ' + addHalfHour(s.label);
+        var range = esc(s.label + ' – ' + addHalfHour(s.label));
         var now = s.current ? ' <span class="tag now">Now</span>' : '';
         return '<div class="' + cls + '">'
           + '<span class="rank">' + (i + 1) + '</span>'
@@ -165,17 +171,18 @@
       var d = STATE.data;
       var el = document.getElementById('content');
       if (!d || d.error) {
-        el.innerHTML = '<div class="err">' + ((d && d.error) || 'No data') + '</div>';
+        el.innerHTML = '<div class="err">' + esc((d && d.error) || 'No data') + '</div>';
         return;
       }
       var tomorrowOk = !!(d.tomorrowAvailable && (d.tomorrow || []).length);
       if (STATE.tab === 'tomorrow' && !tomorrowOk) STATE.tab = 'today';
       var slots = slotsFor(d, STATE.tab);
 
-      var level = d.currentLevel || 'normal';
+      var level = ['plunge', 'cheap', 'normal', 'expensive'].indexOf(d.currentLevel) >= 0
+        ? d.currentLevel : 'normal';
       var html = '';
       html += '<div class="head">';
-      html += '<span class="name">' + (d.name || 'Electricity') + '</span>';
+      html += '<span class="name">' + esc(d.name || 'Electricity') + '</span>';
       html += '<span class="now"><span class="val">' + fmt(d.currentPrice)
         + ' <small>p/kWh</small></span><br><span class="badge ' + level + '">' + level + '</span></span>';
       html += '</div>';

@@ -115,3 +115,47 @@ test('price refresh recovers a long-lived current rate omitted by the date windo
   assert.equal(device.currentPrice, 20);
   assert.deepEqual(device.rates, [current]);
 });
+
+test('repair clears account-scoped caches before rebuilding clients', async () => {
+  const store = {
+    apiKey: 'old-key', accountNumber: 'A-OLD', mpxn: '123', serial: 'meter-1',
+    fuel: 'electricity', isExport: false, productCode: 'OLD', tariffCode: 'E-1R-OLD-A',
+  };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.refreshPromise = null;
+  device.rates = [slot(Date.now(), 20)];
+  device.nightRates = [slot(Date.now(), 10)];
+  device.standingRates = [slot(Date.now(), 40)];
+  device.currentPrice = 20;
+  device.currentBalance = 50;
+  device.lastTariffCheck = Date.now();
+  device.lastStandingRefresh = Date.now();
+  device.lastMonthlyRefresh = Date.now();
+  device.lastPointsRefresh = Date.now();
+  device.setStoreValue = async (key, value) => { store[key] = value; };
+  device.getStoreValue = (key) => store[key];
+  let builtWith;
+  device.buildClients = () => { builtWith = store.apiKey; };
+  let hookCalled = false;
+  device.onCredentialsApplied = async () => { hookCalled = true; };
+  device.ensureRegisterCapabilities = async () => {};
+  device.refresh = async () => {};
+  device.error = () => {};
+
+  await device.applyCredentials({
+    ...store,
+    apiKey: 'new-key',
+    accountNumber: 'A-NEW',
+    productCode: 'NEW',
+    tariffCode: 'E-1R-NEW-A',
+  });
+
+  assert.equal(builtWith, 'new-key');
+  assert.equal(hookCalled, true);
+  assert.deepEqual(device.rates, []);
+  assert.deepEqual(device.nightRates, []);
+  assert.deepEqual(device.standingRates, []);
+  assert.equal(device.currentPrice, null);
+  assert.equal(device.currentBalance, null);
+  assert.equal(device.lastPointsRefresh, 0);
+});

@@ -21,15 +21,21 @@
 <body>
   <div id="content"><div class="err">Loading…</div></div>
   <script type="text/javascript">
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, function (char) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
+      });
+    }
     function render(d) {
       const el = document.getElementById('content');
       if (!d || d.error || d.carbon === null || d.carbon === undefined) {
-        el.innerHTML = '<div class="err">' + ((d && d.error) || 'No carbon data yet') + '</div>';
+        el.innerHTML = '<div class="err">' + esc((d && d.error) || 'No carbon data yet') + '</div>';
         return;
       }
-      const level = d.level || 'moderate';
+      const level = ['very_low', 'low', 'moderate', 'high', 'very_high'].includes(d.level)
+        ? d.level : 'moderate';
       const label = level.replace('_', ' ');
-      let html = '<div class="name">' + (d.name || 'Carbon intensity') + '</div>';
+      let html = '<div class="name">' + esc(d.name || 'Carbon intensity') + '</div>';
       html += '<div class="big">' + Math.round(d.carbon) + ' <small>gCO₂/kWh</small></div>';
       html += '<span class="badge ' + level + '">' + label + '</span>';
       if (d.greenest) html += '<div class="green">🌱 Greenest half-hour right now</div>';

@@ -7,16 +7,33 @@ Last updated: 18 July 2026
 - Repository: `zarbjustin/homey-octopus-energy` (private), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
 - Current version: `1.0.13`; release tag: `v1.0.13`.
-- Homey Developer Tools: Build 13 is the current release candidate.
+- Homey App Store: Build 13 / version `1.0.13` is live.
 - Automatic publication after certification approval is enabled.
 - Test channel: https://homey.app/a/uk.co.zarb.octopusenergy/test/
 - Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/13
 - Community support topic: https://community.homey.app/t/156860
-- Version `1.0.10` remains installed on the local Homey Pro; `1.0.11` and
-  `1.0.12` are metadata-only App Store releases. `1.0.13` is the next functional
-  release and still needs local Homey smoke testing.
-- Validation baseline: 56 tests pass, lint passes, dependency audit reports zero
+- Version `1.0.10` was the last confirmed local Homey Pro installation;
+  `1.0.11` and `1.0.12` were metadata-only App Store releases.
+- `main` contains a post-release maintenance candidate for `1.0.14`; it has not
+  been versioned, installed, or published.
+- Validation baseline: 68 tests pass, lint passes, dependency audit reports zero
   known vulnerabilities, and Homey `publish` validation passes.
+
+## Post-v1.0.13 maintenance candidate
+
+- Adds the missing custom Repair views for electricity, gas, and export meters.
+- Makes Repair wait for in-flight work, apply credentials through the device,
+  clear account-scoped caches, and discard a cached Home Mini device id.
+- Stops plunge-price triggers and notifications repeating for every consecutive
+  negative-price slot.
+- Requires both price and carbon data for the Flow condition that promises both
+  thresholds.
+- Prices partial final EV charge slots using only the requested energy.
+- Uses one-register candidate tariff codes when comparing from Economy 7.
+- Prevents stale widget settings from silently displaying another meter and
+  escapes user/upstream text rendered by widgets.
+- Updates user-facing Free Electricity wording to Octopus Power Up while keeping
+  the existing Flow IDs for compatibility.
 
 ## What v1.0.13 contains
 
@@ -119,16 +136,18 @@ validation error should be investigated.
 
 ## Next actions
 
-1. Install `1.0.13` on the local Homey Pro and confirm the reported import meter
-   recovers without deleting or re-adding the device.
-2. Investigate the separate file-not-found error reported from the Repair screen.
-3. Publish Build 13 to Test, verify Saving Session/Power Up diagnostics against a
-   real opted-in account, then submit it for certification.
-4. Continue monitoring GraphQL schema assumptions because Kraken endpoints are
-   less stable than the public REST API.
+1. Install the maintenance candidate on the local Homey Pro and smoke-test Repair
+   for one electricity meter plus gas/export where available.
+2. Confirm an existing meter retains its Flows and cumulative history after
+   Repair, and that invalid credentials leave the device unchanged.
+3. Bump the patch version to `1.0.14`, add the changelog, commit/tag/push, and
+   publish only after the local Repair smoke test passes.
+4. Continue monitoring the live `1.0.13` tariff and GraphQL fixes through
+   diagnostics and community feedback.
 
 ## Useful release commits
 
 - `98ad3fc` - bug-bash hardening implementation.
 - `6ac139f` - Homey version bump and tag for `v1.0.10`.
 - `0c87ef9` - npm metadata synchronized to `1.0.10`.
+- `a13f413` - meter recovery and current Octoplus integrations for `v1.0.13`.

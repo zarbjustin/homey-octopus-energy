@@ -159,7 +159,7 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     const cheap = Number(this.getSetting('cheap_threshold'));
     const cheapTh = Number.isFinite(cheap) ? cheap : 15;
     const level = this.getCarbonLevel();
-    const greenish = level === null || ['very_low', 'low', 'moderate'].includes(level);
+    const greenish = level !== null && ['very_low', 'low', 'moderate'].includes(level);
     const cheapAndGreen = price !== null && price <= cheapTh && greenish;
     const good = cheapAndGreen || this.dispatching;
     await this.setCapabilityValue('octopus_good_now', good).catch(this.error);
@@ -205,6 +205,10 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   /** Expose the cached carbon forecast for carbon-weighted planning. */
   protected carbonForecastForWeighting(): Array<{ from: string; to: string; intensity: number }> {
     return this.carbonForecast;
+  }
+
+  protected async onCredentialsApplied(): Promise<void> {
+    this.liveDeviceId = null;
   }
 
   private async enableLivePower(): Promise<void> {
@@ -280,7 +284,7 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     if (prev !== null && value !== prev) {
       this.trigger('price_changed', { price: value, previous: prev });
       this.trigger('price_below', { price: value }, { price: value, previous: prev });
-      if (value < 0) {
+      if (value < 0 && prev >= 0) {
         this.trigger('price_plunge', { price: value });
         if (this.notifyEnabled('notify_plunge', true)) {
           this.notify(`⚡ Octopus price is negative: ${value.toFixed(2)} p/kWh — use power now!`).catch((err) => this.error(err));

@@ -90,7 +90,8 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ max_price: number; max_carbon: number }>) => {
         const price = args.device.getCurrentPrice();
         const carbon = args.device.getCarbon();
-        return price !== null && price < args.max_price && (carbon === null || carbon < args.max_carbon);
+        return price !== null && carbon !== null
+          && price < args.max_price && carbon < args.max_carbon;
       });
 
     // Actions.

@@ -308,10 +308,43 @@ export class OctopusMeterDevice extends Homey.Device {
    * refresh. Called after a repair so a new API key takes effect immediately
    * without restarting the app.
    */
-  async applyCredentials(): Promise<void> {
+  async applyCredentials(nextStore?: MeterStore): Promise<void> {
+    // Avoid allowing an older refresh to overwrite values fetched with the new
+    // account credentials after Repair completes.
+    if (this.refreshPromise) {
+      await this.refreshPromise.catch((err) => this.error('Refresh before repair failed:', err));
+    }
+    if (nextStore) {
+      for (const [key, value] of Object.entries(nextStore)) {
+        // eslint-disable-next-line no-await-in-loop
+        await this.setStoreValue(key, value);
+      }
+    }
+
+    this.rates = [];
+    this.nightRates = [];
+    this.standingRates = [];
+    this.currentPrice = null;
+    this.currentBalance = null;
+    this.previousUsage = null;
+    this.previousCostToday = null;
+    this.previousStanding = null;
+    this.lastTariffCheck = 0;
+    this.lastStandingRefresh = 0;
+    this.lastMonthlyRefresh = 0;
+    this.lastPointsRefresh = 0;
+    this.notified401 = false;
+    this.consecutiveTotalFailures = 0;
+
     this.buildClients();
+    await this.onCredentialsApplied();
     await this.ensureRegisterCapabilities().catch((err) => this.error(err));
     await this.refresh().catch((err) => this.error('Refresh after repair failed:', err));
+  }
+
+  /** Hook for subclasses to clear credential-scoped state after Repair. */
+  protected async onCredentialsApplied(): Promise<void> {
+    // no-op by default
   }
 
   getCurrentRate(at: Date = new Date()): Rate | null {
@@ -1015,15 +1048,25 @@ export class OctopusMeterDevice extends Homey.Device {
   planCharge(neededKwh: number, chargeRateKw: number, byTime: string, maxPrice?: number): {
     count: number; first_start: string; price: number; cost: number;
   } | null {
-    const energyPerSlot = Math.max(0.01, Number(chargeRateKw) * 0.5);
-    const slots = Math.max(1, Math.ceil(Number(neededKwh) / energyPerSlot));
+    const energyNeeded = Number(neededKwh);
+    const chargeRate = Number(chargeRateKw);
+    if (!Number.isFinite(energyNeeded) || energyNeeded <= 0
+      || !Number.isFinite(chargeRate) || chargeRate <= 0) return null;
+    const energyPerSlot = chargeRate * 0.5;
+    const slots = Math.ceil(energyNeeded / energyPerSlot);
     const to = this.nextLocalTime(byTime);
     const chosen = cheapestSlots(this.rates, slots, {
       from: this.planningWindowStart(), to, incVat: this.vatInc(), maxPrice,
     });
     if (chosen.length < slots) return null;
     const avg = chosen.reduce((a, r) => a + valueOf(r, this.vatInc()), 0) / chosen.length;
-    const costPence = chosen.reduce((a, r) => a + energyPerSlot * valueOf(r, this.vatInc()), 0);
+    let remaining = energyNeeded;
+    const byPrice = [...chosen].sort((a, b) => valueOf(a, this.vatInc()) - valueOf(b, this.vatInc()));
+    const costPence = byPrice.reduce((cost, rate) => {
+      const energy = Math.min(remaining, energyPerSlot);
+      remaining -= energy;
+      return cost + energy * valueOf(rate, this.vatInc());
+    }, 0);
     return {
       count: chosen.length,
       first_start: this.formatLocal(new Date(chosen[0].valid_from)),
@@ -1056,8 +1099,6 @@ export class OctopusMeterDevice extends Homey.Device {
     const records = await this.client.consumption(s.fuel, s.mpxn, s.serial, { ...window, order_by: 'period' });
     if (!records.length) return null;
 
-    const currentPrefix = s.tariffCode.match(/^[EG]-\d+R/)?.[0];
-    const prefix = currentPrefix ?? (s.fuel === 'electricity' ? 'E-1R' : 'G-1R');
     const candidates: Array<{ name: string; productCode: string; tariffCode: string }> = [
       { name: 'Current', productCode: s.productCode, tariffCode: s.tariffCode },
     ];
@@ -1066,7 +1107,9 @@ export class OctopusMeterDevice extends Homey.Device {
         // eslint-disable-next-line no-await-in-loop
         const code = await this.client.findProductCode(frag);
         if (code && code !== s.productCode) {
-          candidates.push({ name: label, productCode: code, tariffCode: `${prefix}-${code}-${region}` });
+          // Agile, Go and Flexible comparison candidates expose a one-register
+          // tariff even when the current meter happens to be Economy 7.
+          candidates.push({ name: label, productCode: code, tariffCode: `E-1R-${code}-${region}` });
         }
       }
     }

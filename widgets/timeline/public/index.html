@@ -24,10 +24,15 @@
   <div id="content"><div class="err">Loading…</div></div>
 
   <script type="text/javascript">
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, function (char) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
+      });
+    }
     function render(d) {
       const el = document.getElementById('content');
       if (!d || d.error || !d.prices || !d.prices.length) {
-        el.innerHTML = '<div class="err">' + ((d && d.error) || 'No price data yet') + '</div>';
+        el.innerHTML = '<div class="err">' + esc((d && d.error) || 'No price data yet') + '</div>';
         return;
       }
       const prices = d.prices.slice(0, 24);
@@ -48,7 +53,7 @@
         bars += '<div class="bar-slot"><div class="bar ' + cls + '" style="top:' + top + '%;height:' + height + '%" title="' + p.price + ' p/kWh"></div></div>';
       });
       function hh(iso) { const dt = new Date(iso); return ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2); }
-      el.innerHTML = '<div class="name">' + (d.name || 'Electricity') + ' — next ' + (prices.length / 2) + 'h</div>'
+      el.innerHTML = '<div class="name">' + esc(d.name || 'Electricity') + ' — next ' + (prices.length / 2) + 'h</div>'
         + '<div class="bars"><div class="zero-line" style="top:' + zeroTop + '%"></div>' + bars + '</div>'
         + '<div class="axis"><span>' + hh(prices[0].start) + '</span><span>' + hh(prices[prices.length - 1].start) + '</span></div>';
     }

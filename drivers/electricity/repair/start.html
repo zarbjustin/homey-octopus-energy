@@ -1,0 +1,76 @@
+<style>
+  .intro {
+    margin-bottom: 16px;
+  }
+  .field {
+    margin-bottom: 16px;
+  }
+  .hint {
+    color: #888;
+    font-size: 13px;
+    margin-top: 4px;
+  }
+</style>
+
+<p class="intro">
+  Enter the Octopus Energy credentials for this meter. Repair keeps the existing
+  Homey device, Flows, and meter history.
+</p>
+
+<div class="field">
+  <label class="homey-form-label" for="apiKey">API key</label>
+  <input class="homey-form-input" id="apiKey" type="password" autocomplete="off" />
+  <p class="hint">Find this under Octopus account, Personal details, Developer settings.</p>
+</div>
+
+<div class="field">
+  <label class="homey-form-label" for="account">Account number</label>
+  <input class="homey-form-input" id="account" type="text" placeholder="A-AAAA1111" autocomplete="off" />
+  <p class="hint">Repair only succeeds if this account still contains the original meter.</p>
+</div>
+
+<button id="repair" class="homey-button-primary-full">Update credentials</button>
+
+<script type="text/javascript">
+  const repairBtn = document.getElementById('repair');
+  const apiKeyEl = document.getElementById('apiKey');
+  const accountEl = document.getElementById('account');
+
+  async function submit() {
+    const apiKey = apiKeyEl.value.trim();
+    const account = accountEl.value.trim();
+    if (!apiKey || !account) {
+      Homey.alert('Please enter both your API key and account number.');
+      return;
+    }
+    if (/^A-/i.test(apiKey)) {
+      Homey.alert('That looks like your account number. Enter your API key in the first field.');
+      return;
+    }
+    if (!/^A-/i.test(account)) {
+      Homey.alert('Your account number should look like A-XXXXXXXX.');
+      return;
+    }
+
+    repairBtn.disabled = true;
+    Homey.showLoadingOverlay();
+    try {
+      const result = await Homey.emit('login', { apiKey, account });
+      Homey.hideLoadingOverlay();
+      if (result && result.done) {
+        Homey.done();
+        return;
+      }
+      throw new Error('Homey could not complete the repair.');
+    } catch (err) {
+      Homey.hideLoadingOverlay();
+      repairBtn.disabled = false;
+      Homey.alert((err && err.message) ? err.message : String(err));
+    }
+  }
+
+  repairBtn.addEventListener('click', submit);
+  accountEl.addEventListener('keyup', (event) => {
+    if (event.key === 'Enter') submit();
+  });
+</script>

@@ -21,17 +21,22 @@
   <div id="content"><div class="err">Loading…</div></div>
   <script type="text/javascript">
     function n(v, dp) { return (v === null || v === undefined || isNaN(v)) ? '–' : Number(v).toFixed(dp === undefined ? 2 : dp); }
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, function (char) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
+      });
+    }
     function render(d) {
       const el = document.getElementById('content');
-      if (!d || d.error) { el.innerHTML = '<div class="err">' + ((d && d.error) || 'No data') + '</div>'; return; }
-      let html = '<div class="name">' + (d.name || 'Export') + '</div>';
+      if (!d || d.error) { el.innerHTML = '<div class="err">' + esc((d && d.error) || 'No data') + '</div>'; return; }
+      let html = '<div class="name">' + esc(d.name || 'Export') + '</div>';
       html += '<div class="price">' + n(d.rate) + ' <small>p/kWh export</small></div>';
       html += '<div class="meta">';
       html += '<span>Earned today <b>£' + n(d.today) + '</b></span>';
       html += '<span>Month <b>£' + n(d.month) + '</b></span>';
       html += '<span>Exported <b>' + n(d.exported) + ' kWh</b></span>';
       html += '</div>';
-      if (d.peakStart) html += '<div class="peak">Best export soon: <span class="hl">' + d.peakStart + '</span> @ ' + n(d.peakPrice) + ' p/kWh</div>';
+      if (d.peakStart) html += '<div class="peak">Best export soon: <span class="hl">' + esc(d.peakStart) + '</span> @ ' + n(d.peakPrice) + ' p/kWh</div>';
       el.innerHTML = html;
     }
     function onHomeyReady(Homey) {

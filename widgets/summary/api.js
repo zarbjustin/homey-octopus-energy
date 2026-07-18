@@ -9,9 +9,14 @@ module.exports = {
       let driver;
       try { driver = homey.drivers.getDriver(driverId); } catch (e) { continue; }
       const devices = driver.getDevices();
-      device = devices.find((d) => d.getData().id === wanted) || device || devices[0];
-      if (device && device.getData().id === wanted) break;
+      if (wanted) {
+        device = devices.find((d) => d.getData().id === wanted) || device;
+        if (device) break;
+      } else {
+        device = device || devices[0];
+      }
     }
+    if (wanted && !device) return { error: 'The selected meter is no longer available.' };
     if (!device) return { error: 'No meter added yet.' };
     const cap = (c) => (device.hasCapability(c) ? device.getCapabilityValue(c) : null);
     return {

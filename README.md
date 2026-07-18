@@ -10,7 +10,7 @@
 - Current **unit rate** and **standing charge** for your real tariff (Agile, Go, fixed, variable, Economy 7, …).
 - **Price level** (plunge / cheap / normal / expensive) from thresholds you set.
 - **Usage** and **cost** over the last 24 hours, plus a cumulative meter shown in **Homey Energy**.
-- **Account balance**, Octoplus points, Saving Sessions, Free Electricity, and Intelligent dispatches.
+- **Account balance**, Octoplus points, Saving Sessions, Power Up, and Intelligent dispatches.
 - Regional **carbon intensity**, renewable generation percentage, and price/carbon-aware charging plans.
 - Agile, price, carbon, export, account summary, and upcoming-price timeline widgets.
 - **Flow cards**
@@ -48,8 +48,8 @@ homey app run        # run on a connected Homey
 Version `1.0.13` fixes import meters becoming unavailable when a current tariff
 rate is omitted, updates the Octoplus points and Saving Sessions/Power Up API
 integrations, and adds Saving Sessions diagnostics. The quality baseline is 56
-passing tests, clean lint and dependency audit, and successful Homey publish
-validation.
+passing release tests. The post-release maintenance baseline is 68 passing tests,
+clean lint and dependency audit, and successful Homey publish validation.
 
 ## API reference
 

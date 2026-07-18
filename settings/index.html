@@ -100,7 +100,7 @@
             ? `Last checked ${checked} - ${value.lastError}`
             : `Last checked ${checked} - ${value.sessionCount || 0} session(s) found`;
           if (value.freeElectricityLastError) {
-            message += `; Free Electricity: ${value.freeElectricityLastError}`;
+            message += `; Power Up: ${value.freeElectricityLastError}`;
           }
           detail.textContent = message;
           item.append(title, detail);
