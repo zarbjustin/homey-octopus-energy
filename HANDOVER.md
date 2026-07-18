@@ -1,21 +1,35 @@
 # Project Handover
 
-Last updated: 16 July 2026
+Last updated: 18 July 2026
 
 ## Current state
 
 - Repository: `zarbjustin/homey-octopus-energy` (private), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current version: `1.0.12`; release tag: `v1.0.12`.
-- Homey Developer Tools: Build 12 is submitted for certification and is under review.
+- Current version: `1.0.13`; release tag: `v1.0.13`.
+- Homey Developer Tools: Build 13 is the current release candidate.
 - Automatic publication after certification approval is enabled.
 - Test channel: https://homey.app/a/uk.co.zarb.octopusenergy/test/
-- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/12
+- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/13
 - Community support topic: https://community.homey.app/t/156860
 - Version `1.0.10` remains installed on the local Homey Pro; `1.0.11` and
-  `1.0.12` are metadata-only App Store releases with no functionality changes.
-- Validation baseline: 44 tests pass, lint passes, dependency audit reports zero
+  `1.0.12` are metadata-only App Store releases. `1.0.13` is the next functional
+  release and still needs local Homey smoke testing.
+- Validation baseline: 56 tests pass, lint passes, dependency audit reports zero
   known vulnerabilities, and Homey `publish` validation passes.
+
+## What v1.0.13 contains
+
+- Keeps an otherwise reachable meter available when only its current price is
+  temporarily missing; authentication still fails immediately and transient
+  total outages require three consecutive refresh failures.
+- Falls back to one bounded page of recent rates when a narrow date window omits
+  a long-lived fixed or non-dynamic tariff rate.
+- Rediscovers the active tariff and retries a failed price refresh once.
+- Updates Octoplus points to the current `loyaltyPointsBalance` GraphQL contract.
+- Moves Saving Sessions and Power Up events to Octopus's current authenticated
+  backend schema and separates `TURN_DOWN` from `TURN_UP` events.
+- Records redacted Saving Sessions poll diagnostics in the Homey app settings.
 
 ## What v1.0.12 contains
 
@@ -105,12 +119,13 @@ validation error should be investigated.
 
 ## Next actions
 
-1. Monitor Build 12 certification and respond to Homey reviewer feedback.
-2. Smoke-test the Test-channel build on real Agile, gas, export, Economy 7, and
-   Home Mini configurations where available.
-3. Record user-reported defects as focused GitHub issues with sanitized logs.
-4. Before the next feature phase, review GraphQL schema assumptions because the
-   Kraken endpoints remain less stable than the public REST API.
+1. Install `1.0.13` on the local Homey Pro and confirm the reported import meter
+   recovers without deleting or re-adding the device.
+2. Investigate the separate file-not-found error reported from the Repair screen.
+3. Publish Build 13 to Test, verify Saving Session/Power Up diagnostics against a
+   real opted-in account, then submit it for certification.
+4. Continue monitoring GraphQL schema assumptions because Kraken endpoints are
+   less stable than the public REST API.
 
 ## Useful release commits
 

@@ -100,3 +100,23 @@ test('getAll refuses pagination links on an unexpected origin', async () => {
   });
   await assert.rejects(() => client.getAll('/products/'), /unexpected origin/);
 });
+
+test('latest unit rates returns one bounded page without following history', async () => {
+  let calls = 0;
+  const client = new OctopusClient({
+    apiKey: 'secret',
+    fetchImpl: async () => {
+      calls += 1;
+      return jsonResponse({
+        count: 5000,
+        next: 'https://api.octopus.energy/v1/rates/?page=2',
+        previous: null,
+        results: [{ value_inc_vat: 20 }],
+      });
+    },
+  });
+
+  const rates = await client.latestStandardUnitRates('electricity', 'FIXED', 'E-1R-FIXED-A');
+  assert.strictEqual(calls, 1);
+  assert.deepStrictEqual(rates, [{ value_inc_vat: 20 }]);
+});

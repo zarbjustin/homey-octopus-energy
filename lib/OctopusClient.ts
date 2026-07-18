@@ -295,6 +295,20 @@ export class OctopusClient {
     );
   }
 
+  /** Newest rate rows only, used when a narrow date filter omits a long-lived rate. */
+  async latestStandardUnitRates(
+    fuel: FuelType,
+    productCode: string,
+    tariffCode: string,
+  ): Promise<Rate[]> {
+    const seg = fuel === 'electricity' ? 'electricity-tariffs' : 'gas-tariffs';
+    const page = await this.get<Paginated<Rate>>(
+      `/products/${productCode}/${seg}/${tariffCode}/standard-unit-rates/`,
+      { page_size: 200 },
+    );
+    return page.results ?? [];
+  }
+
   /** Day or night unit rates for a two-register (Economy 7) electricity tariff. */
   async registerUnitRates(
     register: 'day' | 'night',
@@ -306,6 +320,19 @@ export class OctopusClient {
       `/products/${productCode}/electricity-tariffs/${tariffCode}/${register}-unit-rates/`,
       { page_size: 1500, ...params },
     );
+  }
+
+  /** Newest Economy 7 register rows without following historical pagination. */
+  async latestRegisterUnitRates(
+    register: 'day' | 'night',
+    productCode: string,
+    tariffCode: string,
+  ): Promise<Rate[]> {
+    const page = await this.get<Paginated<Rate>>(
+      `/products/${productCode}/electricity-tariffs/${tariffCode}/${register}-unit-rates/`,
+      { page_size: 200 },
+    );
+    return page.results ?? [];
   }
 
   async standingCharges(

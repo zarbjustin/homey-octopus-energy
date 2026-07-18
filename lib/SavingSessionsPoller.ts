@@ -11,6 +11,15 @@ interface PollerState {
   feEnded?: string[];
 }
 
+interface PollDiagnostics {
+  lastAttempt: string;
+  lastSuccess?: string;
+  lastError?: string;
+  sessionCount?: number;
+  freeElectricityCount?: number;
+  freeElectricityLastError?: string;
+}
+
 /**
  * Polls Octopus "Saving Sessions" + Free Electricity for the account and fires
  * app-level Flow triggers. Best-effort: any error yields no triggers that cycle.
@@ -28,11 +37,23 @@ export class SavingSessionsPoller extends AccountPoller {
   }
 
   private async pollAccount(creds: { apiKey: string; accountNumber: string }): Promise<void> {
+    const client = new KrakenClient(creds.apiKey);
+    const attemptedAt = new Date().toISOString();
     let sessions: SavingSession[] = [];
     try {
-      sessions = await new KrakenClient(creds.apiKey).getSavingSessions(creds.accountNumber);
+      sessions = await client.getSavingSessions(creds.accountNumber);
     } catch (err) {
-      return; // Account may not support saving sessions.
+      const message = this.errorMessage(err, creds.apiKey);
+      const previous = this.diagnostics()[creds.accountNumber];
+      if (previous?.lastError !== message) {
+        this.app.error(`Saving Sessions poll failed for ${this.maskAccount(creds.accountNumber)}:`, err);
+      }
+      this.updateDiagnostics(creds.accountNumber, {
+        ...previous,
+        lastAttempt: attemptedAt,
+        lastError: message,
+      });
+      return;
     }
 
     const allState = (this.app.homey.settings.get('saving_sessions_state_v2') || {}) as Record<string, PollerState>;
@@ -51,6 +72,7 @@ export class SavingSessionsPoller extends AccountPoller {
         state.known.push(s.id);
         this.fire('saving_session_announced', tokens);
       }
+      if (s.joined === false) continue;
       if (now < start) {
         const minutesUntil = Math.round((start - now) / 60_000);
         if (minutesUntil <= 245) {
@@ -74,8 +96,11 @@ export class SavingSessionsPoller extends AccountPoller {
     }
 
     // Free Electricity sessions (best-effort, separate from Saving Sessions).
+    let freeElectricityCount = 0;
+    let freeElectricityLastError: string | undefined;
     try {
-      const fe = await new KrakenClient(creds.apiKey).getFreeElectricitySessions(creds.accountNumber);
+      const fe = await client.getFreeElectricitySessions(creds.accountNumber);
+      freeElectricityCount = fe.length;
       for (const s of fe) {
         const start = new Date(s.startAt).getTime();
         const end = new Date(s.endAt).getTime();
@@ -89,7 +114,8 @@ export class SavingSessionsPoller extends AccountPoller {
         }
       }
     } catch (err) {
-      // No free-electricity support — ignore.
+      // Free Electricity is not enabled for every account; retain the status for diagnostics.
+      freeElectricityLastError = this.errorMessage(err, creds.apiKey);
     }
 
     // Keep the persisted id lists bounded.
@@ -102,5 +128,32 @@ export class SavingSessionsPoller extends AccountPoller {
       feEnded: trim(state.feEnded),
     };
     this.app.homey.settings.set('saving_sessions_state_v2', allState);
+    this.updateDiagnostics(creds.accountNumber, {
+      lastAttempt: attemptedAt,
+      lastSuccess: new Date().toISOString(),
+      sessionCount: sessions.length,
+      freeElectricityCount,
+      freeElectricityLastError,
+    });
+  }
+
+  private diagnostics(): Record<string, PollDiagnostics> {
+    return (this.app.homey.settings.get('saving_sessions_diagnostics_v1') || {}) as Record<string, PollDiagnostics>;
+  }
+
+  private updateDiagnostics(accountNumber: string, value: PollDiagnostics): void {
+    const all = this.diagnostics();
+    all[accountNumber] = value;
+    this.app.homey.settings.set('saving_sessions_diagnostics_v1', all);
+  }
+
+  private errorMessage(err: unknown, secret: string): string {
+    const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
+    return message.replaceAll(secret, '[redacted]').replace(/\s+/g, ' ').slice(0, 240);
+  }
+
+  private maskAccount(accountNumber: string): string {
+    if (accountNumber.length <= 4) return accountNumber;
+    return `${accountNumber.slice(0, 2)}***${accountNumber.slice(-2)}`;
   }
 }

@@ -13,6 +13,8 @@
 
 const GRAPHQL_URL = 'https://api.octopus.energy/v1/graphql/';
 
+const BACKEND_GRAPHQL_URL = 'https://api.backend.octopus.energy/v1/graphql/';
+
 interface GraphQLResponse<T> {
   data?: T;
   errors?: Array<{ message: string; extensions?: { errorCode?: string } }>;
@@ -23,6 +25,8 @@ export interface SavingSession {
   startAt: string;
   endAt: string;
   rewardPerKwh: number;
+  joined?: boolean;
+  eventType?: 'TURN_DOWN' | 'TURN_UP';
 }
 
 export interface Dispatch {
@@ -36,17 +40,27 @@ export class KrakenClient {
 
   private readonly url: string;
 
+  private readonly backendUrl: string;
+
   private token: string | null = null;
 
   private tokenExpiry = 0;
 
-  constructor(apiKey: string, url: string = GRAPHQL_URL) {
+  private octoplusSessions?: { accountNumber: string; request: Promise<SavingSession[]> };
+
+  constructor(apiKey: string, url: string = GRAPHQL_URL, backendUrl?: string) {
     if (!apiKey) throw new Error('An Octopus API key is required.');
     this.apiKey = apiKey;
     this.url = url;
+    this.backendUrl = backendUrl ?? (url === GRAPHQL_URL ? BACKEND_GRAPHQL_URL : url);
   }
 
-  private async post<T>(headers: Record<string, string>, query: string, variables: Record<string, unknown>): Promise<GraphQLResponse<T>> {
+  private async post<T>(
+    headers: Record<string, string>,
+    query: string,
+    variables: Record<string, unknown>,
+    url = this.url,
+  ): Promise<GraphQLResponse<T>> {
     const maxAttempts = 3;
     let lastErr: unknown;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -55,7 +69,7 @@ export class KrakenClient {
         const timer = globalThis.setTimeout(() => controller.abort(), 20_000);
         let res: Response;
         try {
-          res = await fetch(this.url, {
+          res = await fetch(url, {
             method: 'POST',
             headers,
             body: JSON.stringify({ query, variables }),
@@ -84,10 +98,15 @@ export class KrakenClient {
     throw lastErr;
   }
 
-  private async query<T>(query: string, variables: Record<string, unknown>, auth = true): Promise<T> {
+  private async query<T>(
+    query: string,
+    variables: Record<string, unknown>,
+    auth = true,
+    url = this.url,
+  ): Promise<T> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (auth) headers.Authorization = await this.getToken();
-    const json = await this.post<T>(headers, query, variables);
+    const json = await this.post<T>(headers, query, variables, url);
     if (json.errors?.length) {
       const unauthenticated = json.errors.some(
         (e) => e.extensions?.errorCode === 'KT-CT-1124' || /authenticat/i.test(e.message),
@@ -96,7 +115,7 @@ export class KrakenClient {
         // Token likely expired — refresh once and retry.
         this.token = null;
         headers.Authorization = await this.getToken();
-        const retryJson = await this.post<T>(headers, query, variables);
+        const retryJson = await this.post<T>(headers, query, variables, url);
         if (retryJson.errors?.length) throw new Error(retryJson.errors[0].message);
         return retryJson.data as T;
       }
@@ -215,14 +234,42 @@ export class KrakenClient {
    * does not support saving sessions.
    */
   async getSavingSessions(accountNumber: string): Promise<SavingSession[]> {
+    const sessions = await this.getOctoplusSessions(accountNumber);
+    return sessions.filter((session) => session.eventType !== 'TURN_UP');
+  }
+
+  /** Fetch and cache the shared Power Down/Power Up event response. */
+  private async getOctoplusSessions(accountNumber: string): Promise<SavingSession[]> {
+    if (this.octoplusSessions?.accountNumber === accountNumber) return this.octoplusSessions.request;
+    const request = this.fetchOctoplusSessions(accountNumber);
+    this.octoplusSessions = { accountNumber, request };
+    return request;
+  }
+
+  private async fetchOctoplusSessions(accountNumber: string): Promise<SavingSession[]> {
     const query = `
       query SavingSessions($accountNumber: String!) {
-        savingSessions(accountNumber: $accountNumber) {
-          events {
+        savingSessions {
+          events(includeDev: false) {
             id
             startAt
             endAt
             rewardPerKwhInOctoPoints
+            eventType
+            targetRegion {
+              regionId
+            }
+          }
+          account(accountNumber: $accountNumber) {
+            signedUpMeterPoint {
+              regionId
+            }
+            joinedEvents {
+              eventId
+              startAt
+              endAt
+              eventType
+            }
           }
         }
       }`;
@@ -233,18 +280,38 @@ export class KrakenClient {
           startAt?: string;
           endAt?: string;
           rewardPerKwhInOctoPoints?: number | string;
+          eventType?: 'TURN_DOWN' | 'TURN_UP';
+          targetRegion?: Array<{ regionId?: string | number }>;
         }>;
+        account?: {
+          signedUpMeterPoint?: { regionId?: string | number } | null;
+          joinedEvents?: Array<{
+            eventId?: string | number;
+            startAt?: string;
+            endAt?: string;
+            eventType?: 'TURN_DOWN' | 'TURN_UP';
+          }>;
+        };
       };
     }
-    const data = await this.query<Resp>(query, { accountNumber });
+    const data = await this.query<Resp>(query, { accountNumber }, true, this.backendUrl);
     const events = data?.savingSessions?.events ?? [];
+    const account = data?.savingSessions?.account;
+    const accountRegion = account?.signedUpMeterPoint?.regionId;
+    const joined = new Set((account?.joinedEvents ?? []).map((e) => String(e.eventId)));
     return events
       .filter((e) => e.id != null && e.startAt && e.endAt)
+      .filter((e) => {
+        const regions = (e.targetRegion ?? []).map((region) => String(region.regionId));
+        return !regions.length || (accountRegion != null && regions.includes(String(accountRegion)));
+      })
       .map((e) => ({
         id: String(e.id),
         startAt: String(e.startAt),
         endAt: String(e.endAt),
         rewardPerKwh: Number(e.rewardPerKwhInOctoPoints ?? 0),
+        joined: joined.has(String(e.id)),
+        eventType: e.eventType,
       }));
   }
 
@@ -311,45 +378,23 @@ export class KrakenClient {
   async getOctoplusPoints(accountNumber: string): Promise<number | null> {
     const query = `
       query Octoplus($accountNumber: String!) {
-        loyaltyPointLedgers(accountNumber: $accountNumber) {
-          balanceCarriedForward
+        loyaltyPointsBalance(input: { accountNumber: $accountNumber }) {
+          loyaltyPoints
         }
       }`;
     interface Resp {
-      loyaltyPointLedgers?: Array<{ balanceCarriedForward?: number | string }>;
+      loyaltyPointsBalance?: { loyaltyPoints?: number | string };
     }
     const data = await this.query<Resp>(query, { accountNumber });
-    const ledgers = data?.loyaltyPointLedgers ?? [];
-    if (!ledgers.length) return null;
-    const points = Number(ledgers[0]?.balanceCarriedForward);
+    const raw = data?.loyaltyPointsBalance?.loyaltyPoints;
+    if (raw === undefined || raw === null) return null;
+    const points = Number(raw);
     return Number.isFinite(points) ? points : null;
   }
 
-  /**
-   * Octopus "Free Electricity" sessions for the account. Best-effort: returns []
-   * if unavailable. Shares the SavingSession shape (reward is not applicable).
-   */
+  /** Octopus Power Up sessions (formerly Free Electricity) for the account. */
   async getFreeElectricitySessions(accountNumber: string): Promise<SavingSession[]> {
-    const query = `
-      query FreeElectricity($accountNumber: String!) {
-        freeElectricitySessions(accountNumber: $accountNumber) {
-          code
-          startAt
-          endAt
-        }
-      }`;
-    interface Resp {
-      freeElectricitySessions?: Array<{ code?: string; startAt?: string; endAt?: string }>;
-    }
-    const data = await this.query<Resp>(query, { accountNumber });
-    const events = data?.freeElectricitySessions ?? [];
-    return events
-      .filter((e) => e.code && e.startAt && e.endAt)
-      .map((e) => ({
-        id: String(e.code),
-        startAt: String(e.startAt),
-        endAt: String(e.endAt),
-        rewardPerKwh: 0,
-      }));
+    const sessions = await this.getOctoplusSessions(accountNumber);
+    return sessions.filter((session) => session.eventType === 'TURN_UP');
   }
 }

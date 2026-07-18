@@ -37,5 +37,8 @@
   },
   "1.0.12": {
     "en": "Improves App Store discovery and directs support to the Octopus Energy Homey Community topic."
+  },
+  "1.0.13": {
+    "en": "Fixes electricity meters going offline when current tariff rates are omitted, updates Octoplus points and Saving Sessions/Power Up integrations, and adds Saving Sessions diagnostics."
   }
 }

@@ -11,12 +11,14 @@ const { KrakenClient } = require('../.homeybuild/lib/KrakenClient.js');
 function fakeApp(accounts) {
   const settings = new Map();
   const fired = [];
+  const errors = [];
   const devices = accounts.map(({ apiKey, accountNumber }) => ({
     getStoreValue: (key) => ({ apiKey, accountNumber }[key]),
   }));
   return {
     fired,
-    error() {},
+    errors,
+    error(...args) { errors.push(args); },
     homey: {
       drivers: {
         getDriver(id) {
@@ -81,4 +83,33 @@ test('Saving Session state is isolated per account', async (t) => {
   assert.deepEqual(Object.keys(state).sort(), ['A-ONE', 'A-TWO']);
   assert.deepEqual(state['A-ONE'].known, ['shared-id']);
   assert.deepEqual(state['A-TWO'].known, ['shared-id']);
+  const diagnostics = app.homey.settings.get('saving_sessions_diagnostics_v1');
+  assert.equal(diagnostics['A-ONE'].sessionCount, 1);
+  assert.equal(diagnostics['A-ONE'].lastError, undefined);
+});
+
+test('Saving Session API failures are logged once and retained for diagnostics', async (t) => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => {
+    throw new Error('Saving Sessions field is unavailable');
+  });
+  const poller = new SavingSessionsPoller(app);
+  await poller.poll();
+  await poller.poll();
+
+  assert.equal(app.errors.length, 1);
+  const diagnostics = app.homey.settings.get('saving_sessions_diagnostics_v1');
+  assert.match(diagnostics['A-ONE'].lastError, /field is unavailable/);
+  assert.ok(diagnostics['A-ONE'].lastAttempt);
+});
+
+test('Saving Session diagnostics redact the API key from errors', async (t) => {
+  const app = fakeApp([{ apiKey: 'secret-key', accountNumber: 'A-ONE' }]);
+  t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => {
+    throw new Error('Request failed for secret-key');
+  });
+  await new SavingSessionsPoller(app).poll();
+
+  const diagnostics = app.homey.settings.get('saving_sessions_diagnostics_v1');
+  assert.equal(diagnostics['A-ONE'].lastError, 'Request failed for [redacted]');
 });

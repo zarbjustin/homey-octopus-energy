@@ -28,6 +28,54 @@ export interface MeterSettings {
   expensive_threshold: number;
 }
 
+export interface RefreshHealthDecision {
+  alarm: boolean;
+  fullyHealthy: boolean;
+  markAvailable: boolean;
+  markUnavailable: boolean;
+  message: string | null;
+  authenticationFailure: boolean;
+}
+
+/** Convert refresh results into stable Homey availability behaviour. */
+export function refreshHealthDecision(
+  anySucceeded: boolean,
+  priceSucceeded: boolean,
+  hasTariff: boolean,
+  consecutiveTotalFailures: number,
+  err: unknown,
+): RefreshHealthDecision {
+  const fullyHealthy = anySucceeded && (priceSucceeded || !hasTariff);
+  if (fullyHealthy) {
+    return {
+      alarm: false,
+      fullyHealthy: true,
+      markAvailable: true,
+      markUnavailable: false,
+      message: null,
+      authenticationFailure: false,
+    };
+  }
+
+  const raw = err instanceof Error ? err.message : String(err ?? '');
+  const authenticationFailure = /401|authenticat|api key/i.test(raw);
+  let message = 'Octopus Energy is temporarily unavailable.';
+  if (authenticationFailure) {
+    message = 'Authentication failed - repair the device to update your API key.';
+  } else if (/no (?:current )?.*rate|no rate covering|404|not found/i.test(raw)) {
+    message = 'Current tariff price is temporarily unavailable.';
+  }
+
+  return {
+    alarm: true,
+    fullyHealthy: false,
+    markAvailable: anySucceeded && !authenticationFailure,
+    markUnavailable: authenticationFailure || (!anySucceeded && consecutiveTotalFailures >= 3),
+    message,
+    authenticationFailure,
+  };
+}
+
 /** A single half-hourly Agile slot, shaped for the prices widget. */
 export interface AgileSlot {
   start: string;
@@ -97,6 +145,8 @@ export class OctopusMeterDevice extends Homey.Device {
   private lastPointsRefresh = 0;
 
   private notified401 = false;
+
+  private consecutiveTotalFailures = 0;
 
   private alignTimer: NodeJS.Timeout | null = null;
 
@@ -320,7 +370,7 @@ export class OctopusMeterDevice extends Homey.Device {
     };
 
     [priceOk] = await Promise.all([
-      run('Price refresh', () => this.refreshPrices()),
+      run('Price refresh', () => this.refreshPricesWithTariffRecovery()),
       run('Standing-charge refresh', () => this.refreshStandingCharge()),
       run('Balance refresh', () => this.refreshBalance()),
     ]);
@@ -351,11 +401,11 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   /** Periodically re-check the account's active tariff and alert on a change. */
-  protected async checkTariffChange(): Promise<void> {
+  protected async checkTariffChange(force = false): Promise<boolean> {
     const s = this.store();
-    if (!s.accountNumber || !s.mpxn) return;
+    if (!s.accountNumber || !s.mpxn) return false;
     const now = Date.now();
-    if (now - this.lastTariffCheck < 12 * 3600_000) return;
+    if (!force && now - this.lastTariffCheck < 12 * 3600_000) return false;
     const meters = await this.client.discoverMeters(s.accountNumber);
     this.lastTariffCheck = now;
     const match = meters.find((m) => m.mpxn === s.mpxn && m.serial === s.serial
@@ -372,40 +422,53 @@ export class OctopusMeterDevice extends Homey.Device {
       if (this.notifyEnabled('notify_tariff_change', true)) {
         await this.notify(`🐙 Your ${s.fuel} tariff changed to ${match.tariffCode}.`);
       }
+      return true;
+    }
+    return false;
+  }
+
+  /** Re-discover a changed tariff and retry a price failure once. */
+  private async refreshPricesWithTariffRecovery(): Promise<void> {
+    try {
+      await this.refreshPrices();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err ?? '');
+      if (!/no (?:current )?.*rate|no rate covering|404|not found/i.test(message)) throw err;
+      const changed = await this.checkTariffChange(true);
+      if (!changed) throw err;
+      this.log('Tariff changed during price refresh; retrying with the active tariff.');
+      await this.refreshPrices();
     }
   }
 
   /** Reflect refresh success/failure on the connection alarm and availability. */
   private async setHealth(ok: boolean, priceOk: boolean, err: unknown): Promise<void> {
-    // The device's primary job is price data; a persistent price failure is
-    // surfaced even if ancillary calls (balance, etc.) succeed. Devices with no
-    // tariff (productCode null) legitimately skip prices, so treat that as ok.
-    const healthy = ok && (priceOk || !this.store().productCode);
+    this.consecutiveTotalFailures = ok ? 0 : this.consecutiveTotalFailures + 1;
+    const decision = refreshHealthDecision(
+      ok,
+      priceOk,
+      Boolean(this.store().productCode),
+      this.consecutiveTotalFailures,
+      err,
+    );
     if (this.hasCapability('alarm_generic')) {
-      await this.setCapabilityValue('alarm_generic', !healthy).catch(this.error);
+      await this.setCapabilityValue('alarm_generic', decision.alarm).catch(this.error);
     }
-    if (healthy) {
+    if (decision.fullyHealthy) {
       this.notified401 = false;
       if (this.hasCapability('octopus_updated')) {
         await this.setCapabilityValue('octopus_updated', this.formatLocal(new Date())).catch(this.error);
       }
       if (!this.getAvailable()) await this.setAvailable().catch(this.error);
-    } else {
-      const message = this.healthMessage(err);
-      if (/repair the device/i.test(message) && !this.notified401 && this.notifyEnabled('notify_auth', true)) {
+    } else if (decision.markUnavailable) {
+      if (decision.authenticationFailure && !this.notified401 && this.notifyEnabled('notify_auth', true)) {
         this.notified401 = true;
         await this.notify('🐙 Octopus authentication failed — repair the device to update your API key.');
       }
-      await this.setUnavailable(message).catch(this.error);
+      await this.setUnavailable(decision.message ?? 'Octopus Energy is temporarily unavailable.').catch(this.error);
+    } else if (decision.markAvailable && !this.getAvailable()) {
+      await this.setAvailable().catch(this.error);
     }
-  }
-
-  private healthMessage(err: unknown): string {
-    const m = err instanceof Error ? err.message : String(err ?? '');
-    if (/401|authenticat/i.test(m)) {
-      return 'Authentication failed — repair the device to update your API key.';
-    }
-    return 'Could not reach Octopus Energy.';
   }
 
   /** Hook for subclasses to add fuel-specific refresh work (e.g. consumption). */
@@ -578,15 +641,23 @@ export class OctopusMeterDevice extends Homey.Device {
       return;
     }
 
-    const rates = await this.client.standardUnitRates(
+    let rates = await this.client.standardUnitRates(
       s.fuel,
       s.productCode,
       s.tariffCode,
       this.periodWindow(),
     );
+    let current = rateAt(rates);
+    if (!current) {
+      const latest = await this.client.latestStandardUnitRates(s.fuel, s.productCode, s.tariffCode);
+      const fallback = rateAt(latest);
+      if (fallback) {
+        rates = latest;
+        current = fallback;
+      }
+    }
     this.rates = rates;
     await this.onRatesUpdated();
-    const current = rateAt(rates);
     if (!current) throw new Error('Octopus returned no rate covering the current time.');
     const value = Number(valueOf(current, this.vatInc()).toFixed(4));
     this.currentPrice = value;
@@ -596,17 +667,25 @@ export class OctopusMeterDevice extends Homey.Device {
 
   /** Economy 7 / two-register tariffs: fetch separate day and night unit rates. */
   protected async refreshTwoRegisterPrices(productCode: string, tariffCode: string): Promise<void> {
-    const [day, night] = await Promise.all([
+    let [day, night] = await Promise.all([
       this.client.registerUnitRates('day', productCode, tariffCode, this.periodWindow()),
       this.client.registerUnitRates('night', productCode, tariffCode, this.periodWindow()),
     ]);
+    let dayRate = rateAt(day);
+    let nightRate = rateAt(night);
+    if (!dayRate || !nightRate) {
+      [day, night] = await Promise.all([
+        this.client.latestRegisterUnitRates('day', productCode, tariffCode),
+        this.client.latestRegisterUnitRates('night', productCode, tariffCode),
+      ]);
+      dayRate = rateAt(day);
+      nightRate = rateAt(night);
+    }
     // Use the day rates for the headline price and cost approximation; the exact
     // day/night switch time is region-specific and set via device settings.
     this.rates = day;
     this.nightRates = night;
     await this.onRatesUpdated();
-    const dayRate = rateAt(day);
-    const nightRate = rateAt(night);
     if (!dayRate || !nightRate) {
       throw new Error('Octopus returned no current day/night register rate.');
     }

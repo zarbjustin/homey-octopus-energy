@@ -45,10 +45,11 @@ homey app run        # run on a connected Homey
 
 ## Current release
 
-Version `1.0.12` (Homey Build 12) improves App Store discovery and links support
-to the public Homey Community topic. It is in App Store certification with
-automatic publication enabled after approval. The quality baseline is 44 passing
-tests, clean lint and dependency audit, and successful Homey publish validation.
+Version `1.0.13` fixes import meters becoming unavailable when a current tariff
+rate is omitted, updates the Octoplus points and Saving Sessions/Power Up API
+integrations, and adds Saving Sessions diagnostics. The quality baseline is 56
+passing tests, clean lint and dependency audit, and successful Homey publish
+validation.
 
 ## API reference
 

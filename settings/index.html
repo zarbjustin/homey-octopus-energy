@@ -11,6 +11,10 @@
     p, li { font-size: 14px; line-height: 1.5; }
     code { background: #f4f4f4; padding: 1px 5px; border-radius: 4px; }
     .muted { color: #888; font-size: 12px; margin-top: 24px; }
+    .status-list { margin: 0; padding: 0; list-style: none; }
+    .status-list li { border-top: 1px solid #ddd; padding: 10px 0; }
+    .status-list strong, .status-list span { display: block; }
+    .status-list span { color: #666; font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
   </style>
 </head>
 <body>
@@ -56,6 +60,11 @@
     <input class="homey-form-input" id="low_balance_threshold" type="number" step="1" value="0" />
   </div>
 
+  <h2>Saving Sessions status</h2>
+  <ul id="saving-session-status" class="status-list">
+    <li><span>No poll status recorded yet.</span></li>
+  </ul>
+
   <p class="muted">Not affiliated with, or endorsed by, Octopus Energy.</p>
 
   <script type="text/javascript">
@@ -76,6 +85,28 @@
         if (value !== undefined && value !== null) thr.value = value;
       });
       thr.addEventListener('change', () => Homey.set('low_balance_threshold', Number(thr.value), () => {}));
+
+      const status = document.getElementById('saving-session-status');
+      Homey.get('saving_sessions_diagnostics_v1', (err, diagnostics) => {
+        if (err || !diagnostics || !Object.keys(diagnostics).length) return;
+        status.textContent = '';
+        Object.entries(diagnostics).forEach(([account, value]) => {
+          const item = document.createElement('li');
+          const title = document.createElement('strong');
+          title.textContent = account;
+          const detail = document.createElement('span');
+          const checked = value.lastAttempt ? new Date(value.lastAttempt).toLocaleString() : 'not yet';
+          let message = value.lastError
+            ? `Last checked ${checked} - ${value.lastError}`
+            : `Last checked ${checked} - ${value.sessionCount || 0} session(s) found`;
+          if (value.freeElectricityLastError) {
+            message += `; Free Electricity: ${value.freeElectricityLastError}`;
+          }
+          detail.textContent = message;
+          item.append(title, detail);
+          status.appendChild(item);
+        });
+      });
 
       Homey.ready();
     }
