@@ -113,3 +113,17 @@ test('Saving Session diagnostics redact the API key from errors', async (t) => {
   const diagnostics = app.homey.settings.get('saving_sessions_diagnostics_v1');
   assert.equal(diagnostics['A-ONE'].lastError, 'Request failed for [redacted]');
 });
+
+test('dispatch failures are deduplicated and redacted in diagnostics', async (t) => {
+  const app = fakeApp([{ apiKey: 'secret-key', accountNumber: 'A-ONE' }]);
+  t.mock.method(KrakenClient.prototype, 'getPlannedDispatches', async () => {
+    throw new Error('Dispatch request failed for secret-key');
+  });
+  const poller = new DispatchPoller(app);
+  await poller.poll();
+  await poller.poll();
+
+  assert.equal(app.errors.length, 1);
+  const diagnostics = app.homey.settings.get('dispatch_diagnostics_v1');
+  assert.equal(diagnostics['A-ONE'].lastError, 'Dispatch request failed for [redacted]');
+});

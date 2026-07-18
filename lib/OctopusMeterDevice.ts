@@ -37,6 +37,18 @@ export interface RefreshHealthDecision {
   authenticationFailure: boolean;
 }
 
+export interface DataFreshness {
+  updatedAt: string | null;
+  stale: boolean;
+  problem: boolean;
+}
+
+interface IntegrationDiagnostic {
+  lastAttempt: string;
+  lastSuccess?: string;
+  lastError?: string;
+}
+
 /** Convert refresh results into stable Homey availability behaviour. */
 export function refreshHealthDecision(
   anySucceeded: boolean,
@@ -148,11 +160,16 @@ export class OctopusMeterDevice extends Homey.Device {
 
   private consecutiveTotalFailures = 0;
 
+  private lastHealthyRefreshAt = 0;
+
+  private diagnosticUpdates: Record<string, IntegrationDiagnostic> = {};
+
   private alignTimer: NodeJS.Timeout | null = null;
 
   private agileTimer: NodeJS.Timeout | null = null;
 
   async onInit(): Promise<void> {
+    this.lastHealthyRefreshAt = Number(this.getStoreValue('lastHealthyRefreshAt')) || 0;
     this.buildClients();
     await this.ensureRegisterCapabilities();
     await this.onInitExtra();
@@ -204,9 +221,12 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   protected buildClients(): void {
-    const { apiKey } = this.store();
+    const { apiKey, accountNumber } = this.store();
     this.client = new OctopusClient({ apiKey });
-    this.kraken = new KrakenClient(apiKey);
+    const app = this.homey.app as Homey.App & {
+      getKrakenClient?(key: string, account: string): KrakenClient;
+    };
+    this.kraken = app.getKrakenClient?.(apiKey, accountNumber) ?? new KrakenClient(apiKey);
   }
 
   // --- Data access for Flow cards / subclasses -----------------------------
@@ -230,6 +250,22 @@ export class OctopusMeterDevice extends Homey.Device {
   /** The current unit rate value (p/kWh), VAT per the device setting. */
   getCurrentPrice(): number | null {
     return this.currentPrice;
+  }
+
+  /** Widget-safe freshness summary without exposing credentials or raw errors. */
+  getDataFreshness(): DataFreshness {
+    const pollMinutes = Math.max(5, Number(this.getSetting('poll_interval')) || 30);
+    const maxAgeMs = Math.max(20, pollMinutes * 2.5) * 60_000;
+    const alarm = this.hasCapability('alarm_generic')
+      ? Boolean(this.getCapabilityValue('alarm_generic'))
+      : false;
+    return {
+      updatedAt: this.lastHealthyRefreshAt
+        ? new Date(this.lastHealthyRefreshAt).toISOString()
+        : null,
+      stale: !this.lastHealthyRefreshAt || Date.now() - this.lastHealthyRefreshAt > maxAgeMs,
+      problem: alarm,
+    };
   }
 
   /**
@@ -314,10 +350,26 @@ export class OctopusMeterDevice extends Homey.Device {
     if (this.refreshPromise) {
       await this.refreshPromise.catch((err) => this.error('Refresh before repair failed:', err));
     }
+    const previousStore = this.store();
     if (nextStore) {
-      for (const [key, value] of Object.entries(nextStore)) {
-        // eslint-disable-next-line no-await-in-loop
-        await this.setStoreValue(key, value);
+      const written: string[] = [];
+      try {
+        for (const [key, value] of Object.entries(nextStore)) {
+          // eslint-disable-next-line no-await-in-loop
+          await this.setStoreValue(key, value);
+          written.push(key);
+        }
+      } catch (err) {
+        for (const key of written.reverse()) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await this.setStoreValue(key, previousStore[key as keyof MeterStore]);
+          } catch (rollbackError) {
+            this.error(`Could not roll back repaired store value ${key}:`, rollbackError);
+          }
+        }
+        this.buildClients();
+        throw err;
       }
     }
 
@@ -335,7 +387,11 @@ export class OctopusMeterDevice extends Homey.Device {
     this.lastPointsRefresh = 0;
     this.notified401 = false;
     this.consecutiveTotalFailures = 0;
+    this.lastHealthyRefreshAt = 0;
+    await this.setStoreValue('lastHealthyRefreshAt', 0).catch((err) => this.error(err));
 
+    const app = this.homey.app as Homey.App & { invalidateAccountCaches?(account: string): void };
+    if (previousStore.accountNumber) app.invalidateAccountCaches?.(previousStore.accountNumber);
     this.buildClients();
     await this.onCredentialsApplied();
     await this.ensureRegisterCapabilities().catch((err) => this.error(err));
@@ -390,12 +446,14 @@ export class OctopusMeterDevice extends Homey.Device {
     let ok = false;
     let priceOk = false;
     let firstErr: unknown = null;
-    const run = async (label: string, fn: () => Promise<void>): Promise<boolean> => {
+    const run = async (label: string, area: string, fn: () => Promise<void>): Promise<boolean> => {
       try {
         await fn();
+        this.recordIntegrationDiagnostic(area);
         ok = true;
         return true;
       } catch (err) {
+        this.recordIntegrationDiagnostic(area, err);
         if (!firstErr) firstErr = err;
         this.error(`${label} failed:`, err);
         return false;
@@ -403,34 +461,86 @@ export class OctopusMeterDevice extends Homey.Device {
     };
 
     [priceOk] = await Promise.all([
-      run('Price refresh', () => this.refreshPricesWithTariffRecovery()),
-      run('Standing-charge refresh', () => this.refreshStandingCharge()),
-      run('Balance refresh', () => this.refreshBalance()),
+      run('Price refresh', 'prices', () => this.refreshPricesWithTariffRecovery()),
+      run('Standing-charge refresh', 'standing_charge', () => this.refreshStandingCharge()),
+      run('Balance refresh', 'balance', () => this.refreshBalance()),
     ]);
-    await run('Extra refresh', () => this.refreshExtra());
+    await run('Extra refresh', 'meter_data', () => this.refreshExtra());
     // Non-critical reporting: failures here do not affect device health.
-    try {
-      await this.refreshPriceStats();
-    } catch (err) {
-      this.error('Price-stats refresh failed:', err);
-    }
-    try {
-      await this.refreshMonthlyCost();
-    } catch (err) {
-      this.error('Monthly-cost refresh failed:', err);
-    }
-    try {
-      await this.refreshPoints();
-    } catch (err) {
-      this.error('Points refresh failed:', err);
-    }
-    try {
-      await this.checkTariffChange();
-    } catch (err) {
-      this.error('Tariff-change check failed:', err);
-    }
+    await this.runReporting('Price-stats refresh', 'price_stats', () => this.refreshPriceStats());
+    await this.runReporting('Monthly-cost refresh', 'monthly_cost', () => this.refreshMonthlyCost());
+    await this.runReporting('Points refresh', 'points', () => this.refreshPoints());
+    await this.runReporting('Tariff-change check', 'tariff', () => this.checkTariffChange());
 
-    await this.setHealth(ok, priceOk, firstErr);
+    try {
+      await this.setHealth(ok, priceOk, firstErr);
+    } finally {
+      this.flushIntegrationDiagnostics();
+    }
+  }
+
+  private async runReporting(label: string, area: string, fn: () => Promise<unknown>): Promise<void> {
+    try {
+      await fn();
+      this.recordIntegrationDiagnostic(area);
+    } catch (err) {
+      this.recordIntegrationDiagnostic(area, err);
+      this.error(`${label} failed:`, err);
+    }
+  }
+
+  /** Subclasses use this for integrations they intentionally handle best-effort. */
+  protected recordIntegrationDiagnostic(area: string, err?: unknown): void {
+    const now = new Date().toISOString();
+    const previous = this.diagnosticUpdates[area];
+    this.diagnosticUpdates[area] = err === undefined
+      ? { lastAttempt: now, lastSuccess: now }
+      : {
+        lastAttempt: now,
+        lastSuccess: previous?.lastSuccess,
+        lastError: this.redactedError(err),
+      };
+  }
+
+  private redactedError(err: unknown): string {
+    let message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
+    const s = this.store();
+    for (const secret of [s.apiKey, s.accountNumber, s.mpxn, s.serial]) {
+      if (secret) message = message.replaceAll(secret, '[redacted]');
+    }
+    return message.replace(/\s+/g, ' ').slice(0, 240);
+  }
+
+  private flushIntegrationDiagnostics(): void {
+    if (!Object.keys(this.diagnosticUpdates).length) return;
+    try {
+      const key = 'integration_diagnostics_v1';
+      const all = (this.homey.settings.get(key) || {}) as Record<string, Record<string, IntegrationDiagnostic>>;
+      const deviceId = String(this.getData().id);
+      const existing = all[deviceId] || {};
+      for (const [area, update] of Object.entries(this.diagnosticUpdates)) {
+        if (!update.lastSuccess && existing[area]?.lastSuccess) {
+          update.lastSuccess = existing[area].lastSuccess;
+        }
+      }
+      all[deviceId] = { ...existing, ...this.diagnosticUpdates };
+      const entries = Object.entries(all);
+      if (entries.length > 30) {
+        entries
+          .sort(([, a], [, b]) => {
+            const aTime = Math.max(...Object.values(a).map((v) => Date.parse(v.lastAttempt) || 0));
+            const bTime = Math.max(...Object.values(b).map((v) => Date.parse(v.lastAttempt) || 0));
+            return bTime - aTime;
+          })
+          .slice(30)
+          .forEach(([id]) => delete all[id]);
+      }
+      this.homey.settings.set(key, all);
+    } catch (err) {
+      this.error('Could not persist integration diagnostics:', err);
+    } finally {
+      this.diagnosticUpdates = {};
+    }
   }
 
   /** Periodically re-check the account's active tariff and alert on a change. */
@@ -489,6 +599,8 @@ export class OctopusMeterDevice extends Homey.Device {
     }
     if (decision.fullyHealthy) {
       this.notified401 = false;
+      this.lastHealthyRefreshAt = Date.now();
+      await this.setStoreValue('lastHealthyRefreshAt', this.lastHealthyRefreshAt).catch((error) => this.error(error));
       if (this.hasCapability('octopus_updated')) {
         await this.setCapabilityValue('octopus_updated', this.formatLocal(new Date())).catch(this.error);
       }
@@ -1107,9 +1219,11 @@ export class OctopusMeterDevice extends Homey.Device {
         // eslint-disable-next-line no-await-in-loop
         const code = await this.client.findProductCode(frag);
         if (code && code !== s.productCode) {
-          // Agile, Go and Flexible comparison candidates expose a one-register
-          // tariff even when the current meter happens to be Economy 7.
-          candidates.push({ name: label, productCode: code, tariffCode: `E-1R-${code}-${region}` });
+          // Resolve the API's real regional code rather than assuming its
+          // register/payment-method naming convention.
+          // eslint-disable-next-line no-await-in-loop
+          const tariffCode = await this.client.tariffCodeForProduct(code, 'electricity', region, 1);
+          if (tariffCode) candidates.push({ name: label, productCode: code, tariffCode });
         }
       }
     }

@@ -3,7 +3,7 @@
 import Homey from 'homey';
 import { SavingSessionsPoller } from './lib/SavingSessionsPoller';
 import { DispatchPoller } from './lib/DispatchPoller';
-import { KrakenClient } from './lib/KrakenClient';
+import { Dispatch, KrakenClient } from './lib/KrakenClient';
 import { crossedAbove, crossedBelow } from './lib/rates';
 
 interface BalanceDevice extends Homey.Device {
@@ -20,19 +20,94 @@ module.exports = class OctopusEnergyApp extends Homey.App {
 
   private balanceInflight = new Map<string, Promise<number>>();
 
+  private krakenClients = new Map<string, { apiKey: string; client: KrakenClient }>();
+
+  private plannedDispatchCache = new Map<string, { value: Dispatch[]; ts: number }>();
+
+  private plannedDispatchInflight = new Map<string, Promise<Dispatch[]>>();
+
+  private completedDispatchCache = new Map<string, { value: Dispatch[]; ts: number }>();
+
+  private completedDispatchInflight = new Map<string, Promise<Dispatch[]>>();
+
+  private trimMap<T>(map: Map<string, T>, max = 20): void {
+    while (map.size > max) {
+      const oldest = map.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      map.delete(oldest);
+    }
+  }
+
+  /** One token cache/client per account; a changed key invalidates account data. */
+  getKrakenClient(apiKey: string, accountNumber: string): KrakenClient {
+    const existing = this.krakenClients.get(accountNumber);
+    if (existing?.apiKey === apiKey) return existing.client;
+    this.invalidateAccountCaches(accountNumber);
+    const client = new KrakenClient(apiKey);
+    this.krakenClients.set(accountNumber, { apiKey, client });
+    this.trimMap(this.krakenClients);
+    return client;
+  }
+
+  /** Clear values tied to credentials that have just been repaired/replaced. */
+  invalidateAccountCaches(accountNumber: string): void {
+    this.krakenClients.delete(accountNumber);
+    this.balanceCache.delete(accountNumber);
+    this.balanceInflight.delete(accountNumber);
+    this.plannedDispatchCache.delete(accountNumber);
+    this.plannedDispatchInflight.delete(accountNumber);
+    this.completedDispatchCache.delete(accountNumber);
+    this.completedDispatchInflight.delete(accountNumber);
+  }
+
   /** Account-wide balance with a short TTL cache (dedupes per-device calls). */
   async getCachedBalance(apiKey: string, accountNumber: string): Promise<number> {
     const cached = this.balanceCache.get(accountNumber);
     if (cached && Date.now() - cached.ts < 10 * 60_000) return cached.value;
     const inflight = this.balanceInflight.get(accountNumber);
     if (inflight) return inflight;
-    const request = new KrakenClient(apiKey).getBalance(accountNumber)
+    const request = this.getKrakenClient(apiKey, accountNumber).getBalance(accountNumber)
       .then((value) => {
         this.balanceCache.set(accountNumber, { value, ts: Date.now() });
+        this.trimMap(this.balanceCache);
         return value;
       })
       .finally(() => this.balanceInflight.delete(accountNumber));
     this.balanceInflight.set(accountNumber, request);
+    return request;
+  }
+
+  /** Planned dispatches shared by the poller and all devices on an account. */
+  async getCachedPlannedDispatches(apiKey: string, accountNumber: string): Promise<Dispatch[]> {
+    const cached = this.plannedDispatchCache.get(accountNumber);
+    if (cached && Date.now() - cached.ts < 60_000) return cached.value;
+    const inflight = this.plannedDispatchInflight.get(accountNumber);
+    if (inflight) return inflight;
+    const request = this.getKrakenClient(apiKey, accountNumber).getPlannedDispatches(accountNumber)
+      .then((value) => {
+        this.plannedDispatchCache.set(accountNumber, { value, ts: Date.now() });
+        this.trimMap(this.plannedDispatchCache);
+        return value;
+      })
+      .finally(() => this.plannedDispatchInflight.delete(accountNumber));
+    this.plannedDispatchInflight.set(accountNumber, request);
+    return request;
+  }
+
+  /** Completed dispatches change slowly, so share them for four minutes. */
+  async getCachedCompletedDispatches(apiKey: string, accountNumber: string): Promise<Dispatch[]> {
+    const cached = this.completedDispatchCache.get(accountNumber);
+    if (cached && Date.now() - cached.ts < 4 * 60_000) return cached.value;
+    const inflight = this.completedDispatchInflight.get(accountNumber);
+    if (inflight) return inflight;
+    const request = this.getKrakenClient(apiKey, accountNumber).getCompletedDispatches(accountNumber)
+      .then((value) => {
+        this.completedDispatchCache.set(accountNumber, { value, ts: Date.now() });
+        this.trimMap(this.completedDispatchCache);
+        return value;
+      })
+      .finally(() => this.completedDispatchInflight.delete(accountNumber));
+    this.completedDispatchInflight.set(accountNumber, request);
     return request;
   }
 

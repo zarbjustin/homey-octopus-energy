@@ -1,7 +1,18 @@
 'use strict';
 
+import Homey from 'homey';
 import { AccountPoller } from './AccountPoller';
-import { KrakenClient, Dispatch } from './KrakenClient';
+import { Dispatch } from './KrakenClient';
+
+interface DispatchDiagnostics {
+  lastAttempt: string;
+  lastSuccess?: string;
+  lastError?: string;
+  completedLastError?: string;
+  plannedCount?: number;
+  completedCount?: number;
+  active?: boolean;
+}
 
 /**
  * Polls Intelligent Octopus Go planned dispatches and fires app-level Flow
@@ -35,17 +46,32 @@ export class DispatchPoller extends AccountPoller {
   }
 
   private async pollAccount(creds: { apiKey: string; accountNumber: string }): Promise<void> {
+    const attemptedAt = new Date().toISOString();
     const knownEnd = this.currentEnds.get(creds.accountNumber);
     if (knownEnd && new Date(knownEnd).getTime() <= Date.now()) {
       this.activeAccounts.delete(creds.accountNumber);
       this.currentEnds.delete(creds.accountNumber);
       this.fire('dispatch_ended', {});
     }
-    const client = new KrakenClient(creds.apiKey);
     let dispatches: Dispatch[] = [];
     try {
-      dispatches = await client.getPlannedDispatches(creds.accountNumber);
+      const app = this.app as Homey.App & {
+        getCachedPlannedDispatches?(apiKey: string, accountNumber: string): Promise<Dispatch[]>;
+      };
+      dispatches = app.getCachedPlannedDispatches
+        ? await app.getCachedPlannedDispatches(creds.apiKey, creds.accountNumber)
+        : await this.kraken(creds).getPlannedDispatches(creds.accountNumber);
     } catch (err) {
+      const message = this.errorMessage(err, creds.apiKey);
+      const previous = this.diagnostics()[creds.accountNumber];
+      if (previous?.lastError !== message) {
+        this.app.error(`Dispatch poll failed for ${this.maskAccount(creds.accountNumber)}:`, err);
+      }
+      this.updateDiagnostics(creds.accountNumber, {
+        ...previous,
+        lastAttempt: attemptedAt,
+        lastError: message,
+      });
       return;
     }
 
@@ -72,8 +98,16 @@ export class DispatchPoller extends AccountPoller {
     }
 
     // Completed dispatches → fire once per newly-seen completed window.
+    let completedCount = 0;
+    let completedLastError: string | undefined;
     try {
-      const done = await client.getCompletedDispatches(creds.accountNumber);
+      const app = this.app as Homey.App & {
+        getCachedCompletedDispatches?(apiKey: string, accountNumber: string): Promise<Dispatch[]>;
+      };
+      const done = app.getCachedCompletedDispatches
+        ? await app.getCachedCompletedDispatches(creds.apiKey, creds.accountNumber)
+        : await this.kraken(creds).getCompletedDispatches(creds.accountNumber);
+      completedCount = done.length;
       const completed = this.completed.get(creds.accountNumber) ?? new Set<string>();
       const seeded = this.seededCompleted.has(creds.accountNumber);
       for (const d of done) {
@@ -86,7 +120,36 @@ export class DispatchPoller extends AccountPoller {
       this.seededCompleted.add(creds.accountNumber);
       this.completed.set(creds.accountNumber, new Set(Array.from(completed).slice(-100)));
     } catch (err) {
-      // No completed-dispatch support — ignore.
+      completedLastError = this.errorMessage(err, creds.apiKey);
     }
+
+    this.updateDiagnostics(creds.accountNumber, {
+      lastAttempt: attemptedAt,
+      lastSuccess: new Date().toISOString(),
+      plannedCount: dispatches.length,
+      completedCount,
+      completedLastError,
+      active: nowActive,
+    });
+  }
+
+  private diagnostics(): Record<string, DispatchDiagnostics> {
+    return (this.app.homey.settings.get('dispatch_diagnostics_v1') || {}) as Record<string, DispatchDiagnostics>;
+  }
+
+  private updateDiagnostics(accountNumber: string, value: DispatchDiagnostics): void {
+    const all = this.diagnostics();
+    all[accountNumber] = value;
+    this.app.homey.settings.set('dispatch_diagnostics_v1', all);
+  }
+
+  private errorMessage(err: unknown, secret: string): string {
+    const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
+    return message.replaceAll(secret, '[redacted]').replace(/\s+/g, ' ').slice(0, 240);
+  }
+
+  private maskAccount(accountNumber: string): string {
+    if (accountNumber.length <= 4) return accountNumber;
+    return `${accountNumber.slice(0, 2)}***${accountNumber.slice(-2)}`;
   }
 }

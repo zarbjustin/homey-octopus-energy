@@ -57,3 +57,37 @@ test('widget frontends escape device names and upstream error messages', () => {
     assert.match(html, /esc\(\(d && d\.error\) \|\|/, widget);
   }
 });
+
+test('widget frontends expose live status and accessible controls', () => {
+  for (const widget of ['agile', 'price', 'summary', 'timeline', 'export', 'carbon']) {
+    const file = path.join(__dirname, '..', 'widgets', widget, 'public', 'index.html');
+    const html = fs.readFileSync(file, 'utf8');
+    assert.match(html, /aria-live="polite"/, widget);
+    assert.match(html, /freshnessHtml/, widget);
+  }
+  const agile = fs.readFileSync(
+    path.join(__dirname, '..', 'widgets', 'agile', 'public', 'index.html'),
+    'utf8',
+  );
+  assert.match(agile, /<button type="button" class="tab/);
+  assert.match(agile, /aria-pressed/);
+});
+
+test('widget APIs pass device freshness through to their frontends', async () => {
+  const api = require('../widgets/timeline/api.js');
+  const freshness = { updatedAt: '2026-07-19T00:00:00Z', stale: true, problem: false };
+  const device = {
+    getData: () => ({ id: 'meter-1' }),
+    getName: () => 'Meter',
+    getUpcomingPrices: () => [],
+    getDataFreshness: () => freshness,
+  };
+  const homey = {
+    drivers: {
+      getDriver: () => ({ getDevices: () => [device] }),
+    },
+  };
+
+  const result = await api.getData({ homey, query: { id: 'meter-1' } });
+  assert.deepEqual(result.freshness, freshness);
+});

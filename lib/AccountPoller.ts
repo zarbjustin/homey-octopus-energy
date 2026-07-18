@@ -1,6 +1,7 @@
 'use strict';
 
 import Homey from 'homey';
+import { KrakenClient } from './KrakenClient';
 
 /**
  * Shared base for app-level account pollers (saving sessions, dispatches).
@@ -37,6 +38,14 @@ export abstract class AccountPoller {
   }
 
   protected abstract poll(): Promise<void>;
+
+  protected kraken(creds: { apiKey: string; accountNumber: string }): KrakenClient {
+    const app = this.app as Homey.App & {
+      getKrakenClient?(apiKey: string, accountNumber: string): KrakenClient;
+    };
+    return app.getKrakenClient?.(creds.apiKey, creds.accountNumber)
+      ?? new KrakenClient(creds.apiKey);
+  }
 
   private runPoll(): void {
     if (this.polling) return;

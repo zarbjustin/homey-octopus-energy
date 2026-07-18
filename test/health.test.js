@@ -134,6 +134,7 @@ test('repair clears account-scoped caches before rebuilding clients', async () =
   device.lastPointsRefresh = Date.now();
   device.setStoreValue = async (key, value) => { store[key] = value; };
   device.getStoreValue = (key) => store[key];
+  device.homey = { app: {} };
   let builtWith;
   device.buildClients = () => { builtWith = store.apiKey; };
   let hookCalled = false;
@@ -158,4 +159,79 @@ test('repair clears account-scoped caches before rebuilding clients', async () =
   assert.equal(device.currentPrice, null);
   assert.equal(device.currentBalance, null);
   assert.equal(device.lastPointsRefresh, 0);
+});
+
+test('freshness reports stale data and connection alarms independently', () => {
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.lastHealthyRefreshAt = Date.now() - 3 * 3600_000;
+  device.getSetting = () => 30;
+  device.hasCapability = () => true;
+  device.getCapabilityValue = () => true;
+  let freshness = device.getDataFreshness();
+  assert.equal(freshness.stale, true);
+  assert.equal(freshness.problem, true);
+
+  device.lastHealthyRefreshAt = Date.now();
+  device.getCapabilityValue = () => false;
+  freshness = device.getDataFreshness();
+  assert.equal(freshness.stale, false);
+  assert.equal(freshness.problem, false);
+  assert.ok(freshness.updatedAt);
+});
+
+test('integration diagnostics redact all stored account identifiers', () => {
+  const settings = new Map();
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.diagnosticUpdates = {};
+  device.store = () => ({
+    apiKey: 'secret-key', accountNumber: 'A-SECRET', mpxn: '123456', serial: 'SERIAL',
+  });
+  device.getData = () => ({ id: 'device-1' });
+  device.homey = {
+    settings: {
+      get: (key) => settings.get(key),
+      set: (key, value) => settings.set(key, value),
+    },
+  };
+  device.error = () => {};
+
+  device.recordIntegrationDiagnostic(
+    'prices',
+    new Error('secret-key A-SECRET 123456 SERIAL failed'),
+  );
+  device.flushIntegrationDiagnostics();
+
+  const saved = JSON.stringify(settings.get('integration_diagnostics_v1'));
+  assert.doesNotMatch(saved, /secret-key|A-SECRET|123456|SERIAL/);
+  assert.match(saved, /\[redacted\]/);
+});
+
+test('repair rolls back store values after a partial write failure', async () => {
+  const original = {
+    apiKey: 'old-key', accountNumber: 'A-OLD', mpxn: '123', serial: 'meter-1',
+    fuel: 'electricity', isExport: false, productCode: 'OLD', tariffCode: 'E-1R-OLD-A',
+  };
+  const store = { ...original };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.refreshPromise = null;
+  device.store = () => ({ ...store });
+  let failed = false;
+  device.setStoreValue = async (key, value) => {
+    if (!failed && key === 'mpxn' && value === '999') {
+      failed = true;
+      throw new Error('store write failed');
+    }
+    store[key] = value;
+  };
+  device.buildClients = () => {};
+  device.error = () => {};
+
+  await assert.rejects(() => device.applyCredentials({
+    ...original,
+    apiKey: 'new-key',
+    accountNumber: 'A-NEW',
+    mpxn: '999',
+  }), /store write failed/);
+
+  assert.deepEqual(store, original);
 });

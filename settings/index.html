@@ -65,6 +65,15 @@
     <li><span>No poll status recorded yet.</span></li>
   </ul>
 
+  <ul id="dispatch-status" class="status-list">
+    <li><span>No Intelligent dispatch status recorded yet.</span></li>
+  </ul>
+
+  <h2>Integration status</h2>
+  <ul id="integration-status" class="status-list">
+    <li><span>No device refresh status recorded yet.</span></li>
+  </ul>
+
   <p class="muted">Not affiliated with, or endorsed by, Octopus Energy.</p>
 
   <script type="text/javascript">
@@ -87,13 +96,17 @@
       thr.addEventListener('change', () => Homey.set('low_balance_threshold', Number(thr.value), () => {}));
 
       const status = document.getElementById('saving-session-status');
+      const maskIdentifier = (value) => {
+        const text = String(value || '');
+        return text.length > 8 ? `${text.slice(0, 3)}...${text.slice(-4)}` : text;
+      };
       Homey.get('saving_sessions_diagnostics_v1', (err, diagnostics) => {
         if (err || !diagnostics || !Object.keys(diagnostics).length) return;
         status.textContent = '';
         Object.entries(diagnostics).forEach(([account, value]) => {
           const item = document.createElement('li');
           const title = document.createElement('strong');
-          title.textContent = account;
+          title.textContent = maskIdentifier(account);
           const detail = document.createElement('span');
           const checked = value.lastAttempt ? new Date(value.lastAttempt).toLocaleString() : 'not yet';
           let message = value.lastError
@@ -105,6 +118,49 @@
           detail.textContent = message;
           item.append(title, detail);
           status.appendChild(item);
+        });
+      });
+
+      const dispatchStatus = document.getElementById('dispatch-status');
+      Homey.get('dispatch_diagnostics_v1', (err, diagnostics) => {
+        if (err || !diagnostics || !Object.keys(diagnostics).length) return;
+        dispatchStatus.textContent = '';
+        Object.entries(diagnostics).forEach(([account, value]) => {
+          const item = document.createElement('li');
+          const title = document.createElement('strong');
+          title.textContent = `${maskIdentifier(account)} - Intelligent dispatches`;
+          const detail = document.createElement('span');
+          const checked = value.lastAttempt ? new Date(value.lastAttempt).toLocaleString() : 'not yet';
+          const error = value.lastError || value.completedLastError;
+          detail.textContent = error
+            ? `Last checked ${checked} - ${error}`
+            : `Last checked ${checked} - ${value.plannedCount || 0} planned; ${value.active ? 'active now' : 'not active'}`;
+          item.append(title, detail);
+          dispatchStatus.appendChild(item);
+        });
+      });
+
+      const integrationStatus = document.getElementById('integration-status');
+      Homey.get('integration_diagnostics_v1', (err, diagnostics) => {
+        if (err || !diagnostics || !Object.keys(diagnostics).length) return;
+        integrationStatus.textContent = '';
+        Object.entries(diagnostics).forEach(([deviceId, areas]) => {
+          const item = document.createElement('li');
+          const title = document.createElement('strong');
+          title.textContent = maskIdentifier(deviceId);
+          const detail = document.createElement('span');
+          const entries = Object.entries(areas || {});
+          const failures = entries.filter(([, value]) => value.lastError);
+          const lastAttempt = entries.reduce((latest, [, value]) => {
+            const time = Date.parse(value.lastAttempt || '') || 0;
+            return Math.max(latest, time);
+          }, 0);
+          const checked = lastAttempt ? new Date(lastAttempt).toLocaleString() : 'not yet';
+          detail.textContent = failures.length
+            ? `Last checked ${checked} - ${failures.map(([area, value]) => `${area.replaceAll('_', ' ')}: ${value.lastError}`).join('; ')}`
+            : `Last checked ${checked} - ${entries.length} integration checks healthy`;
+          item.append(title, detail);
+          integrationStatus.appendChild(item);
         });
       });
 

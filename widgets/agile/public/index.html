@@ -29,7 +29,7 @@
     .tabs { display: flex; gap: 6px; margin: 8px 0 6px; }
     .tab {
       flex: 1; text-align: center; font-size: 12px; font-weight: 600; padding: 5px 0;
-      border-radius: 14px; cursor: pointer; user-select: none;
+      border: 0; border-radius: 14px; cursor: pointer; font-family: inherit; user-select: none;
       background: var(--homey-background-color, rgba(127,127,127,0.12));
       color: var(--homey-text-color-light, #888);
     }
@@ -80,11 +80,12 @@
     .tag.now { background: #7b3ff2; color: #fff; }
 
     .err { font-size: 13px; color: var(--homey-text-color-light, #888); padding: 10px 0; }
+    .freshness { color: #b45309; font-size: 10px; margin-top: 5px; }
     .muted { font-size: 11px; color: var(--homey-text-color-light, #888); padding: 14px 0; text-align: center; }
   </style>
 </head>
 <body>
-  <div id="content"><div class="err">Loading…</div></div>
+  <div id="content" aria-live="polite"><div class="err">Loading…</div></div>
 
   <script type="text/javascript">
     var STATE = { data: null, tab: 'today' };
@@ -102,6 +103,13 @@
 
     function slotsFor(d, tab) {
       return tab === 'tomorrow' ? (d.tomorrow || []) : (d.today || []);
+    }
+
+    function freshnessHtml(d) {
+      var f = d && d.freshness;
+      if (!f || (!f.problem && !f.stale)) return '';
+      var message = f.problem ? 'Connection issue; showing the last available data.' : 'Data may be out of date.';
+      return '<div class="freshness" role="status">' + esc(message) + '</div>';
     }
 
     function renderChart(slots) {
@@ -186,11 +194,14 @@
       html += '<span class="now"><span class="val">' + fmt(d.currentPrice)
         + ' <small>p/kWh</small></span><br><span class="badge ' + level + '">' + level + '</span></span>';
       html += '</div>';
+      html += freshnessHtml(d);
 
       html += '<div class="tabs">';
-      html += '<div class="tab' + (STATE.tab === 'today' ? ' active' : '') + '" data-tab="today">Today</div>';
-      html += '<div class="tab' + (STATE.tab === 'tomorrow' ? ' active' : '')
-        + (tomorrowOk ? '' : ' disabled') + '" data-tab="tomorrow">Tomorrow</div>';
+      html += '<button type="button" class="tab' + (STATE.tab === 'today' ? ' active' : '')
+        + '" data-tab="today" aria-pressed="' + (STATE.tab === 'today') + '">Today</button>';
+      html += '<button type="button" class="tab' + (STATE.tab === 'tomorrow' ? ' active' : '')
+        + (tomorrowOk ? '' : ' disabled') + '" data-tab="tomorrow" aria-pressed="'
+        + (STATE.tab === 'tomorrow') + '"' + (tomorrowOk ? '' : ' disabled') + '>Tomorrow</button>';
       html += '</div>';
 
       if (STATE.tab === 'tomorrow' && !tomorrowOk) {

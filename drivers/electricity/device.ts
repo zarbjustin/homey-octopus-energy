@@ -2,6 +2,7 @@
 
 import { Rate, regionFromTariff } from '../../lib/rates';
 import { OctopusMeterDevice } from '../../lib/OctopusMeterDevice';
+import type { Dispatch } from '../../lib/KrakenClient';
 import {
   CarbonClient, CarbonPoint, carbonLevelId, isGreenestNow, regionIdFromGsp,
 } from '../../lib/carbon';
@@ -89,9 +90,22 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   /** Reflect whether an Intelligent Octopus Go smart-charge dispatch is active now. */
   private async refreshDispatching(): Promise<void> {
     if (!this.hasCapability('octopus_dispatching')) return;
+    const apiKey = this.getStoreValue('apiKey');
     const accountNumber = this.getStoreValue('accountNumber');
-    if (!accountNumber) return;
-    const dispatches = await this.kraken.getPlannedDispatches(accountNumber);
+    if (!apiKey || !accountNumber) return;
+    const app = this.homey.app as typeof this.homey.app & {
+      getCachedPlannedDispatches?(key: string, account: string): Promise<Dispatch[]>;
+    };
+    let dispatches: Dispatch[];
+    try {
+      dispatches = app.getCachedPlannedDispatches
+        ? await app.getCachedPlannedDispatches(apiKey, accountNumber)
+        : await this.kraken.getPlannedDispatches(accountNumber);
+      this.recordIntegrationDiagnostic('dispatches');
+    } catch (err) {
+      this.recordIntegrationDiagnostic('dispatches', err);
+      throw err;
+    }
     const now = Date.now();
     const active = dispatches.some((d) => {
       const start = new Date(d.start).getTime();
@@ -109,47 +123,53 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
   private async refreshCarbon(): Promise<void> {
     if (!this.hasCapability('measure_octopus_carbon')) return;
-    const regionId = this.carbonRegionId();
-    let current: { intensity: number; index: string } | null = null;
-    let renewable: number | null = null;
-    if (regionId) {
-      const [r, forecast] = await Promise.all([
-        this.carbon.getRegional(regionId),
-        this.carbon.getRegionalForecast(regionId),
-      ]);
-      if (r) {
-        current = r;
-        renewable = r.renewable;
-      }
-      this.carbonForecast = forecast;
-    } else {
-      const [national, forecast] = await Promise.all([
-        this.carbon.getCurrent(), this.carbon.getForecast(),
-      ]);
-      current = national;
-      this.carbonForecast = forecast;
-    }
-    if (current) {
-      const prev = this.carbonNow;
-      this.carbonNow = current.intensity;
-      await this.setCapabilityValue('measure_octopus_carbon', Math.round(current.intensity)).catch(this.error);
-      if (this.hasCapability('octopus_carbon_level')) {
-        const level = carbonLevelId(current.index);
-        await this.setCapabilityValue('octopus_carbon_level', level).catch(this.error);
-        if (this.previousCarbonLevel !== null && level !== this.previousCarbonLevel) {
-          this.trigger('carbon_level_changed', { level, previous: this.previousCarbonLevel });
+    try {
+      const regionId = this.carbonRegionId();
+      let current: { intensity: number; index: string } | null = null;
+      let renewable: number | null = null;
+      if (regionId) {
+        const [r, forecast] = await Promise.all([
+          this.carbon.getRegional(regionId),
+          this.carbon.getRegionalForecast(regionId),
+        ]);
+        if (r) {
+          current = r;
+          renewable = r.renewable;
         }
-        this.previousCarbonLevel = level;
+        this.carbonForecast = forecast;
+      } else {
+        const [national, forecast] = await Promise.all([
+          this.carbon.getCurrent(), this.carbon.getForecast(),
+        ]);
+        current = national;
+        this.carbonForecast = forecast;
       }
-      if (prev !== null && Math.round(prev) !== Math.round(current.intensity)) {
-        this.trigger('carbon_below', { carbon: Math.round(current.intensity) }, { carbon: current.intensity, previous: prev });
+      if (current) {
+        const prev = this.carbonNow;
+        this.carbonNow = current.intensity;
+        await this.setCapabilityValue('measure_octopus_carbon', Math.round(current.intensity)).catch(this.error);
+        if (this.hasCapability('octopus_carbon_level')) {
+          const level = carbonLevelId(current.index);
+          await this.setCapabilityValue('octopus_carbon_level', level).catch(this.error);
+          if (this.previousCarbonLevel !== null && level !== this.previousCarbonLevel) {
+            this.trigger('carbon_level_changed', { level, previous: this.previousCarbonLevel });
+          }
+          this.previousCarbonLevel = level;
+        }
+        if (prev !== null && Math.round(prev) !== Math.round(current.intensity)) {
+          this.trigger('carbon_below', { carbon: Math.round(current.intensity) }, { carbon: current.intensity, previous: prev });
+        }
       }
+      if (renewable !== null && this.hasCapability('measure_renewable_percent')) {
+        this.renewableNow = renewable;
+        await this.setCapabilityValue('measure_renewable_percent', Math.round(renewable)).catch(this.error);
+      }
+      await this.updateGoodNow();
+      this.recordIntegrationDiagnostic('carbon');
+    } catch (err) {
+      this.recordIntegrationDiagnostic('carbon', err);
+      throw err;
     }
-    if (renewable !== null && this.hasCapability('measure_renewable_percent')) {
-      this.renewableNow = renewable;
-      await this.setCapabilityValue('measure_renewable_percent', Math.round(renewable)).catch(this.error);
-    }
-    await this.updateGoodNow();
   }
 
   /** "Good time to use power" = cheap (≤ threshold) and reasonably green, or in a smart-charge dispatch. */

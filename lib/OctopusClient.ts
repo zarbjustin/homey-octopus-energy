@@ -42,6 +42,19 @@ export interface Account {
   balance?: number;
 }
 
+interface ProductTariffSummary {
+  code?: string;
+}
+
+type RegionalTariffs = Record<string, Record<string, ProductTariffSummary>>;
+
+export interface ProductDetails {
+  code: string;
+  single_register_electricity_tariffs?: RegionalTariffs;
+  dual_register_electricity_tariffs?: RegionalTariffs;
+  single_register_gas_tariffs?: RegionalTariffs;
+}
+
 export type FuelType = 'electricity' | 'gas';
 
 /** A single discovered meter, flattened from the account response. */
@@ -218,6 +231,31 @@ export class OctopusClient {
     return matches[0].code;
   }
 
+  async getProduct(productCode: string): Promise<ProductDetails> {
+    return this.get<ProductDetails>(`/products/${encodeURIComponent(productCode)}/`);
+  }
+
+  /** Resolve an actual regional tariff code from the product response. */
+  async tariffCodeForProduct(
+    productCode: string,
+    fuel: FuelType,
+    region: string,
+    registers: 1 | 2 = 1,
+  ): Promise<string | null> {
+    const product = await this.getProduct(productCode);
+    let table: RegionalTariffs | undefined;
+    if (fuel === 'gas') table = product.single_register_gas_tariffs;
+    else if (registers === 2) table = product.dual_register_electricity_tariffs;
+    else table = product.single_register_electricity_tariffs;
+    const paymentMethods = table?.[`_${region.toUpperCase()}`];
+    if (!paymentMethods) return null;
+    for (const preferred of ['direct_debit_monthly', 'direct_debit_quarterly']) {
+      const code = paymentMethods[preferred]?.code;
+      if (code) return code;
+    }
+    return Object.values(paymentMethods).find((tariff) => tariff.code)?.code ?? null;
+  }
+
   // --- Account -------------------------------------------------------------
 
   async getAccount(accountNumber: string): Promise<Account> {
@@ -362,9 +400,11 @@ export class OctopusClient {
       group_by?: string;
     } = {},
   ): Promise<ConsumptionRecord[]> {
+    const meterPoint = encodeURIComponent(mpxn);
+    const meterSerial = encodeURIComponent(serial);
     const base = fuel === 'electricity'
-      ? `/electricity-meter-points/${mpxn}/meters/${serial}/consumption/`
-      : `/gas-meter-points/${mpxn}/meters/${serial}/consumption/`;
+      ? `/electricity-meter-points/${meterPoint}/meters/${meterSerial}/consumption/`
+      : `/gas-meter-points/${meterPoint}/meters/${meterSerial}/consumption/`;
     return this.getAll<ConsumptionRecord>(base, {
       page_size: 25000,
       order_by: 'period',

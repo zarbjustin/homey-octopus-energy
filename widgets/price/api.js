@@ -23,6 +23,7 @@ module.exports = {
 
     return {
       name: device.getName(),
+      freshness: typeof device.getDataFreshness === 'function' ? device.getDataFreshness() : null,
       price: cap('measure_octopus_price'),
       level: cap('octopus_price_level'),
       standing: cap('octopus_standing_charge'),

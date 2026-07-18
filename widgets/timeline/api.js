@@ -13,6 +13,7 @@ module.exports = {
     if (!device) return { error: 'No electricity meter added yet.' };
     return {
       name: device.getName(),
+      freshness: typeof device.getDataFreshness === 'function' ? device.getDataFreshness() : null,
       prices: device.getUpcomingPrices(12),
     };
   },

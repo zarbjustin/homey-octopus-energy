@@ -29,6 +29,7 @@ module.exports = {
 
     return {
       name: device.getName(),
+      freshness: typeof device.getDataFreshness === 'function' ? device.getDataFreshness() : null,
       ...data,
     };
   },

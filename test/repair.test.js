@@ -72,3 +72,41 @@ test('every declared repair view exists and completes rather than entering pairi
     }
   }
 });
+
+test('pairing rejects malformed account numbers before making a request', async () => {
+  const driver = Object.create(OctopusMeterDriver.prototype);
+  driver.fuel = 'electricity';
+  const handlers = {};
+  await driver.onPair({ setHandler: (name, handler) => { handlers[name] = handler; } });
+  await assert.rejects(
+    () => handlers.login({ apiKey: 'key', account: 'not-an-account' }),
+    /should look like A-/,
+  );
+});
+
+test('manual pairing requires all fields and validates the account credentials', async (t) => {
+  let accountChecks = 0;
+  t.mock.method(OctopusClient.prototype, 'getAccount', async () => {
+    accountChecks += 1;
+    return { number: 'A-ONE', properties: [] };
+  });
+  const driver = Object.create(OctopusMeterDriver.prototype);
+  driver.fuel = 'electricity';
+  const handlers = {};
+  await driver.onPair({ setHandler: (name, handler) => { handlers[name] = handler; } });
+
+  await assert.rejects(() => handlers.login({
+    apiKey: 'key', account: 'A-ONE', manual_mpxn: '1234567890123',
+  }), /requires the meter number, serial number, and full tariff code/);
+
+  assert.equal(await handlers.login({
+    apiKey: 'key',
+    account: 'A-ONE',
+    manual_mpxn: '1234567890123',
+    manual_serial: 'SERIAL-1',
+    manual_tariff: 'E-1R-AGILE-A',
+  }), true);
+  assert.equal(accountChecks, 1);
+  const devices = await handlers.list_devices();
+  assert.equal(devices[0].store.mpxn, '1234567890123');
+});

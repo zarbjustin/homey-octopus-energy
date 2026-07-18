@@ -120,3 +120,58 @@ test('latest unit rates returns one bounded page without following history', asy
   assert.strictEqual(calls, 1);
   assert.deepStrictEqual(rates, [{ value_inc_vat: 20 }]);
 });
+
+test('product tariff resolution uses the regional direct-debit code returned by Octopus', async () => {
+  let requestedUrl;
+  const client = new OctopusClient({
+    apiKey: 'secret',
+    fetchImpl: async (url) => {
+      requestedUrl = String(url);
+      return jsonResponse({
+        code: 'AGILE',
+        single_register_electricity_tariffs: {
+          _C: {
+            varying: { code: 'E-1R-AGILE-C-VARYING' },
+            direct_debit_monthly: { code: 'E-1R-AGILE-C' },
+          },
+        },
+      });
+    },
+  });
+
+  const tariff = await client.tariffCodeForProduct('AGILE', 'electricity', 'c', 1);
+  assert.equal(tariff, 'E-1R-AGILE-C');
+  assert.match(requestedUrl, /\/products\/AGILE\/$/);
+});
+
+test('product tariff resolution supports Economy 7 and gas tables', async () => {
+  const client = new OctopusClient({
+    apiKey: 'secret',
+    fetchImpl: async () => jsonResponse({
+      code: 'FLEX',
+      dual_register_electricity_tariffs: {
+        _A: { direct_debit_monthly: { code: 'E-2R-FLEX-A' } },
+      },
+      single_register_gas_tariffs: {
+        _A: { direct_debit_monthly: { code: 'G-1R-FLEX-A' } },
+      },
+    }),
+  });
+
+  assert.equal(await client.tariffCodeForProduct('FLEX', 'electricity', 'A', 2), 'E-2R-FLEX-A');
+  assert.equal(await client.tariffCodeForProduct('FLEX', 'gas', 'A'), 'G-1R-FLEX-A');
+});
+
+test('consumption URL encodes meter path segments', async () => {
+  let requestedUrl;
+  const client = new OctopusClient({
+    apiKey: 'secret',
+    fetchImpl: async (url) => {
+      requestedUrl = String(url);
+      return jsonResponse({ count: 0, next: null, previous: null, results: [] });
+    },
+  });
+
+  await client.consumption('electricity', '123/456', 'SERIAL/ONE');
+  assert.match(requestedUrl, /123%2F456\/meters\/SERIAL%2FONE\/consumption/);
+});

@@ -7,7 +7,7 @@
   <style>
     html, body { margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--homey-text-color, #222); padding: 10px 12px; }
-    .name { font-size: 12px; color: var(--homey-text-color-light, #888); margin-bottom: 6px; }
+    .name { font-size: 12px; color: var(--homey-text-color-light, #888); margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .bars { position: relative; display: flex; align-items: stretch; gap: 2px; height: 90px; }
     .zero-line { position: absolute; left: 0; right: 0; height: 1px; background: rgba(127,127,127,0.42); pointer-events: none; }
     .bar-slot { flex: 1; min-width: 0; position: relative; }
@@ -18,16 +18,23 @@
     .bar.neg { background: #6f42c1; border-radius: 0 0 2px 2px; }
     .axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--homey-text-color-light, #888); margin-top: 4px; }
     .err { font-size: 13px; color: var(--homey-text-color-light, #888); }
+    .freshness { color: #b45309; font-size: 10px; margin-bottom: 5px; }
   </style>
 </head>
 <body>
-  <div id="content"><div class="err">Loading…</div></div>
+  <div id="content" aria-live="polite"><div class="err">Loading…</div></div>
 
   <script type="text/javascript">
     function esc(value) {
       return String(value).replace(/[&<>"']/g, function (char) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
       });
+    }
+    function freshnessHtml(d) {
+      const f = d && d.freshness;
+      if (!f || (!f.problem && !f.stale)) return '';
+      const message = f.problem ? 'Connection issue; showing the last available data.' : 'Data may be out of date.';
+      return '<div class="freshness" role="status">' + esc(message) + '</div>';
     }
     function render(d) {
       const el = document.getElementById('content');
@@ -54,6 +61,7 @@
       });
       function hh(iso) { const dt = new Date(iso); return ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2); }
       el.innerHTML = '<div class="name">' + esc(d.name || 'Electricity') + ' — next ' + (prices.length / 2) + 'h</div>'
+        + freshnessHtml(d)
         + '<div class="bars"><div class="zero-line" style="top:' + zeroTop + '%"></div>' + bars + '</div>'
         + '<div class="axis"><span>' + hh(prices[0].start) + '</span><span>' + hh(prices[prices.length - 1].start) + '</span></div>';
     }

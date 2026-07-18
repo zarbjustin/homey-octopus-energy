@@ -45,10 +45,10 @@ homey app run        # run on a connected Homey
 
 ## Current release
 
-Version `1.0.13` fixes import meters becoming unavailable when a current tariff
-rate is omitted, updates the Octoplus points and Saving Sessions/Power Up API
-integrations, and adds Saving Sessions diagnostics. The quality baseline is 56
-passing release tests. The post-release maintenance baseline is 68 passing tests,
+Version `1.0.14` improves meter Repair and manual pairing, adds privacy-safe
+integration diagnostics and widget data-freshness indicators, shares and bounds
+account API caches, discovers real regional tariff codes for comparisons, and
+strengthens widget accessibility. The quality baseline is 83 passing tests,
 clean lint and dependency audit, and successful Homey publish validation.
 
 ## API reference

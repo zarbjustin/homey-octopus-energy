@@ -1,37 +1,47 @@
 # Project Handover
 
-Last updated: 18 July 2026
+Last updated: 19 July 2026
 
 ## Current state
 
 - Repository: `zarbjustin/homey-octopus-energy` (private), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current version: `1.0.13`; release tag: `v1.0.13`.
+- Current source version: `1.0.14`; release tag: `v1.0.14`.
 - Homey App Store: Build 13 / version `1.0.13` is live.
 - Automatic publication after certification approval is enabled.
 - Test channel: https://homey.app/a/uk.co.zarb.octopusenergy/test/
-- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/13
+- Build 14 / version `1.0.14` has been uploaded but has not yet been promoted to
+  Test or submitted for certification.
+- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/14
 - Community support topic: https://community.homey.app/t/156860
-- Version `1.0.10` was the last confirmed local Homey Pro installation;
-  `1.0.11` and `1.0.12` were metadata-only App Store releases.
-- `main` contains a post-release maintenance candidate for `1.0.14`; it has not
-  been versioned, installed, or published.
-- Validation baseline: 68 tests pass, lint passes, dependency audit reports zero
+- Version `1.0.14` was installed successfully on `Justin's Homey Pro` on
+  19 July 2026. A streamed development-mode startup check could not be run
+  because Docker was not running on the development Mac.
+- `main` contains the `1.0.14` release and matches uploaded Build 14.
+- Validation baseline: 83 tests pass, lint passes, dependency audit reports zero
   known vulnerabilities, and Homey `publish` validation passes.
 
-## Post-v1.0.13 maintenance candidate
+## What v1.0.14 contains
 
 - Adds the missing custom Repair views for electricity, gas, and export meters.
-- Makes Repair wait for in-flight work, apply credentials through the device,
-  clear account-scoped caches, and discard a cached Home Mini device id.
+- Makes Repair wait for in-flight work, apply credentials transactionally with
+  rollback, clear account-scoped caches, and discard a cached Home Mini device id.
+- Validates manual meter identities and verifies account credentials before a
+  manually entered meter can be paired.
+- Shares Kraken clients and dispatch requests per account, deduplicates concurrent
+  requests, and bounds app-level caches.
+- Adds privacy-safe per-integration diagnostics and device freshness state without
+  exposing API keys, full account numbers, meter numbers, or serials.
 - Stops plunge-price triggers and notifications repeating for every consecutive
   negative-price slot.
 - Requires both price and carbon data for the Flow condition that promises both
   thresholds.
 - Prices partial final EV charge slots using only the requested energy.
-- Uses one-register candidate tariff codes when comparing from Economy 7.
+- Discovers real regional tariff codes from Octopus product metadata when
+  comparing tariffs, including Economy 7 and gas tariff tables.
 - Prevents stale widget settings from silently displaying another meter and
-  escapes user/upstream text rendered by widgets.
+  escapes user/upstream text rendered by widgets. Widgets now expose stale or
+  unhealthy data, accessible live regions and controls, and resilient long names.
 - Updates user-facing Free Electricity wording to Octopus Power Up while keeping
   the existing Flow IDs for compatibility.
 
@@ -79,7 +89,7 @@ Sprints 33-39 completed the bug-bash hardening phase:
 
 ## Architecture map
 
-- `app.ts`: app-level Flow registration, shared balance cache, account pollers.
+- `app.ts`: app-level Flow registration, bounded account clients/caches, pollers.
 - `lib/OctopusClient.ts`: authenticated Octopus REST client and pagination.
 - `lib/KrakenClient.ts`: Octopus GraphQL/Kraken account and smart-device calls.
 - `lib/OctopusMeterDevice.ts`: shared refresh, pricing, consumption, reporting,
@@ -104,7 +114,8 @@ Sprints 33-39 completed the bug-bash hardening phase:
   real credentials in logs, screenshots, fixtures, issues, or documentation.
 - Repair must preserve MPAN/MPRN and serial identity. A replacement meter should
   be added as a new device rather than silently changing an existing device.
-- App-level Saving Session and dispatch state must remain keyed by account.
+- App-level clients, Saving Session state, and dispatch state must remain keyed by
+  account; cached credentials must be invalidated when an API key changes.
 - Price-window helpers must include an active slot where appropriate and verify
   actual half-hour adjacency before calling a block contiguous.
 - Import and export devices expose only the cumulative direction they measure.
@@ -136,14 +147,12 @@ validation error should be investigated.
 
 ## Next actions
 
-1. Install the maintenance candidate on the local Homey Pro and smoke-test Repair
-   for one electricity meter plus gas/export where available.
-2. Confirm an existing meter retains its Flows and cumulative history after
-   Repair, and that invalid credentials leave the device unchanged.
-3. Bump the patch version to `1.0.14`, add the changelog, commit/tag/push, and
-   publish only after the local Repair smoke test passes.
-4. Continue monitoring the live `1.0.13` tariff and GraphQL fixes through
-   diagnostics and community feedback.
+1. Confirm the installed `1.0.14` meters continue refreshing normally.
+2. Smoke-test Repair for one electricity meter plus gas/export where available;
+   confirm invalid credentials leave the existing device unchanged.
+3. Publish Build 14 to Test and submit it for certification after the local meter
+   and Repair checks pass.
+4. Monitor the new integration diagnostics and community feedback after release.
 
 ## Useful release commits
 

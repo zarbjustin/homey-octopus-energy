@@ -12,7 +12,7 @@
       padding: 12px 14px;
     }
     .row { display: flex; align-items: baseline; justify-content: space-between; }
-    .name { font-size: 12px; color: var(--homey-text-color-light, #888); }
+    .name { font-size: 12px; color: var(--homey-text-color-light, #888); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .badge {
       font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
       color: #fff; background: #888; text-transform: capitalize;
@@ -28,10 +28,11 @@
     .cheap-line { font-size: 12px; margin-top: 8px; }
     .cheap-line .hl { color: #2ecc71; font-weight: 600; }
     .err { font-size: 13px; color: var(--homey-text-color-light, #888); }
+    .freshness { color: #b45309; font-size: 10px; margin-top: 5px; }
   </style>
 </head>
 <body>
-  <div id="content">
+  <div id="content" aria-live="polite">
     <div class="err">Loading…</div>
   </div>
 
@@ -47,6 +48,13 @@
       });
     }
 
+    function freshnessHtml(d) {
+      const f = d && d.freshness;
+      if (!f || (!f.problem && !f.stale)) return '';
+      const message = f.problem ? 'Connection issue; showing the last available data.' : 'Data may be out of date.';
+      return '<div class="freshness" role="status">' + esc(message) + '</div>';
+    }
+
     function render(d) {
       const el = document.getElementById('content');
       if (!d || d.error) {
@@ -58,6 +66,7 @@
       let html = '';
       html += '<div class="row"><span class="name">' + esc(d.name || 'Electricity') + '</span>';
       html += '<span class="badge ' + level + '">' + level + '</span></div>';
+      html += freshnessHtml(d);
       html += '<div class="price">' + fmt(d.price) + ' <small>p/kWh</small></div>';
       html += '<div class="meta">';
       if (d.power !== null && d.power !== undefined) html += '<span>Now <b>' + Math.round(d.power) + ' W</b></span>';

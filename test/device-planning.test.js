@@ -90,6 +90,7 @@ test('tariff comparison uses one-register codes for candidates from an Economy 7
   device.client = {
     consumption: async () => records,
     findProductCode: async (fragment) => fragment.toUpperCase(),
+    tariffCodeForProduct: async (code) => `E-1R-${code}-A`,
     registerUnitRates: async () => rates,
     standardUnitRates: async (_fuel, _product, tariff) => {
       candidateTariffs.push(tariff);
@@ -109,4 +110,17 @@ test('tariff comparison uses one-register codes for candidates from an Economy 7
     'E-1R-GO-A',
     'E-1R-FLEXIBLE-A',
   ]);
+});
+
+test('zoned tariff boundaries preserve 23-hour and 25-hour UK DST days', () => {
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.homey = { clock: { getTimezone: () => 'Europe/London' } };
+
+  const springStart = device.zonedTime(2026, 3, 29);
+  const springEnd = device.zonedTime(2026, 3, 30);
+  const autumnStart = device.zonedTime(2026, 10, 25);
+  const autumnEnd = device.zonedTime(2026, 10, 26);
+
+  assert.equal(springEnd.getTime() - springStart.getTime(), 23 * 3600_000);
+  assert.equal(autumnEnd.getTime() - autumnStart.getTime(), 25 * 3600_000);
 });

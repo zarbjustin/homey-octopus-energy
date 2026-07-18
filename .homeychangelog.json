@@ -40,5 +40,8 @@
   },
   "1.0.13": {
     "en": "Fixes electricity meters going offline when current tariff rates are omitted, updates Octoplus points and Saving Sessions/Power Up integrations, and adds Saving Sessions diagnostics."
+  },
+  "1.0.14": {
+    "en": "Improves meter Repair and pairing reliability, adds privacy-safe integration diagnostics and data freshness indicators, strengthens tariff comparison and account caching, and improves widget accessibility."
   }
 }

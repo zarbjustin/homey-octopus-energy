@@ -36,7 +36,15 @@ export class OctopusMeterDriver extends Homey.Driver {
     const acc = String(account ?? '').trim().toUpperCase();
     if (!key) throw new Error('Please enter your Octopus API key.');
     if (!acc) throw new Error('Please enter your account number (e.g. A-AAAA1111).');
+    if (!/^A-[A-Z0-9]+$/.test(acc)) {
+      throw new Error('Your Octopus account number should look like A-XXXXXXXX.');
+    }
     return { apiKey: key, accountNumber: acc };
+  }
+
+  private async validateCredentials(creds: Creds): Promise<void> {
+    const client = new OctopusClient({ apiKey: creds.apiKey });
+    await client.getAccount(creds.accountNumber);
   }
 
   private async discover(creds: Creds): Promise<DiscoveredMeter[]> {
@@ -92,12 +100,29 @@ export class OctopusMeterDriver extends Homey.Driver {
       manual_mpxn?: string; manual_serial?: string; manual_tariff?: string;
     }) => {
       const creds = this.normalise(data.apiKey, data.account);
-      if (data.manual_mpxn && data.manual_serial && data.manual_tariff) {
-        const tariffCode = String(data.manual_tariff).trim().toUpperCase();
+      const manual = [data.manual_mpxn, data.manual_serial, data.manual_tariff]
+        .map((value) => String(value ?? '').trim());
+      if (manual.some(Boolean) && !manual.every(Boolean)) {
+        throw new Error('Manual setup requires the meter number, serial number, and full tariff code.');
+      }
+      if (manual.every(Boolean)) {
+        const [mpxn, serial, rawTariff] = manual;
+        if (!/^\d{6,20}$/.test(mpxn)) {
+          throw new Error('The MPAN or MPRN must contain digits only.');
+        }
+        if (!/^[A-Za-z0-9 ._-]{1,64}$/.test(serial)) {
+          throw new Error('The meter serial number contains unsupported characters.');
+        }
+        const expectedPrefix = this.fuel === 'gas' ? 'G-' : 'E-';
+        const tariffCode = rawTariff.toUpperCase();
+        if (!tariffCode.startsWith(expectedPrefix) || !/^[EG]-\d+R-[A-Z0-9-]+-[A-P]$/.test(tariffCode)) {
+          throw new Error(`Enter a full ${this.fuel} tariff code including its region letter.`);
+        }
+        await this.validateCredentials(creds);
         this.pairMeters = [{
           fuel: this.fuel,
-          mpxn: String(data.manual_mpxn).trim(),
-          serial: String(data.manual_serial).trim(),
+          mpxn,
+          serial,
           isExport: this.fuel === 'electricity' ? this.manualIsExport() : false,
           tariffCode,
           productCode: productCodeFromTariff(tariffCode),

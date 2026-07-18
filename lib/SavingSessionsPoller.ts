@@ -1,7 +1,7 @@
 'use strict';
 
 import { AccountPoller } from './AccountPoller';
-import { KrakenClient, SavingSession } from './KrakenClient';
+import { SavingSession } from './KrakenClient';
 
 interface PollerState {
   known: string[];
@@ -37,7 +37,7 @@ export class SavingSessionsPoller extends AccountPoller {
   }
 
   private async pollAccount(creds: { apiKey: string; accountNumber: string }): Promise<void> {
-    const client = new KrakenClient(creds.apiKey);
+    const client = this.kraken(creds);
     const attemptedAt = new Date().toISOString();
     let sessions: SavingSession[] = [];
     try {
