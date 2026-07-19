@@ -42,22 +42,37 @@ capability and Flow IDs unless a migration is explicitly documented.
 43. **P0 - Intelligent dispatch truth model** - model linked smart devices, SMART versus
     BOOST dispatches, multiple devices, overlaps, late changes, DST, and Octopus's
     midday-to-midday dispatch limit; distinguish dispatch windows from settlement prices.
+    Audit the existing `dispatch_started`, `dispatch_ended`, `dispatch_completed`, and
+    `dispatch_active` contracts so planned windows are not presented as confirmed charging.
+    Preserve their IDs while representing planned, active, completed, cancelled and unknown
+    states honestly, including dispatch type and confidence where the source supports them.
 44. **P1 - Dispatch and effective-price Flows** - expose current/next dispatch details,
-    device and dispatch type tokens, effective import price, and the finalised previous
-    half-hour price while retaining all existing Flow card IDs.
+    device and dispatch type tokens, household base rate, estimated current effective rate,
+    and the finalised previous half-hour rate while retaining all existing Flow card IDs.
+    Add changed/cancelled and price-finalised triggers only after Sprint 43 defines their
+    event truth; expose EV peak/off-peak rates and the midday-to-midday allowance separately
+    from household pricing rather than folding them into one ambiguous current-price value.
 45. **P1 - Billing-period summary** - discover the billing-period start with a user
     override and report import, export, cost/value, standing charge, net position,
     projection, and confidence; rebuild official REST history after restart.
-46. **P1 - Live-energy presentation** - expose import, export, and net demand with source
-    timestamp and freshness while preserving `measure_power` and Homey Energy behaviour.
+46. **P1 - Live-energy presentation and widgets** - expose import, export, and net demand
+    with source timestamp and freshness while preserving `measure_power` and Homey Energy
+    behaviour. Update widgets to separate household and EV pricing, planned and finalised
+    dispatch outcomes, and current, stale, estimated and unknown values without implying
+    that a plan is confirmed settlement data.
 47. **P2 - Planner and tariff analytics** - add earliest/latest/random tie strategies,
     richer import/export plan tokens, relative daily price bands, negative-price and spike
-    handling, weighted averages, off-peak share, and estimated savings.
+    handling, weighted averages, off-peak share, and estimated savings. Keep tariff-specific
+    comparisons and visualisations here rather than expanding the Sprint 41 recovery path.
 48. **P3 - Estimated live-gas pilot** - investigate an opt-in GraphQL estimate, label it
     clearly as estimated or stale, and reconcile it against official REST consumption
     before considering general release.
 
 ### Backlog gates
+- Sprint 41 is merged to `main`, but release promotion requires a fresh diagnostic from the
+  affected IOG account showing that current household prices recover through the intended
+  contract. Publish a patch to Homey Test first; do not claim the incident fixed or promote
+  to production solely from synthetic contract tests.
 - Sprints 42-43 require focused unit and integration fixtures before release work begins.
 - Experimental GraphQL fields must fail closed and must not replace official REST billing
   data without reconciliation.
