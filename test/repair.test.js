@@ -110,3 +110,57 @@ test('manual pairing requires all fields and validates the account credentials',
   const devices = await handlers.list_devices();
   assert.equal(devices[0].store.mpxn, '1234567890123');
 });
+
+test('overlapping pairing sessions keep credentials and meters isolated', async (t) => {
+  t.mock.method(OctopusClient.prototype, 'discoverMeters', async (account) => {
+    if (account === 'A-ONE') {
+      await new Promise((resolve) => { setTimeout(resolve, 10); });
+    }
+    return [{
+      fuel: 'electricity',
+      mpxn: account === 'A-ONE' ? '1111111111111' : '2222222222222',
+      serial: account === 'A-ONE' ? 'SERIAL-ONE' : 'SERIAL-TWO',
+      isExport: false,
+      tariffCode: 'E-1R-AGILE-A',
+      productCode: 'AGILE',
+    }];
+  });
+  const driver = Object.create(OctopusMeterDriver.prototype);
+  driver.fuel = 'electricity';
+  const first = {};
+  const second = {};
+
+  await driver.onPair({ setHandler: (name, handler) => { first[name] = handler; } });
+  await driver.onPair({ setHandler: (name, handler) => { second[name] = handler; } });
+  await Promise.all([
+    first.login({ apiKey: 'key-one', account: 'A-ONE' }),
+    second.login({ apiKey: 'key-two', account: 'A-TWO' }),
+  ]);
+
+  const [firstDevices, secondDevices] = await Promise.all([
+    first.list_devices(),
+    second.list_devices(),
+  ]);
+  assert.equal(firstDevices[0].store.apiKey, 'key-one');
+  assert.equal(firstDevices[0].store.accountNumber, 'A-ONE');
+  assert.equal(firstDevices[0].store.mpxn, '1111111111111');
+  assert.equal(secondDevices[0].store.apiKey, 'key-two');
+  assert.equal(secondDevices[0].store.accountNumber, 'A-TWO');
+  assert.equal(secondDevices[0].store.mpxn, '2222222222222');
+});
+
+test('failed pairing login clears any earlier session credentials', async (t) => {
+  t.mock.method(OctopusClient.prototype, 'discoverMeters', async () => [{
+    fuel: 'electricity', mpxn: '1111111111111', serial: 'SERIAL', isExport: false,
+    tariffCode: 'E-1R-AGILE-A', productCode: 'AGILE',
+  }]);
+  const driver = Object.create(OctopusMeterDriver.prototype);
+  driver.fuel = 'electricity';
+  const handlers = {};
+  await driver.onPair({ setHandler: (name, handler) => { handlers[name] = handler; } });
+
+  await handlers.login({ apiKey: 'key-one', account: 'A-ONE' });
+  assert.equal((await handlers.list_devices()).length, 1);
+  await assert.rejects(() => handlers.login({ apiKey: 'key-two', account: 'invalid' }));
+  assert.deepEqual(await handlers.list_devices(), []);
+});

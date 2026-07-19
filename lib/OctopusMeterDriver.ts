@@ -27,10 +27,6 @@ export class OctopusMeterDriver extends Homey.Driver {
 
   protected fuel: FuelType = 'electricity';
 
-  private pairCreds: Creds | null = null;
-
-  private pairMeters: DiscoveredMeter[] = [];
-
   private normalise(apiKey: unknown, account: unknown): Creds {
     const key = String(apiKey ?? '').trim();
     const acc = String(account ?? '').trim().toUpperCase();
@@ -52,7 +48,7 @@ export class OctopusMeterDriver extends Homey.Driver {
     const meters = await client.discoverMeters(creds.accountNumber);
     const matching = meters.filter((m) => this.accepts(m));
     if (!matching.length) {
-      throw new Error(`No matching meters were found on account ${creds.accountNumber}.`);
+      throw new Error('No matching meters were found on this Octopus account.');
     }
     return matching;
   }
@@ -95,10 +91,16 @@ export class OctopusMeterDriver extends Homey.Driver {
   }
 
   async onPair(session: Homey.Driver.PairSession): Promise<void> {
+    // Homey keeps one Driver instance, so state must belong to this PairSession.
+    let pairCreds: Creds | null = null;
+    let pairMeters: DiscoveredMeter[] = [];
+
     session.setHandler('login', async (data: {
       apiKey: string; account: string;
       manual_mpxn?: string; manual_serial?: string; manual_tariff?: string;
     }) => {
+      pairCreds = null;
+      pairMeters = [];
       const creds = this.normalise(data.apiKey, data.account);
       const manual = [data.manual_mpxn, data.manual_serial, data.manual_tariff]
         .map((value) => String(value ?? '').trim());
@@ -119,7 +121,7 @@ export class OctopusMeterDriver extends Homey.Driver {
           throw new Error(`Enter a full ${this.fuel} tariff code including its region letter.`);
         }
         await this.validateCredentials(creds);
-        this.pairMeters = [{
+        pairMeters = [{
           fuel: this.fuel,
           mpxn,
           serial,
@@ -128,15 +130,15 @@ export class OctopusMeterDriver extends Homey.Driver {
           productCode: productCodeFromTariff(tariffCode),
         }];
       } else {
-        this.pairMeters = await this.discover(creds);
+        pairMeters = await this.discover(creds);
       }
-      this.pairCreds = creds;
+      pairCreds = creds;
       return true;
     });
 
     session.setHandler('list_devices', async () => {
-      if (!this.pairCreds) return [];
-      return this.pairMeters.map((m) => this.toDevice(m, this.pairCreds as Creds));
+      if (!pairCreds) return [];
+      return pairMeters.map((meter) => this.toDevice(meter, pairCreds as Creds));
     });
   }
 

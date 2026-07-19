@@ -25,12 +25,11 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
 Priorities reflect dependencies and user impact. Each sprint should preserve existing
 capability and Flow IDs unless a migration is explicitly documented.
 
-40. **P0 - Reconcile security PR #1** - selectively port the still-useful API-boundary
-    protections onto current `main`: manual redirect handling, HTTPS/origin enforcement,
-    redacted API errors, standards-compliant `Retry-After` backoff, pagination validation,
-    and pair-session isolation. Preserve the current identity-safe repair lifecycle and
-    compatibility with valid Octopus account formats. Close PR #1 and delete
-    `security/sprints-1-2` when the replacement is merged.
+40. **COMPLETE - Security PR #1 reconciliation** - selectively ported manual redirect
+    handling, HTTPS/origin enforcement, redacted API errors, standards-compliant
+    `Retry-After` backoff, pagination validation, and pair-session isolation onto current
+    `main`. The current identity-safe repair lifecycle and valid Octopus account-format
+    compatibility were preserved; the original PR and branch are superseded.
 41. **P0 - Kraken collaboration and contract research** - agree attribution and reuse
     boundaries with David Piper; capture sanitised GraphQL fixtures; document Home Mini,
     Intelligent Octopus, device, dispatch, and relative-price semantics before coding.
