@@ -2,8 +2,29 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const { KrakenClient } = require('../.homeybuild/lib/KrakenClient.js');
+
+function fixture(name) {
+  return JSON.parse(fs.readFileSync(
+    path.join(__dirname, 'fixtures', 'kraken', `${name}.json`),
+    'utf8',
+  ));
+}
+
+test('Kraken fixtures are synthetic and contain no credential-shaped data', () => {
+  const directory = path.join(__dirname, 'fixtures', 'kraken');
+  for (const name of fs.readdirSync(directory).filter((entry) => entry.endsWith('.json'))) {
+    const text = fs.readFileSync(path.join(directory, name), 'utf8');
+    assert.doesNotMatch(text, /sk_live|Bearer\s|Authorization|API[-_ ]?key/i, name);
+    assert.doesNotMatch(text, /"accountNumber"|"mpan"|"mprn"|"serialNumber"/i, name);
+    for (const match of text.matchAll(/"(?:deviceId|integrationDeviceId|id)"\s*:\s*"([^"]+)"/g)) {
+      assert.match(match[1], /^synthetic-/, `${name}: identifier must be visibly synthetic`);
+    }
+  }
+});
 
 function jsonResponse(body) {
   return new Response(JSON.stringify(body), {
@@ -107,6 +128,96 @@ test('Kraken Octoplus points uses the current account-number balance query', asy
   assert.equal(points, 510);
   assert.match(requests[1].query, /loyaltyPointsBalance\(input: \{ accountNumber: \$accountNumber \}\)/);
   assert.doesNotMatch(requests[1].query, /loyaltyPointLedgers/);
+});
+
+test('active day/night tariff uses the matching account agreement', async (t) => {
+  const requests = [];
+  const response = fixture('active-day-night-tariff');
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    requests.push(request);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  const tariff = await new KrakenClient('api-key').getActiveDayNightTariff(
+    'A-ONE',
+    'E-1R-IOG-SYNTHETIC-26-01-01-C',
+  );
+
+  assert.deepEqual(tariff, {
+    tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
+    productCode: 'IOG-SYNTHETIC-26-01-01',
+    displayName: 'Synthetic Intelligent Go',
+    dayRate: 31.5,
+    nightRate: 8,
+    preVatDayRate: 30,
+    preVatNightRate: 7.619,
+    standingCharge: 49.2,
+  });
+  assert.match(requests[1].query, /electricityAgreements\(active: true\)/);
+  assert.match(requests[1].query, /\.\.\. on DayNightTariff/);
+});
+
+test('active day/night tariff fails closed for a different agreement', async (t) => {
+  const response = fixture('active-day-night-tariff');
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  const tariff = await new KrakenClient('api-key').getActiveDayNightTariff(
+    'A-ONE',
+    'E-1R-IOG-DIFFERENT-26-01-01-C',
+  );
+
+  assert.equal(tariff, null);
+});
+
+test('Home Mini discovery and telemetry use sanitized contract fixtures', async (t) => {
+  const discovery = fixture('home-mini-discovery');
+  const telemetry = fixture('home-mini-telemetry');
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    if (request.query.includes('SmartDevices')) return jsonResponse(discovery);
+    return jsonResponse(telemetry);
+  });
+  const client = new KrakenClient('api-key');
+
+  const deviceId = await client.getElectricityDeviceId('A-ONE');
+  const demand = await client.getDemand(deviceId);
+
+  assert.equal(deviceId, 'synthetic-mini-device');
+  assert.equal(demand, -215);
+});
+
+test('account dispatch contracts normalize rows and discard incomplete periods', async (t) => {
+  const response = fixture('dispatches');
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+  const client = new KrakenClient('api-key');
+
+  assert.deepEqual(await client.getPlannedDispatches('A-ONE'), [{
+    start: '2026-01-01T23:00:00Z',
+    end: '2026-01-02T00:00:00Z',
+  }]);
+  assert.deepEqual(await client.getCompletedDispatches('A-ONE'), [{
+    start: '2026-01-01T10:00:00Z',
+    end: '2026-01-01T10:30:00Z',
+  }]);
 });
 
 test('Octoplus points returns null (unsupported) when Kraken answers Unauthorized', async (t) => {

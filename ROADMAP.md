@@ -30,10 +30,13 @@ capability and Flow IDs unless a migration is explicitly documented.
     `Retry-After` backoff, pagination validation, and pair-session isolation onto current
     `main`. The current identity-safe repair lifecycle and valid Octopus account-format
     compatibility were preserved; the original PR and branch are superseded.
-41. **NEXT - P0 - Kraken collaboration and contract research** - agree attribution and reuse
-    boundaries with David Piper; capture sanitised GraphQL fixtures; document Home Mini,
-    Intelligent Octopus, device, dispatch, and relative-price semantics before coding.
-42. **P0 - Shared Home Mini live-data poller** - add an account-scoped poller with
+41. **COMPLETE - P0 - Kraken collaboration and contract research** - documented current
+    Home Mini, tariff-union, device, dispatch, relative-price, authority, failure and
+    privacy contracts; added sanitised synthetic fixtures and contract tests; recorded
+    David Piper's repository provenance and the no-reuse boundary while explicit
+    permission/attribution terms remain unrecorded. Added an original, fail-closed IOG
+    day/night recovery candidate without treating dispatch intent as settlement price.
+42. **NEXT - P0 - Shared Home Mini live-data poller** - add an account-scoped poller with
     configurable 1/2/3/5-minute cadence, request deduplication, freshness timestamps,
     backoff, lightweight diagnostics, and separate fast/slow refresh paths.
 43. **P0 - Intelligent dispatch truth model** - model linked smart devices, SMART versus
@@ -55,11 +58,13 @@ capability and Flow IDs unless a migration is explicitly documented.
     before considering general release.
 
 ### Backlog gates
-- Sprints 41-43 require focused unit and integration fixtures before release work begins.
+- Sprints 42-43 require focused unit and integration fixtures before release work begins.
 - Experimental GraphQL fields must fail closed and must not replace official REST billing
   data without reconciliation.
 - Features derived from `com.kraken.energy` require David Piper's explicit permission and
   appropriate attribution before implementation is merged.
+- Sprint 41's original implementation is based on public Octopus contracts and does not
+  grant permission to copy or adapt David Piper's implementation in later sprints.
 
 ## Sprints
 1. **Foundation & API client** — tsconfig/types fix, `OctopusClient`, account/tariff helpers, unit tests.

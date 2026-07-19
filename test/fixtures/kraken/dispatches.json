@@ -1,0 +1,37 @@
+{
+  "data": {
+    "plannedDispatches": [
+      {
+        "start": "2026-01-01T23:00:00Z",
+        "end": "2026-01-02T00:00:00Z"
+      },
+      {
+        "start": null,
+        "end": "2026-01-02T01:00:00Z"
+      }
+    ],
+    "completedDispatches": [
+      {
+        "start": "2026-01-01T10:00:00Z",
+        "end": "2026-01-01T10:30:00Z",
+        "delta": "3.2",
+        "meta": {
+          "source": "synthetic-source",
+          "location": "synthetic-location"
+        }
+      }
+    ],
+    "flexPlannedDispatches": [
+      {
+        "start": "2026-01-01T14:00:00Z",
+        "end": "2026-01-01T14:30:00Z",
+        "type": "SMART"
+      },
+      {
+        "start": "2026-01-01T15:00:00Z",
+        "end": "2026-01-01T15:30:00Z",
+        "type": "BOOST"
+      }
+    ]
+  }
+}

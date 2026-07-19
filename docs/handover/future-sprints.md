@@ -4,7 +4,7 @@ Last updated: 19 July 2026
 
 ## Objective
 
-This is the starting point for an engineer or AI model taking on Sprints 41-48.
+This is the starting point for an engineer or AI model taking on Sprints 42-48.
 It supplements `HANDOVER.md` and `ROADMAP.md`; it does not replace either file.
 
 Work on one explicitly selected sprint at a time. Confirm its contracts and
@@ -19,10 +19,13 @@ silently pull later-sprint scope forward.
   after approval. Build 13 / `1.0.13` remains live until approval.
 - Build 14 was retracted from certification and superseded by Build 15.
 - `1.0.15` has been installed successfully on the local Homey Pro.
-- Baseline: 108 tests, clean lint and dependency audit, publish validation passes
-  with exactly two documented cumulative-direction warnings.
-- The import current-price incident is only partially resolved. Do not infer that
-  a future sprint may remove its diagnostics or relax stale-price safeguards.
+- Released `main` baseline: 108 tests. Sprint 41's branch baseline is 117 tests,
+  with clean lint and dependency audit; publish validation has exactly the two
+  documented cumulative-direction warnings.
+- Sprint 41 is complete on `sprint-41-kraken-contracts`. Review and merge it
+  before starting Sprint 42.
+- The import current-price incident has a candidate IOG recovery but is not
+  field-confirmed or released. Do not remove its diagnostics or relax safeguards.
 
 ## Required reading order
 
@@ -38,34 +41,34 @@ assume this document is newer than remote `main`.
 
 ## Recommended order
 
-1. **Sprint 41: contract research.** Document GraphQL shapes, ownership,
-   attribution, data authority, failure semantics, and privacy-safe fixtures.
-2. **Sprint 42: shared Home Mini poller.** Establish one account-scoped live-data
+1. **Sprint 42: shared Home Mini poller.** Establish one account-scoped live-data
    source with deduplication, freshness, cadence, and backoff.
-3. **Sprint 43: dispatch truth model.** Define linked devices and SMART/BOOST
+2. **Sprint 43: dispatch truth model.** Define linked devices and SMART/BOOST
    dispatch semantics before exposing additional automation.
-4. **Sprint 44: dispatch/effective-price Flows.** Build on the Sprint 43 model;
+3. **Sprint 44: dispatch/effective-price Flows.** Build on the Sprint 43 model;
    preserve all existing Flow card and capability IDs.
-5. **Sprint 45: billing-period summary.** Keep official REST history authoritative
+4. **Sprint 45: billing-period summary.** Keep official REST history authoritative
    and label projections and confidence explicitly.
-6. **Sprint 46: live-energy presentation.** Reuse the Sprint 42 source while
+5. **Sprint 46: live-energy presentation.** Reuse the Sprint 42 source while
    preserving `measure_power` and Homey Energy behavior.
-7. **Sprint 47: planner and tariff analytics.** Preserve negative prices, complete
+6. **Sprint 47: planner and tariff analytics.** Preserve negative prices, complete
    plans, contiguous-slot checks, and current-slot eligibility.
-8. **Sprint 48: estimated live-gas pilot.** Keep it opt-in, clearly estimated,
+7. **Sprint 48: estimated live-gas pilot.** Keep it opt-in, clearly estimated,
    freshness-aware, and reconciled against official REST data.
 
 Sprint 44 depends on Sprint 43. Sprint 46 should reuse Sprint 42. Sprint 48 stays
 last because it is explicitly experimental. Sprint 45 or 47 may be planned while
 41-43 are being researched, but shared contracts must not be duplicated.
 
-## Sprint 41 gate
+## Sprint 41 outcome and continuing reuse gate
 
-David Piper's `db-piper/com.kraken.energy` repository may be reviewed for ideas,
-but no implementation should copy or adapt its code until explicit permission,
-reuse boundaries, licence implications, and attribution are recorded. If that
-permission is still absent, Sprint 41 should produce original research and
-contract documentation only.
+Sprint 41 produced original research, synthetic fixtures and an independently
+implemented fail-closed IOG candidate. Its detailed result and provenance record
+are in `docs/research/kraken-contracts.md`.
+
+David Piper's `db-piper/com.kraken.energy` repository may still be reviewed for
+ideas, but no implementation may copy or adapt its code until explicit permission,
+reuse boundaries, licence implications and attribution are recorded.
 
 Any GraphQL fixture must be sanitised. Never commit API keys, account numbers,
 MPANs/MPRNs, serials, Homey device IDs, authorization headers, exact user payloads,
@@ -143,9 +146,9 @@ I explicitly request analysis only. Follow existing architecture and preserve al
 Homey capability, driver, widget, and Flow IDs. Keep account data isolated,
 diagnostics privacy-safe, and official REST data authoritative for billing.
 
-For Sprint 41 or code influenced by db-piper/com.kraken.energy, do not copy or
-adapt code until explicit permission and attribution terms are documented. Public
-contract research and an original implementation remain acceptable.
+For code influenced by db-piper/com.kraken.energy, do not copy or adapt code until
+explicit permission and attribution terms are documented. Public contract research
+and an original implementation remain acceptable.
 
 Add focused tests proportional to risk. Run lint, the full test suite, npm audit,
 git diff --check, and Homey publish validation. Treat the two documented

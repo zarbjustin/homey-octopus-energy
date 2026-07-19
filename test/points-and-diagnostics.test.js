@@ -132,3 +132,68 @@ test('a price gap logs a privacy-safe diagnostic shape and throws', async () => 
   // The diagnostic must never leak identifiers.
   assert.doesNotMatch(json, /E-1R-VAR-22-11-01-A|A-ONE/);
 });
+
+test('IOG is classified as dynamic', () => {
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({ productCode: 'IOG-VAR-26-01-01' });
+
+  assert.equal(device.isDynamicTariff(), true);
+});
+
+test('IOG price gaps recover from account day/night rates', async () => {
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({
+    accountNumber: 'A-ONE', fuel: 'electricity', isExport: false,
+    productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C',
+  });
+  device.homey = { clock: { getTimezone: () => 'Europe/London' } };
+  device.kraken = {
+    getActiveDayNightTariff: async () => ({
+      dayRate: 31.5, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7.619,
+    }),
+  };
+  device.log = () => {};
+
+  const rates = await device.intelligentGoFallbackRates();
+  const midnightRate = rates.find((rate) => rate.valid_from.endsWith('T00:00:00.000Z'));
+  const middayRate = rates.find((rate) => rate.valid_from.endsWith('T12:00:00.000Z'));
+
+  assert.ok(rates.length >= 5 * 46, 'five local days should be represented across DST');
+  assert.equal(midnightRate.value_inc_vat, 8);
+  assert.equal(midnightRate.value_exc_vat, 7.619);
+  assert.equal(middayRate.value_inc_vat, 31.5);
+  assert.equal(middayRate.value_exc_vat, 30);
+});
+
+test('IOG account-rate recovery fails closed for unsupported agreement shapes', async () => {
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({
+    accountNumber: 'A-ONE', fuel: 'electricity', isExport: false,
+    productCode: 'IOG-SYNTHETIC-26-01-01',
+    tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
+  });
+  device.homey = { clock: { getTimezone: () => 'Europe/London' } };
+  device.kraken = { getActiveDayNightTariff: async () => null };
+  device.log = () => {};
+
+  assert.equal(await device.intelligentGoFallbackRates(), null);
+});
+
+test('IOG account-rate recovery fails closed when GraphQL is unavailable', async () => {
+  const logs = [];
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({
+    accountNumber: 'A-ONE', fuel: 'electricity', isExport: false,
+    productCode: 'IOG-SYNTHETIC-26-01-01',
+    tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
+  });
+  device.homey = { clock: { getTimezone: () => 'Europe/London' } };
+  device.kraken = {
+    getActiveDayNightTariff: async () => { throw new Error('Unsupported GraphQL field'); },
+  };
+  device.log = (...args) => logs.push(args.join(' '));
+
+  assert.equal(await device.intelligentGoFallbackRates(), null);
+  assert.equal(logs.length, 1);
+  assert.doesNotMatch(logs[0], /A-ONE|E-1R-/);
+});

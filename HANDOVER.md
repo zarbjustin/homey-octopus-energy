@@ -19,33 +19,33 @@ Last updated: 19 July 2026
 - `main` contains the `1.0.15` release (tag `v1.0.15`, merge `16e5143`).
 - Version `1.0.15` was built, validated, packed, and installed successfully on
   `Justin's Homey Pro` on 19 July 2026.
-- Validation baseline: 108 tests pass, lint passes, dependency audit reports zero
-  known vulnerabilities, and Homey `publish` validation passes.
+- Released `main` baseline: 108 tests pass. Sprint 41's branch baseline is 117
+  tests; lint, dependency audit and Homey publish validation pass as recorded below.
 
 ## Next-model entry point
 
-- Future feature work starts with Sprint 41 in `ROADMAP.md`; Sprints 41-48 are
-  not implemented unless explicitly marked otherwise there.
+- Sprint 41 is complete on `sprint-41-kraken-contracts`; future feature work
+  starts with Sprint 42 after Sprint 41 is reviewed and merged.
 - Read `docs/handover/future-sprints.md` before selecting or implementing a
   future sprint. It contains the dependency order, acceptance gates, current
   release boundaries, and a copyable prompt for another AI model.
-- Sprint 41 is research and contract definition first. David Piper's code must
-  not be copied or adapted until explicit reuse permission and attribution terms
-  are recorded. Public API and architecture research may proceed independently.
+- Sprint 41's contract record is `docs/research/kraken-contracts.md`. David
+  Piper's code must still not be copied or adapted until explicit reuse permission
+  and attribution terms are recorded; Sprint 41 copied no external implementation.
 - Work on one sprint at a time using a short-lived branch and pull request. Do
   not combine an unrelated incident fix, release bump, or App Store action with
   a feature sprint.
 
-## Active investigation — import current-price gap (PARTIALLY addressed in 1.0.15)
+## Active investigation — import current-price gap (candidate fix after 1.0.15)
 
 - A user (Darren) on community topic 156860 reported an import electricity meter
   still showing a connection problem and blank price on `1.0.13`, while the Mini
   live readings and other integrations worked. Replacing the device reproduced the
   price failure immediately (deterministic — points away from stale device state).
-- `1.0.15` addressed the **symptoms and diagnosability**, but the underlying
-  cause of the missing current rate for that user's tariff is **not yet confirmed**
-  — it needs one fresh diagnostic on `1.0.15`+ (see `docs/reviews/import-price-gap-handover.md`,
-  "Resolution status" at the top).
+- The fresh `1.0.15` diagnostic identifies an `IOG` import product for which
+  both public REST rate requests return zero rows. Rediscovery and the product
+  variant lookup return no alternative. The Test build's advisory/availability
+  and points-backoff behavior worked as designed.
 - What `1.0.15` changed for this incident:
   - A price-only gap no longer raises the generic connection alarm; it shows a
     non-blocking advisory and the device stays available (`refreshHealthDecision`,
@@ -60,6 +60,13 @@ Last updated: 19 July 2026
     an unsupported field (null) with a 24 h backoff.
 - The sanitised evidence, ranked hypotheses, and the decision tree for reading a
   fresh diagnostic are in `docs/reviews/import-price-gap-handover.md`.
+- Sprint 41 adds a narrowly guarded candidate recovery: only a matching active
+  GraphQL `DayNightTariff` can supply IOG's quoted base day/night rates. It fails
+  closed for a tariff mismatch, unsupported union or GraphQL failure. Dispatches
+  are not overlaid because the legacy account response does not prove device,
+  SMART/BOOST type or settlement price.
+- This candidate is not released or confirmed on Darren's account. Do not claim
+  the incident fixed until a separately authorised Test build is verified.
 - A model-neutral review prompt is in
   `docs/reviews/import-price-gap-analysis-prompt.md` for independent analysis.
 - Community post 14 promises a Test-build follow-up. Build 15 is now available at
@@ -77,6 +84,24 @@ Last updated: 19 July 2026
 - Pagination validates each next URL, rejects repeated URLs, and has a 50-page cap.
 - Pairing state is isolated per Homey pair session.
 - The existing serial-aware transactional repair lifecycle remains intact.
+
+## Sprint 41 Kraken contract research
+
+- Branch: `sprint-41-kraken-contracts`.
+- Contract dossier: `docs/research/kraken-contracts.md`.
+- Synthetic fixtures: `test/fixtures/kraken/`; a test rejects credential-shaped
+  content and any fixture identifier not visibly prefixed `synthetic-`.
+- Public schema research covers Home Mini telemetry, electricity tariff unions,
+  smart devices, account/device dispatches and relative-price ownership.
+- REST remains authoritative for meter identity, consumption, rate history and
+  billing. GraphQL is operational/enrichment data except for the exact-match,
+  fail-closed IOG current-rate candidate.
+- David Piper's GPL-3.0 repository was reviewed as prior art at commit `1042af3`.
+  No code, query text, fixture, name or algorithm was copied/adapted. Explicit
+  personal permission and preferred attribution remain unrecorded.
+- Sprint 43 owns device-aware SMART/BOOST and settlement semantics; Sprint 44 owns
+  effective-price Flows. Sprint 41 intentionally does not infer discounts from
+  ambiguous account-level dispatch windows.
 
 ## What v1.0.15 contains
 
