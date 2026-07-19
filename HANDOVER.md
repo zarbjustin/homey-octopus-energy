@@ -20,6 +20,9 @@ Last updated: 19 July 2026
   `Justin's Homey Pro` on 19 July 2026.
 - Sprint 41 was completed through PRs #10-#11 on `main` with 121 passing tests;
   lint, dependency audit and Homey publish validation pass as recorded below.
+- GitHub has no open pull requests. Remote branches `release/v1.0.16`,
+  `agent/clarify-dispatch-roadmap`, and `agent/record-v1.0.16-test` are fully
+  merged historical branches and contain no pending work.
 
 ## Next-model entry point
 
@@ -73,10 +76,37 @@ Last updated: 19 July 2026
   `docs/reviews/import-price-gap-analysis-prompt.md` for independent analysis.
 - Community post 14 promises a Test-build follow-up. Build 16 is now available at
   https://homey.app/a/uk.co.zarb.octopusenergy/test/ but the follow-up reply has
-  not been posted from this repository workflow. The reply should acknowledge
-  Darren, avoid claiming the root cause is fixed, ask him to keep the existing
-  device, and request a fresh diagnostic plus exact tariff/register type if the
-  price remains blank.
+  been drafted but is not confirmed as posted. The approved draft tells Darren
+  that `1.0.16` adds guarded legacy/four-rate IOG recovery, asks him to keep the
+  existing device, and requests confirmation or a fresh diagnostic while blank.
+  Do not report the post as published unless the user confirms it or the forum
+  visibly shows it.
+
+### Draft reply to Darren
+
+```text
+Hi Darren,
+
+Thank you again for the diagnostics and for helping test this.
+
+I've now published version 1.0.16 to the Homey Test channel. It adds guarded
+support for the newer Intelligent Octopus Go four-rate tariff contract identified
+during the investigation, while keeping household and EV-specific rates separate.
+
+You can install it here:
+https://homey.app/a/uk.co.zarb.octopusenergy/test/
+
+Please keep your existing Electricity Meter device rather than deleting and
+pairing it again. Once updated, could you let me know whether the current household
+price now appears?
+
+If it remains blank, please submit another diagnostic while the price is missing
+and include the approximate time. That will show whether your account exposes the
+expected tariff contract or another variant we still need to handle.
+
+Thanks again for your patience and detailed feedback. It has been extremely useful
+in narrowing this down.
+```
 
 ## Sprint 40 security reconciliation
 
@@ -272,14 +302,15 @@ validation error should be investigated.
   which is configured).
 - GitHub currently warns that the pinned checkout/setup-node actions target the
   deprecated Node 20 action runtime and are being forced onto Node 24. The
-  warning did not affect Build 15, but the pinned actions should be reviewed in
+  warning did not affect Build 16, but the pinned actions should be reviewed in
   a separate maintenance change when upstream releases compatible revisions.
 - CAVEAT observed on 19 July 2026: merging a release PR via the `gh` CLI did NOT
   emit the `push` event that triggers `Create GitHub Release` (merging via the
   GitHub web UI does). If a release PR is merged from the CLI, create the tag and
   release manually: `git tag -a vX.Y.Z -m "Release vX.Y.Z" <sha> && git push
   origin refs/tags/vX.Y.Z` then `gh release create vX.Y.Z --verify-tag --title
-  vX.Y.Z --generate-notes`. `v1.0.15` was created this way.
+  vX.Y.Z --generate-notes`. `v1.0.15` was created this way; the automated release
+  workflow successfully created `v1.0.16` after PR #14 merged.
 
 ## Next actions
 
@@ -306,3 +337,5 @@ validation error should be investigated.
 - `f2d08f9` - import price-gap fixes, points backoff, diagnostics, guarded
   variant recovery, and price-only advisory health state (PR #5).
 - `16e5143` - `v1.0.15` release: version bump, changelog, version-workflow fix (PR #6).
+- `1075391` - `v1.0.16` release and Homey Build 16 source (PR #14).
+- `69e2fdc` - Build 16 Test deployment and field-verification handover (PR #15).
