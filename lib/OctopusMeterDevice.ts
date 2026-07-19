@@ -887,12 +887,12 @@ export class OctopusMeterDevice extends Homey.Device {
       }
     }
     if (!current) {
-      const intelligentGoRates = await this.intelligentGoFallbackRates();
+      const intelligentGoRates = await this.intelligentGoBaseRates();
       const fallback = rateAt(intelligentGoRates ?? []);
       if (fallback && intelligentGoRates) {
         rates = intelligentGoRates;
         current = fallback;
-        this.log('Price-gap recovery: using account-authoritative Intelligent Octopus Go rates.');
+        this.log('Price-gap recovery: using the account IOG household base schedule.');
       }
     }
     this.rates = rates;
@@ -908,17 +908,20 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   /**
-   * Recover IOG prices when its public product endpoint has no rows. Kraken's
-   * active agreement supplies the quoted day/night rates for the normal
-   * 23:30-05:30 window. Dispatch pricing remains separate until its device/type
-   * and settlement semantics are modelled explicitly.
+   * Recover IOG household base prices when its public product endpoint has no
+   * rows. Both legacy day/night and newer four-rate agreements expose the
+   * household 23:30-05:30 schedule. Device and settlement prices stay separate.
    */
-  private async intelligentGoFallbackRates(): Promise<Rate[] | null> {
+  private async intelligentGoBaseRates(): Promise<Rate[] | null> {
     const s = this.store();
-    if (s.fuel !== 'electricity' || s.isExport || !s.accountNumber || !s.tariffCode
+    if (s.fuel !== 'electricity' || s.isExport || !s.accountNumber || !s.tariffCode || !s.productCode
       || !this.isIntelligentGoTariff()) return null;
     try {
-      const tariff = await this.kraken.getActiveDayNightTariff(s.accountNumber, s.tariffCode);
+      const tariff = await this.kraken.getActiveIogTariff(
+        s.accountNumber,
+        s.tariffCode,
+        s.productCode,
+      );
       if (!tariff) return null;
       const from = this.localMidnight(-2).getTime();
       const to = this.localMidnight(3).getTime();
@@ -1769,10 +1772,10 @@ export class OctopusMeterDevice extends Homey.Device {
 
   // --- Scheduling ----------------------------------------------------------
 
-  /** Whether the tariff has half-hourly varying prices (Agile/Go/Flux/Intelligent). */
+  /** Whether the tariff can change at a half-hour boundary. */
   protected isDynamicTariff(): boolean {
     const code = `${this.store().productCode ?? ''}`.toUpperCase();
-    return /AGILE|FLUX|INTELLI/.test(code)
+    return /AGILE|FLUX|INTELLI|COSY|AIRA|SNUG/.test(code)
       || /(^|-)IOG(-|$)/.test(code)
       || /(^|-)GO(-|$)/.test(code);
   }

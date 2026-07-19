@@ -140,6 +140,16 @@ test('IOG is classified as dynamic', () => {
   assert.equal(device.isDynamicTariff(), true);
 });
 
+test('other time-of-use tariff families align refreshes to half-hour boundaries', () => {
+  const device = Object.create(OctopusMeterDevice.prototype);
+  for (const productCode of ['COSY-24-09-25', 'AIRA-ZERO-25-01-13', 'SNUG-24-01-01']) {
+    device.store = () => ({ productCode });
+    assert.equal(device.isDynamicTariff(), true, productCode);
+  }
+  device.store = () => ({ productCode: 'SILVER-TRACKER-25-01-13' });
+  assert.equal(device.isDynamicTariff(), false, 'daily Tracker is not an intraday tariff');
+});
+
 test('IOG price gaps recover from account day/night rates', async () => {
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({
@@ -148,13 +158,15 @@ test('IOG price gaps recover from account day/night rates', async () => {
   });
   device.homey = { clock: { getTimezone: () => 'Europe/London' } };
   device.kraken = {
-    getActiveDayNightTariff: async () => ({
+    getActiveIogTariff: async () => ({
+      tariffType: 'FourRateEvTariff',
       dayRate: 31.5, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7.619,
+      evDevicePeakRate: 45, evDeviceOffPeakRate: 6,
     }),
   };
   device.log = () => {};
 
-  const rates = await device.intelligentGoFallbackRates();
+  const rates = await device.intelligentGoBaseRates();
   const midnightRate = rates.find((rate) => rate.valid_from.endsWith('T00:00:00.000Z'));
   const middayRate = rates.find((rate) => rate.valid_from.endsWith('T12:00:00.000Z'));
 
@@ -173,10 +185,10 @@ test('IOG account-rate recovery fails closed for unsupported agreement shapes', 
     tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
   });
   device.homey = { clock: { getTimezone: () => 'Europe/London' } };
-  device.kraken = { getActiveDayNightTariff: async () => null };
+  device.kraken = { getActiveIogTariff: async () => null };
   device.log = () => {};
 
-  assert.equal(await device.intelligentGoFallbackRates(), null);
+  assert.equal(await device.intelligentGoBaseRates(), null);
 });
 
 test('IOG account-rate recovery fails closed when GraphQL is unavailable', async () => {
@@ -189,11 +201,11 @@ test('IOG account-rate recovery fails closed when GraphQL is unavailable', async
   });
   device.homey = { clock: { getTimezone: () => 'Europe/London' } };
   device.kraken = {
-    getActiveDayNightTariff: async () => { throw new Error('Unsupported GraphQL field'); },
+    getActiveIogTariff: async () => { throw new Error('Unsupported GraphQL field'); },
   };
   device.log = (...args) => logs.push(args.join(' '));
 
-  assert.equal(await device.intelligentGoFallbackRates(), null);
+  assert.equal(await device.intelligentGoBaseRates(), null);
   assert.equal(logs.length, 1);
   assert.doesNotMatch(logs[0], /A-ONE|E-1R-/);
 });

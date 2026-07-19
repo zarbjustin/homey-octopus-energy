@@ -19,19 +19,21 @@ Last updated: 19 July 2026
 - `main` contains the `1.0.15` release (tag `v1.0.15`, merge `16e5143`).
 - Version `1.0.15` was built, validated, packed, and installed successfully on
   `Justin's Homey Pro` on 19 July 2026.
-- Released `main` baseline: 108 tests pass. Sprint 41's branch baseline is 117
-  tests; lint, dependency audit and Homey publish validation pass as recorded below.
+- Sprint 41 was merged through PR #10. Its production-completion follow-up on
+  `sprint-41-production-completion` has 121 passing tests; lint, dependency audit
+  and Homey publish validation pass as recorded below.
 
 ## Next-model entry point
 
-- Sprint 41 is complete on `sprint-41-kraken-contracts`; future feature work
-  starts with Sprint 42 after Sprint 41 is reviewed and merged.
+- Sprint 41 implementation is complete on `sprint-41-production-completion`;
+  after that focused follow-up is merged, future feature work starts with Sprint 42.
 - Read `docs/handover/future-sprints.md` before selecting or implementing a
   future sprint. It contains the dependency order, acceptance gates, current
   release boundaries, and a copyable prompt for another AI model.
-- Sprint 41's contract record is `docs/research/kraken-contracts.md`. David
-  Piper's code must still not be copied or adapted until explicit reuse permission
-  and attribution terms are recorded; Sprint 41 copied no external implementation.
+- Sprint 41's contract record is `docs/research/kraken-contracts.md`. The roadmap
+  does not require David Piper's code; implementation remains original and based
+  on public Octopus contracts. Any later source reuse is a separate GPL and
+  attribution decision.
 - Work on one sprint at a time using a short-lived branch and pull request. Do
   not combine an unrelated incident fix, release bump, or App Store action with
   a feature sprint.
@@ -60,9 +62,10 @@ Last updated: 19 July 2026
     an unsupported field (null) with a 24 h backoff.
 - The sanitised evidence, ranked hypotheses, and the decision tree for reading a
   fresh diagnostic are in `docs/reviews/import-price-gap-handover.md`.
-- Sprint 41 adds a narrowly guarded candidate recovery: only a matching active
-  GraphQL `DayNightTariff` can supply IOG's quoted base day/night rates. It fails
-  closed for a tariff mismatch, unsupported union or GraphQL failure. Dispatches
+- Sprint 41 adds a narrowly guarded production recovery: a matching current
+  GraphQL `DayNightTariff` or `FourRateEvTariff` can supply IOG's household base
+  day/night rates. It requires exact tariff and product identity and fails closed
+  for mismatches, malformed rates, unsupported unions or GraphQL failure. Dispatches
   are not overlaid because the legacy account response does not prove device,
   SMART/BOOST type or settlement price.
 - This candidate is not released or confirmed on Darren's account. Do not claim
@@ -85,9 +88,10 @@ Last updated: 19 July 2026
 - Pairing state is isolated per Homey pair session.
 - The existing serial-aware transactional repair lifecycle remains intact.
 
-## Sprint 41 Kraken contract research
+## Sprint 41 Kraken contracts and IOG recovery
 
-- Branch: `sprint-41-kraken-contracts`.
+- Merged research PR: #10; production-completion branch:
+  `sprint-41-production-completion`.
 - Contract dossier: `docs/research/kraken-contracts.md`.
 - Synthetic fixtures: `test/fixtures/kraken/`; a test rejects credential-shaped
   content and any fixture identifier not visibly prefixed `synthetic-`.
@@ -95,10 +99,10 @@ Last updated: 19 July 2026
   smart devices, account/device dispatches and relative-price ownership.
 - REST remains authoritative for meter identity, consumption, rate history and
   billing. GraphQL is operational/enrichment data except for the exact-match,
-  fail-closed IOG current-rate candidate.
+  fail-closed IOG household-base recovery.
 - David Piper's GPL-3.0 repository was reviewed as prior art at commit `1042af3`.
-  No code, query text, fixture, name or algorithm was copied/adapted. Explicit
-  personal permission and preferred attribution remain unrecorded.
+  No code, query text, fixture, name or algorithm was copied/adapted. Private
+  correspondence is not reproduced in this public repository.
 - Sprint 43 owns device-aware SMART/BOOST and settlement semantics; Sprint 44 owns
   effective-price Flows. Sprint 41 intentionally does not infer discounts from
   ambiguous account-level dispatch windows.

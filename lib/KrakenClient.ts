@@ -34,7 +34,10 @@ export interface Dispatch {
   end: string;
 }
 
-export interface AccountDayNightTariff {
+export type AccountIogTariffType = 'DayNightTariff' | 'FourRateEvTariff';
+
+export interface AccountIogTariff {
+  tariffType: AccountIogTariffType;
   tariffCode: string;
   productCode: string;
   displayName: string;
@@ -42,6 +45,10 @@ export interface AccountDayNightTariff {
   nightRate: number;
   preVatDayRate: number;
   preVatNightRate: number;
+  evDevicePeakRate: number | null;
+  evDeviceOffPeakRate: number | null;
+  preVatEvDevicePeakRate: number | null;
+  preVatEvDeviceOffPeakRate: number | null;
   standingCharge: number | null;
 }
 
@@ -170,13 +177,14 @@ export class KrakenClient {
     return pence / 100;
   }
 
-  /** Active account-authoritative day/night tariff rates (for example IOG). */
-  async getActiveDayNightTariff(
+  /** Active account-authoritative IOG rates, including the newer four-rate model. */
+  async getActiveIogTariff(
     accountNumber: string,
-    expectedTariffCode?: string,
-  ): Promise<AccountDayNightTariff | null> {
+    expectedTariffCode: string,
+    expectedProductCode: string,
+  ): Promise<AccountIogTariff | null> {
     const query = `
-      query ActiveDayNightTariff($accountNumber: String!) {
+      query ActiveIogTariff($accountNumber: String!) {
         account(accountNumber: $accountNumber) {
           electricityAgreements(active: true) {
             validFrom
@@ -193,6 +201,20 @@ export class KrakenClient {
                 preVatNightRate
                 standingCharge
               }
+              ... on FourRateEvTariff {
+                tariffCode
+                productCode
+                displayName
+                dayRate
+                nightRate
+                evDevicePeakRate
+                evDeviceOffPeakRate
+                preVatDayRate
+                preVatNightRate
+                preVatEvDevicePeakRate
+                preVatEvDeviceOffPeakRate
+                standingCharge
+              }
             }
           }
         }
@@ -205,10 +227,14 @@ export class KrakenClient {
         tariffCode?: string;
         productCode?: string;
         displayName?: string;
-        dayRate?: number;
-        nightRate?: number;
-        preVatDayRate?: number;
-        preVatNightRate?: number;
+        dayRate?: number | null;
+        nightRate?: number | null;
+        preVatDayRate?: number | null;
+        preVatNightRate?: number | null;
+        evDevicePeakRate?: number | null;
+        evDeviceOffPeakRate?: number | null;
+        preVatEvDevicePeakRate?: number | null;
+        preVatEvDeviceOffPeakRate?: number | null;
         standingCharge?: number | null;
       } | null;
     }
@@ -217,22 +243,42 @@ export class KrakenClient {
       { accountNumber },
     );
     const agreements = data?.account?.electricityAgreements ?? [];
-    const expected = expectedTariffCode?.toUpperCase();
+    const expectedTariff = expectedTariffCode.toUpperCase();
+    const expectedProduct = expectedProductCode.toUpperCase();
+    const now = Date.now();
     const candidates = agreements
-      .filter((agreement) => agreement.tariff?.__typename === 'DayNightTariff')
-      .filter((agreement) => !expected || agreement.tariff?.tariffCode?.toUpperCase() === expected)
+      .filter((agreement) => agreement.tariff?.__typename === 'DayNightTariff'
+        || agreement.tariff?.__typename === 'FourRateEvTariff')
+      .filter((agreement) => agreement.tariff?.tariffCode?.toUpperCase() === expectedTariff
+        && agreement.tariff?.productCode?.toUpperCase() === expectedProduct)
+      .filter((agreement) => {
+        const from = Date.parse(agreement.validFrom ?? '');
+        const to = agreement.validTo ? Date.parse(agreement.validTo) : null;
+        return Number.isFinite(from) && (to === null || Number.isFinite(to))
+          && from <= now && (to === null || now < to);
+      })
       .sort((a, b) => new Date(b.validFrom ?? 0).getTime() - new Date(a.validFrom ?? 0).getTime());
     const tariff = candidates[0]?.tariff;
-    const dayRate = Number(tariff?.dayRate);
-    const nightRate = Number(tariff?.nightRate);
-    const preVatDayRate = Number(tariff?.preVatDayRate);
-    const preVatNightRate = Number(tariff?.preVatNightRate);
+    const finite = (value: unknown): number | null => {
+      return typeof value === 'number' && Number.isFinite(value) ? value : null;
+    };
+    const dayRate = finite(tariff?.dayRate);
+    const nightRate = finite(tariff?.nightRate);
+    const preVatDayRate = finite(tariff?.preVatDayRate);
+    const preVatNightRate = finite(tariff?.preVatNightRate);
     if (!tariff?.tariffCode || !tariff.productCode
-      || !Number.isFinite(dayRate) || !Number.isFinite(nightRate)
-      || !Number.isFinite(preVatDayRate) || !Number.isFinite(preVatNightRate)) return null;
-    const standingCharge = tariff.standingCharge === null || tariff.standingCharge === undefined
-      ? null : Number(tariff.standingCharge);
+      || dayRate === null || nightRate === null
+      || preVatDayRate === null || preVatNightRate === null) return null;
+    const tariffType = tariff.__typename as AccountIogTariffType;
+    const evDevicePeakRate = finite(tariff.evDevicePeakRate);
+    const evDeviceOffPeakRate = finite(tariff.evDeviceOffPeakRate);
+    const preVatEvDevicePeakRate = finite(tariff.preVatEvDevicePeakRate);
+    const preVatEvDeviceOffPeakRate = finite(tariff.preVatEvDeviceOffPeakRate);
+    if (tariffType === 'FourRateEvTariff' && (evDevicePeakRate === null
+      || evDeviceOffPeakRate === null || preVatEvDevicePeakRate === null
+      || preVatEvDeviceOffPeakRate === null)) return null;
     return {
+      tariffType,
       tariffCode: tariff.tariffCode,
       productCode: tariff.productCode,
       displayName: tariff.displayName ?? '',
@@ -240,8 +286,11 @@ export class KrakenClient {
       nightRate,
       preVatDayRate,
       preVatNightRate,
-      standingCharge: standingCharge !== null && Number.isFinite(standingCharge)
-        ? standingCharge : null,
+      evDevicePeakRate,
+      evDeviceOffPeakRate,
+      preVatEvDevicePeakRate,
+      preVatEvDeviceOffPeakRate,
+      standingCharge: finite(tariff.standingCharge),
     };
   }
 
