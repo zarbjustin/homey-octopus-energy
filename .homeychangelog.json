@@ -46,5 +46,8 @@
   },
   "1.0.15": {
     "en": "Fixes electricity meters that showed a connection error when only the current tariff price was briefly unavailable — the device now stays online with a clear advisory instead. Adds automatic recovery for a mismatched stored tariff, stops repeated Octoplus points errors on accounts without loyalty points, and adds privacy-safe price diagnostics to speed up future troubleshooting."
+  },
+  "1.0.16": {
+    "en": "Adds guarded current-price recovery for Intelligent Octopus Go accounts using legacy or newer four-rate tariff contracts, while keeping household and EV-specific prices distinct."
   }
 }
