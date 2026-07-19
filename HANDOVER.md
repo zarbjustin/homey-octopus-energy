@@ -6,18 +6,17 @@ Last updated: 19 July 2026
 
 - Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current source version: `1.0.15`; release tag: `v1.0.15` (GitHub release published).
-- Homey App Store: Build 13 / version `1.0.13` remains live while Build 15 /
-  version `1.0.15` is under certification review.
-- Build 15 / version `1.0.15` is published to Test and was submitted for
-  certification on 19 July 2026. Automatic publication after approval is enabled.
+- Current source version: `1.0.16`; release tag: `v1.0.16` (GitHub release published).
+- Homey App Store: Build 13 / version `1.0.13` remains live. Build 16 / version
+  `1.0.16` is in Test for affected-account verification and is not in certification.
+- Build 15 / version `1.0.15` was retracted from certification on 19 July 2026 so
+  Build 16 could replace it in Test.
 - Test channel: https://homey.app/a/uk.co.zarb.octopusenergy/test/
-- Build 14 / version `1.0.14` was retracted from certification so Build 15 could
-  supersede it; Build 14 remains an older Test build.
-- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/15
+- Build 14 / version `1.0.14` was also previously retracted from certification.
+- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/16
 - Community support topic: https://community.homey.app/t/156860
-- `main` contains the `1.0.15` release (tag `v1.0.15`, merge `16e5143`).
-- Version `1.0.15` was built, validated, packed, and installed successfully on
+- `main` contains the `1.0.16` release (tag `v1.0.16`, merge `1075391`).
+- Version `1.0.16` was built, validated, packed, and installed successfully on
   `Justin's Homey Pro` on 19 July 2026.
 - Sprint 41 was completed through PRs #10-#11 on `main` with 121 passing tests;
   lint, dependency audit and Homey publish validation pass as recorded below.
@@ -37,7 +36,7 @@ Last updated: 19 July 2026
   not combine an unrelated incident fix, release bump, or App Store action with
   a feature sprint.
 
-## Active investigation — import current-price gap (candidate fix after 1.0.15)
+## Active investigation — import current-price gap (`1.0.16` Test candidate)
 
 - A user (Darren) on community topic 156860 reported an import electricity meter
   still showing a connection problem and blank price on `1.0.13`, while the Mini
@@ -67,11 +66,12 @@ Last updated: 19 July 2026
   for mismatches, malformed rates, unsupported unions or GraphQL failure. Dispatches
   are not overlaid because the legacy account response does not prove device,
   SMART/BOOST type or settlement price.
-- This candidate is not released or confirmed on Darren's account. Do not claim
-  the incident fixed until a separately authorised Test build is verified.
+- This candidate is released to Homey Test as Build 16 but is not confirmed on
+  Darren's account. Do not claim the incident fixed or submit it for production
+  certification until the affected account verifies it.
 - A model-neutral review prompt is in
   `docs/reviews/import-price-gap-analysis-prompt.md` for independent analysis.
-- Community post 14 promises a Test-build follow-up. Build 15 is now available at
+- Community post 14 promises a Test-build follow-up. Build 16 is now available at
   https://homey.app/a/uk.co.zarb.octopusenergy/test/ but the follow-up reply has
   not been posted from this repository workflow. The reply should acknowledge
   Darren, avoid claiming the root cause is fixed, ask him to keep the existing
@@ -283,18 +283,17 @@ validation error should be investigated.
 
 ## Next actions
 
-1. Monitor Build 15 certification; Homey will publish `1.0.15` automatically
-   after approval.
-2. After release, announce `1.0.15` in the community support topic.
-3. Ask the affected user for one fresh diagnostic on `1.0.15`+ while the price is
-   blank, plus their tariff type (flat/fixed vs time-of-use; single-rate vs
-   Economy 7). Read the new `price-gap diagnostic (no identifiers)` line and
-   follow the decision tree in `docs/reviews/import-price-gap-handover.md`.
-4. If the diagnostic shows a variant mismatch, confirm the guarded recovery
-   self-heals it; otherwise implement the indicated fix (closed-agreement
-   selection or an evidence-backed upstream-gap handling) with fixtures first.
-5. Monitor the new advisory/health behaviour and community feedback after release.
-6. Smoke-test Repair for one electricity meter plus gas/export where available;
+1. Ask Darren to install Build 16 / `1.0.16` from the Test link without replacing
+   the existing device.
+2. Ask for one fresh diagnostic while the price is blank, or confirmation that the
+   current household price now appears, plus the exact tariff/register type.
+3. Read the `price-gap diagnostic (no identifiers)` and IOG recovery output;
+   submit Build 16 for certification only after affected-account confirmation.
+4. If the price remains blank, inspect the newly observed sanitised contract shape
+   and extend fixtures before changing matching or fallback safeguards.
+5. After production approval, announce `1.0.16` in the community support topic.
+6. Continue monitoring the advisory/health behaviour and community feedback.
+7. Smoke-test Repair for one electricity meter plus gas/export where available;
    confirm invalid credentials leave the existing device unchanged.
 
 ## Useful release commits

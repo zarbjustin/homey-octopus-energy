@@ -14,17 +14,17 @@ silently pull later-sprint scope forward.
 ## Current baseline
 
 - Default branch: `main` in `zarbjustin/homey-octopus-energy`.
-- Source and GitHub release: `1.0.15`, tag `v1.0.15`.
-- Homey Build 15 is in Test and under certification with automatic publication
-  after approval. Build 13 / `1.0.13` remains live until approval.
-- Build 14 was retracted from certification and superseded by Build 15.
-- `1.0.15` has been installed successfully on the local Homey Pro.
+- Source and GitHub release: `1.0.16`, tag `v1.0.16`.
+- Homey Build 16 / `1.0.16` is in Test and is not in certification. Build 13 /
+  `1.0.13` remains live pending affected-account verification.
+- Builds 14 and 15 were retracted from certification; Build 16 supersedes them.
+- `1.0.16` has been installed successfully on the local Homey Pro.
 - Sprint 41 was completed through PRs #10-#11 on `main` with 121 tests. Lint,
   dependency audit and publish validation retain exactly the two
   documented cumulative-direction warnings.
 - The import current-price incident has a complete IOG household-base recovery
-  for legacy and four-rate account contracts, but it is not
-  field-confirmed or released. Do not remove its diagnostics or relax safeguards.
+  for legacy and four-rate account contracts. It is released to Test but is not
+  field-confirmed or production-released. Do not remove its diagnostics or relax safeguards.
 
 ## Required reading order
 
@@ -118,12 +118,13 @@ For a selected sprint:
 
 ## Current community follow-up
 
-Community post 14 promised Darren a Test-build link. Build 15 is now available at:
+Community post 14 promised Darren a Test-build link. Build 16 is now available at:
 
 https://homey.app/a/uk.co.zarb.octopusenergy/test/
 
-The follow-up should say that `1.0.15` improves health wording, guarded tariff
-variant recovery, points backoff, and privacy-safe diagnostics. It must not claim
+The follow-up should say that `1.0.16` adds guarded legacy/four-rate IOG household
+price recovery on top of the health wording, points backoff, and privacy-safe
+diagnostics. It must not claim
 the underlying missing-rate cause is proven fixed. If the price remains blank,
 ask for a fresh diagnostic while blank, the approximate time, exact import tariff,
 and single-rate versus Economy 7 status. Ask the user to keep the existing device.
@@ -131,7 +132,7 @@ and single-rate versus Economy 7 status. Ask the user to keep the existing devic
 ## Non-blocking maintenance warning
 
 GitHub Actions currently warns that pinned checkout/setup-node actions target the
-deprecated Node 20 action runtime and are being forced to Node 24. Build 15 and
+deprecated Node 20 action runtime and are being forced to Node 24. Build 16 and
 the protected checks passed. Handle action updates in a separate maintenance PR,
 retain immutable SHA pins, and rerun the release-policy tests.
 
