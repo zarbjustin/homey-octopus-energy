@@ -2,11 +2,36 @@
 
 Last updated: 19 July 2026 (updated after v1.0.15)
 
-## Resolution status (v1.0.15)
+## Fresh v1.0.15 diagnostic (19 July 2026)
 
-`v1.0.15` shipped symptom + diagnosability fixes; the **root cause of the missing
-current rate for the affected user's tariff is not yet confirmed**. What changed,
-and what a follow-up AI/engineer should do next:
+The affected user confirmed Intelligent Octopus Go on an Octopus-controlled VPP
+battery trial. The privacy-safe diagnostic reported product family `IOG`, a
+single-register import agreement, and zero rows from both the windowed and latest
+public REST rate requests. Rediscovery returned the same tariff and product
+metadata exposed no alternative variant. This rules out a mere validity gap in a
+non-empty response and makes an account-specific IOG product that is not
+represented by the public product-rate endpoint the leading cause.
+
+The Test build's health behavior worked: the device remained usable, consumption
+and carbon data updated, and Homey displayed the price-specific advisory. The
+points unsupported backoff also worked. The raw diagnostic and device identifiers
+remain intentionally uncommitted.
+
+The follow-up fix uses Kraken's authenticated active `DayNightTariff` agreement as
+a narrowly guarded fallback for `IOG`/`INTELLI` import products only. It builds the
+published 23:30-05:30 base schedule. Dispatch windows are intentionally not folded
+into the effective price: the account-level response does not establish device,
+SMART/BOOST type, or settlement semantics. Those contracts are deferred to
+Sprints 43-44. `IOG` is also classified as a dynamic tariff so half-hour boundary
+refreshes remain aligned.
+
+## Resolution status (v1.0.15 plus Sprint 41 candidate)
+
+`v1.0.15` shipped symptom and diagnosability fixes. A fresh diagnostic now
+confirms the public product-rate endpoint returns zero rows for the affected
+`IOG` agreement. Sprint 41 adds an exact-match, fail-closed GraphQL
+`DayNightTariff` candidate for the base day/night schedule. It is not yet
+field-confirmed or released.
 
 Implemented in `v1.0.15` (PR #5, released in PR #6):
 - Price-only gap no longer raises the connection alarm — it is a non-blocking
@@ -18,8 +43,9 @@ Implemented in `v1.0.15` (PR #5, released in PR #6):
 - Privacy-safe `price-gap diagnostic (no identifiers)` log line (`logPriceGapDiagnostic`).
 - Octoplus points `Unauthorized.` → unsupported/null + 24 h backoff.
 
-Still open: exactly why `standardUnitRates` + `latestStandardUnitRates` both lack a
-row covering "now" for this user. Needs one fresh diagnostic on `1.0.15`+.
+Still open: whether the affected account exposes the matching `DayNightTariff`
+shape and whether Octopus's VPP trial requires additional effective-price rules.
+Validate through a Test build; do not use ambiguous dispatch windows for billing.
 
 ### Decision tree for a fresh diagnostic
 

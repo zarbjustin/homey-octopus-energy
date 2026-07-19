@@ -1,0 +1,30 @@
+{
+  "data": {
+    "devices": [
+      {
+        "__typename": "SmartFlexBattery",
+        "id": "synthetic-battery-device",
+        "name": "Synthetic battery",
+        "deviceType": "BATTERIES",
+        "provider": "KRAKENFLEX",
+        "integrationDeviceId": "synthetic-integration-device",
+        "status": {
+          "__typename": "SmartFlexBatteryStatus",
+          "currentState": "SMART_CONTROL_CAPABLE"
+        }
+      },
+      {
+        "__typename": "SmartFlexChargePoint",
+        "id": "synthetic-charge-point",
+        "name": "Synthetic charger",
+        "deviceType": "CHARGE_POINTS",
+        "provider": "KRAKENFLEX",
+        "integrationDeviceId": "synthetic-charge-integration",
+        "status": {
+          "__typename": "SmartFlexChargePointStatus",
+          "currentState": "SMART_CONTROL_IN_PROGRESS"
+        }
+      }
+    ]
+  }
+}

@@ -886,6 +886,15 @@ export class OctopusMeterDevice extends Homey.Device {
         current = fallback;
       }
     }
+    if (!current) {
+      const intelligentGoRates = await this.intelligentGoFallbackRates();
+      const fallback = rateAt(intelligentGoRates ?? []);
+      if (fallback && intelligentGoRates) {
+        rates = intelligentGoRates;
+        current = fallback;
+        this.log('Price-gap recovery: using account-authoritative Intelligent Octopus Go rates.');
+      }
+    }
     this.rates = rates;
     await this.onRatesUpdated();
     if (!current) {
@@ -896,6 +905,56 @@ export class OctopusMeterDevice extends Homey.Device {
     this.currentPrice = value;
     await this.setCapabilityValue('measure_octopus_price', value).catch(this.error);
     await this.onPriceUpdated(value, current);
+  }
+
+  /**
+   * Recover IOG prices when its public product endpoint has no rows. Kraken's
+   * active agreement supplies the quoted day/night rates for the normal
+   * 23:30-05:30 window. Dispatch pricing remains separate until its device/type
+   * and settlement semantics are modelled explicitly.
+   */
+  private async intelligentGoFallbackRates(): Promise<Rate[] | null> {
+    const s = this.store();
+    if (s.fuel !== 'electricity' || s.isExport || !s.accountNumber || !s.tariffCode
+      || !this.isIntelligentGoTariff()) return null;
+    try {
+      const tariff = await this.kraken.getActiveDayNightTariff(s.accountNumber, s.tariffCode);
+      if (!tariff) return null;
+      const from = this.localMidnight(-2).getTime();
+      const to = this.localMidnight(3).getTime();
+      const rates: Rate[] = [];
+      for (let start = from; start < to; start += 30 * 60_000) {
+        const end = start + 30 * 60_000;
+        const night = this.isIogNightTime(new Date(start));
+        rates.push({
+          value_inc_vat: night ? tariff.nightRate : tariff.dayRate,
+          value_exc_vat: night ? tariff.preVatNightRate : tariff.preVatDayRate,
+          valid_from: new Date(start).toISOString(),
+          valid_to: new Date(end).toISOString(),
+          payment_method: null,
+        });
+      }
+      return rates;
+    } catch (err) {
+      this.log('Intelligent Octopus Go account-rate fallback was unavailable.');
+      return null;
+    }
+  }
+
+  private isIntelligentGoTariff(): boolean {
+    const code = `${this.store().productCode ?? ''}`.toUpperCase();
+    return /(^|-)IOG(-|$)/.test(code)
+      || (/^INTELLI-/.test(code) && !/^INTELLI-FLUX-/.test(code));
+  }
+
+  private isIogNightTime(at: Date): boolean {
+    const tz = this.homey.clock.getTimezone();
+    const parts: Record<string, string> = {};
+    for (const part of new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(at)) parts[part.type] = part.value;
+    const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+    return minutes >= 23 * 60 + 30 || minutes < 5 * 60 + 30;
   }
 
   /**
@@ -1713,7 +1772,9 @@ export class OctopusMeterDevice extends Homey.Device {
   /** Whether the tariff has half-hourly varying prices (Agile/Go/Flux/Intelligent). */
   protected isDynamicTariff(): boolean {
     const code = `${this.store().productCode ?? ''}`.toUpperCase();
-    return /AGILE|FLUX|INTELLI/.test(code) || (/(^|-)GO(-|$)/.test(code));
+    return /AGILE|FLUX|INTELLI/.test(code)
+      || /(^|-)IOG(-|$)/.test(code)
+      || /(^|-)GO(-|$)/.test(code);
   }
 
   private scheduleRefresh(): void {

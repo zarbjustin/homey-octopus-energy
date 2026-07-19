@@ -1,0 +1,18 @@
+{
+  "data": {
+    "smartMeterTelemetry": [
+      {
+        "readAt": "2026-01-01T12:00:00Z",
+        "demand": "640",
+        "consumption": "10420.125",
+        "export": "1220.500"
+      },
+      {
+        "readAt": "2026-01-01T12:00:10Z",
+        "demand": "-215",
+        "consumption": "10420.126",
+        "export": "1220.501"
+      }
+    ]
+  }
+}

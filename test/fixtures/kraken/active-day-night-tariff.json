@@ -1,0 +1,23 @@
+{
+  "data": {
+    "account": {
+      "electricityAgreements": [
+        {
+          "validFrom": "2026-01-01T00:00:00Z",
+          "validTo": null,
+          "tariff": {
+            "__typename": "DayNightTariff",
+            "tariffCode": "E-1R-IOG-SYNTHETIC-26-01-01-C",
+            "productCode": "IOG-SYNTHETIC-26-01-01",
+            "displayName": "Synthetic Intelligent Go",
+            "dayRate": 31.5,
+            "nightRate": 8,
+            "preVatDayRate": 30,
+            "preVatNightRate": 7.619,
+            "standingCharge": 49.2
+          }
+        }
+      ]
+    }
+  }
+}

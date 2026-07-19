@@ -1,0 +1,21 @@
+{
+  "data": {
+    "account": {
+      "properties": [
+        {
+          "electricityMeterPoints": [
+            {
+              "meters": [
+                {
+                  "smartImportElectricityMeter": {
+                    "deviceId": "synthetic-mini-device"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -34,6 +34,17 @@ export interface Dispatch {
   end: string;
 }
 
+export interface AccountDayNightTariff {
+  tariffCode: string;
+  productCode: string;
+  displayName: string;
+  dayRate: number;
+  nightRate: number;
+  preVatDayRate: number;
+  preVatNightRate: number;
+  standingCharge: number | null;
+}
+
 export class KrakenClient {
 
   private readonly apiKey: string;
@@ -157,6 +168,81 @@ export class KrakenClient {
     const data = await this.query<{ account: { balance: number } }>(query, { accountNumber });
     const pence = Number(data?.account?.balance ?? 0);
     return pence / 100;
+  }
+
+  /** Active account-authoritative day/night tariff rates (for example IOG). */
+  async getActiveDayNightTariff(
+    accountNumber: string,
+    expectedTariffCode?: string,
+  ): Promise<AccountDayNightTariff | null> {
+    const query = `
+      query ActiveDayNightTariff($accountNumber: String!) {
+        account(accountNumber: $accountNumber) {
+          electricityAgreements(active: true) {
+            validFrom
+            validTo
+            tariff {
+              __typename
+              ... on DayNightTariff {
+                tariffCode
+                productCode
+                displayName
+                dayRate
+                nightRate
+                preVatDayRate
+                preVatNightRate
+                standingCharge
+              }
+            }
+          }
+        }
+      }`;
+    interface Agreement {
+      validFrom?: string;
+      validTo?: string | null;
+      tariff?: {
+        __typename?: string;
+        tariffCode?: string;
+        productCode?: string;
+        displayName?: string;
+        dayRate?: number;
+        nightRate?: number;
+        preVatDayRate?: number;
+        preVatNightRate?: number;
+        standingCharge?: number | null;
+      } | null;
+    }
+    const data = await this.query<{ account?: { electricityAgreements?: Agreement[] } }>(
+      query,
+      { accountNumber },
+    );
+    const agreements = data?.account?.electricityAgreements ?? [];
+    const expected = expectedTariffCode?.toUpperCase();
+    const candidates = agreements
+      .filter((agreement) => agreement.tariff?.__typename === 'DayNightTariff')
+      .filter((agreement) => !expected || agreement.tariff?.tariffCode?.toUpperCase() === expected)
+      .sort((a, b) => new Date(b.validFrom ?? 0).getTime() - new Date(a.validFrom ?? 0).getTime());
+    const tariff = candidates[0]?.tariff;
+    const dayRate = Number(tariff?.dayRate);
+    const nightRate = Number(tariff?.nightRate);
+    const preVatDayRate = Number(tariff?.preVatDayRate);
+    const preVatNightRate = Number(tariff?.preVatNightRate);
+    if (!tariff?.tariffCode || !tariff.productCode
+      || !Number.isFinite(dayRate) || !Number.isFinite(nightRate)
+      || !Number.isFinite(preVatDayRate) || !Number.isFinite(preVatNightRate)) return null;
+    const standingCharge = tariff.standingCharge === null || tariff.standingCharge === undefined
+      ? null : Number(tariff.standingCharge);
+    return {
+      tariffCode: tariff.tariffCode,
+      productCode: tariff.productCode,
+      displayName: tariff.displayName ?? '',
+      dayRate,
+      nightRate,
+      preVatDayRate,
+      preVatNightRate,
+      standingCharge: standingCharge !== null && Number.isFinite(standingCharge)
+        ? standingCharge : null,
+    };
   }
 
   /**
