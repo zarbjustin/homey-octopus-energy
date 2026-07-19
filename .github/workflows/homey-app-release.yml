@@ -1,0 +1,58 @@
+name: Create GitHub Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create annotated tag and GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Read and verify release version
+        id: version
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const packageJson = require('./package.json');
+          const packageLock = require('./package-lock.json');
+          const compose = require('./.homeycompose/app.json');
+          const changelog = require('./.homeychangelog.json');
+          const versions = [packageJson.version, packageLock.version, compose.version];
+          if (!versions.every((version) => version === versions[0])) {
+            throw new Error(`Release versions do not match: ${versions.join(', ')}`);
+          }
+          if (!changelog[versions[0]]) {
+            throw new Error(`Missing changelog entry for ${versions[0]}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${versions[0]}\n`);
+          NODE
+
+      - name: Create tag and release when missing
+        run: |
+          tag="v${VERSION}"
+          if ! git rev-parse --verify --quiet "refs/tags/${tag}" >/dev/null; then
+            git config --local user.name "github-actions[bot]"
+            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$tag" -m "Release $tag"
+            git push origin "refs/tags/${tag}"
+          fi
+
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --verify-tag --title "$tag" --generate-notes
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}

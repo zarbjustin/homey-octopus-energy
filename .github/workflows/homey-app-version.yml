@@ -16,13 +16,15 @@ on:
         description: Changelog
         required: true
 
-# Needed in order to push the commit and create a release
+# Needed to push the release branch, publish commit statuses, and open the PR.
 permissions:
   contents: write
+  pull-requests: write
+  statuses: write
 
 jobs:
   main:
-    name: Update Homey App Version
+    name: Prepare release PR
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -34,17 +36,72 @@ jobs:
           version: ${{ inputs.version }}
           changelog: ${{ inputs.changelog }}
 
-      - name: Commit & Push
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit
+
+      - name: Lint, build and test
+        run: |
+          npm run lint
+          npm test
+          git diff --check
+
+      - name: Validate Homey App
+        uses: athombv/github-action-homey-app-validate@0f3b42c15d26aab79d7c48cde4d2805524da910e
+        with:
+          level: publish
+
+      - name: Commit release branch
+        id: release_commit
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -A
-          git commit -m "Update Homey App Version to v${{ steps.update_app_version.outputs.version }}"
-          git tag "v${{ steps.update_app_version.outputs.version }}"
+          git commit -m "Prepare release v${VERSION}"
 
-          git push origin HEAD --tags
-          gh release create "v${{ steps.update_app_version.outputs.version }}" -t "v${{ steps.update_app_version.outputs.version }}" --notes "" --generate-notes
+          branch="release/v${VERSION}"
+          git push origin "HEAD:refs/heads/${branch}"
+          echo "branch=${branch}" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.update_app_version.outputs.version }}
+
+      # GITHUB_TOKEN-created PRs do not trigger additional workflow runs. Publish
+      # the successful checks against the release commit that was just validated.
+      - name: Publish release commit checks
+        run: |
+          target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${RELEASE_SHA}" \
+            -f state=success \
+            -f context="Lint, build and test" \
+            -f description="Release changes passed lint, build and tests" \
+            -f target_url="$target_url"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${RELEASE_SHA}" \
+            -f state=success \
+            -f context="Validate Homey App" \
+            -f description="Release changes passed Homey publish validation" \
+            -f target_url="$target_url"
+        env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ steps.release_commit.outputs.sha }}
+
+      - name: Open release PR
+        run: |
+          body=$(printf '## Changelog\n\n%s\n\nPrepared and validated by the Homey release workflow.' "$CHANGELOG")
+          gh pr create \
+            --base main \
+            --head "$RELEASE_BRANCH" \
+            --title "Release v${VERSION}" \
+            --body "$body"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.update_app_version.outputs.version }}
+          RELEASE_BRANCH: ${{ steps.release_commit.outputs.branch }}
+          CHANGELOG: ${{ inputs.changelog }}

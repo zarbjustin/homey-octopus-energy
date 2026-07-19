@@ -20,3 +20,24 @@ test('GitHub Actions are pinned to immutable commit SHAs', () => {
     }
   }
 });
+
+test('version automation opens a validated release PR instead of pushing main', () => {
+  const workflow = fs.readFileSync(
+    path.join(__dirname, '..', '.github', 'workflows', 'homey-app-version.yml'),
+    'utf8',
+  );
+  assert.match(workflow, /gh pr create/);
+  assert.match(workflow, /statuses\/\$\{RELEASE_SHA\}/);
+  assert.doesNotMatch(workflow, /git push origin HEAD --tags/);
+  assert.doesNotMatch(workflow, /gh release create/);
+});
+
+test('post-merge release automation creates annotated tags', () => {
+  const workflow = fs.readFileSync(
+    path.join(__dirname, '..', '.github', 'workflows', 'homey-app-release.yml'),
+    'utf8',
+  );
+  assert.match(workflow, /branches:\s*\n\s*- main/);
+  assert.match(workflow, /git tag -a/);
+  assert.match(workflow, /gh release create/);
+});
