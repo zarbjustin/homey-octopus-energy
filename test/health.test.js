@@ -22,7 +22,7 @@ function slot(start, price) {
   };
 }
 
-test('missing current price degrades an otherwise reachable device without taking it offline', () => {
+test('missing current price is an advisory, not a connection alarm, and stays online', () => {
   const result = refreshHealthDecision(
     true,
     false,
@@ -30,10 +30,20 @@ test('missing current price degrades an otherwise reachable device without takin
     0,
     new Error('Octopus returned no rate covering the current time.'),
   );
-  assert.equal(result.alarm, true);
+  // Connectivity/auth are fine, so the generic connection alarm must NOT fire.
+  assert.equal(result.alarm, false);
+  assert.equal(result.priceDegraded, true);
   assert.equal(result.markAvailable, true);
   assert.equal(result.markUnavailable, false);
-  assert.match(result.message, /tariff price/i);
+  assert.equal(result.message, null);
+  assert.match(result.warning, /tariff price/i);
+});
+
+test('a full connectivity failure still raises the connection alarm', () => {
+  const result = refreshHealthDecision(false, false, true, 0, new Error('fetch failed'));
+  assert.equal(result.alarm, true);
+  assert.equal(result.priceDegraded, false);
+  assert.equal(result.warning, null);
 });
 
 test('transient total failures require three consecutive refreshes before unavailability', () => {
@@ -234,4 +244,47 @@ test('repair rolls back store values after a partial write failure', async () =>
   }), /store write failed/);
 
   assert.deepEqual(store, original);
+});
+
+test('setHealth raises a warning (not a connection alarm) for a price-only gap', async () => {
+  const events = { caps: {}, warning: undefined, warnCleared: false };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.consecutiveTotalFailures = 0;
+  device.store = () => ({ productCode: 'VAR-22-11-01' });
+  device.hasCapability = (cap) => cap === 'alarm_generic';
+  device.setCapabilityValue = async (cap, value) => { events.caps[cap] = value; };
+  device.setWarning = async (msg) => { events.warning = msg; };
+  device.unsetWarning = async () => { events.warnCleared = true; };
+  device.getAvailable = () => true;
+  device.setAvailable = async () => {};
+  device.setUnavailable = async () => {};
+  device.error = () => {};
+
+  await device.setHealth(true, false, new Error('Octopus returned no rate covering the current time.'));
+
+  assert.equal(events.caps.alarm_generic, false, 'connection alarm must not fire for a price-only gap');
+  assert.match(events.warning, /tariff price/i);
+});
+
+test('setHealth clears the advisory warning once fully healthy', async () => {
+  const events = { caps: {}, warnCleared: false };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.consecutiveTotalFailures = 3;
+  device.notified401 = true;
+  device.lastHealthyRefreshAt = 0;
+  device.store = () => ({ productCode: 'VAR' });
+  device.hasCapability = (cap) => cap === 'alarm_generic';
+  device.setCapabilityValue = async (cap, value) => { events.caps[cap] = value; };
+  device.setStoreValue = async () => {};
+  device.setWarning = async () => {};
+  device.unsetWarning = async () => { events.warnCleared = true; };
+  device.getAvailable = () => true;
+  device.setAvailable = async () => {};
+  device.formatLocal = () => 'now';
+  device.error = () => {};
+
+  await device.setHealth(true, true, null);
+
+  assert.equal(events.caps.alarm_generic, false);
+  assert.equal(events.warnCleared, true);
 });

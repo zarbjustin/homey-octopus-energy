@@ -31,9 +31,11 @@ export interface MeterSettings {
 export interface RefreshHealthDecision {
   alarm: boolean;
   fullyHealthy: boolean;
+  priceDegraded: boolean;
   markAvailable: boolean;
   markUnavailable: boolean;
   message: string | null;
+  warning: string | null;
   authenticationFailure: boolean;
 }
 
@@ -62,28 +64,50 @@ export function refreshHealthDecision(
     return {
       alarm: false,
       fullyHealthy: true,
+      priceDegraded: false,
       markAvailable: true,
       markUnavailable: false,
       message: null,
+      warning: null,
       authenticationFailure: false,
     };
   }
 
   const raw = err instanceof Error ? err.message : String(err ?? '');
   const authenticationFailure = /401|authenticat|api key/i.test(raw);
+
+  // A price-only degradation: connectivity and authentication are fine (at
+  // least one other integration succeeded, no auth error) but the current
+  // tariff price is missing. This is a data gap, not a connection problem, so
+  // it must NOT raise the generic connection alarm — surface it as an advisory
+  // warning instead and keep the device available.
+  const priceDegraded = anySucceeded && !authenticationFailure && hasTariff && !priceSucceeded;
+  if (priceDegraded) {
+    return {
+      alarm: false,
+      fullyHealthy: false,
+      priceDegraded: true,
+      markAvailable: true,
+      markUnavailable: false,
+      message: null,
+      warning: 'Current tariff price is temporarily unavailable.',
+      authenticationFailure: false,
+    };
+  }
+
   let message = 'Octopus Energy is temporarily unavailable.';
   if (authenticationFailure) {
     message = 'Authentication failed - repair the device to update your API key.';
-  } else if (/no (?:current )?.*rate|no rate covering|404|not found/i.test(raw)) {
-    message = 'Current tariff price is temporarily unavailable.';
   }
 
   return {
     alarm: true,
     fullyHealthy: false,
+    priceDegraded: false,
     markAvailable: anySucceeded && !authenticationFailure,
     markUnavailable: authenticationFailure || (!anySucceeded && consecutiveTotalFailures >= 3),
     message,
+    warning: null,
     authenticationFailure,
   };
 }
@@ -647,6 +671,14 @@ export class OctopusMeterDevice extends Homey.Device {
     );
     if (this.hasCapability('alarm_generic')) {
       await this.setCapabilityValue('alarm_generic', decision.alarm).catch(this.error);
+    }
+    // Surface a missing tariff price as a non-blocking advisory rather than a
+    // connection error, so a price-only gap does not read as "offline" while
+    // the account, meter data and live readings are still working.
+    if (decision.warning) {
+      await this.setWarning(decision.warning).catch(this.error);
+    } else {
+      await this.unsetWarning().catch(this.error);
     }
     if (decision.fullyHealthy) {
       this.notified401 = false;
