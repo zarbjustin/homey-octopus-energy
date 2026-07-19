@@ -584,15 +584,54 @@ export class OctopusMeterDevice extends Homey.Device {
       const message = err instanceof Error ? err.message : String(err ?? '');
       if (!/no (?:current )?.*rate|no rate covering|404|not found/i.test(message)) throw err;
       const changed = await this.checkTariffChange(true);
-      if (!changed) {
-        // Rediscovery returned the same tariff code, so there is nothing to
-        // retry with — the stored tariff simply has no rate covering now. Record
-        // that the automatic recovery could not act, then surface the failure.
-        this.log('Price-gap recovery: rediscovery returned the same tariff code; no auto-switch performed.');
-        throw err;
+      if (changed) {
+        this.log('Tariff changed during price refresh; retrying with the active tariff.');
+        await this.refreshPrices();
+        return;
       }
-      this.log('Tariff changed during price refresh; retrying with the active tariff.');
+      // Rediscovery returned the same tariff code. As a guarded last resort, try
+      // a tariff variant resolved from the product's regional metadata (same
+      // product, region and register count) in case the stored code is a wrong
+      // payment-method/register variant. This reverts on failure so an unproven
+      // guess is never persisted.
+      if (await this.tryProductVariantRecovery()) return;
+      this.log('Price-gap recovery: rediscovery returned the same tariff code and no product-derived variant resolved it.');
+      throw err;
+    }
+  }
+
+  /**
+   * Attempt to recover a "no rate covering now" failure by switching to the
+   * tariff code the product metadata advertises for this meter's region and
+   * register count. Applies the candidate, retries the price refresh once, and
+   * reverts to the previous code if the retry still fails. Returns whether a
+   * working variant was found and applied.
+   */
+  private async tryProductVariantRecovery(): Promise<boolean> {
+    const s = this.store();
+    if (!s.productCode || !s.tariffCode) return false;
+    const region = regionFromTariff(s.tariffCode);
+    if (!region) return false;
+    const registers: 1 | 2 = this.isTwoRegisterTariff() ? 2 : 1;
+    let candidate: string | null = null;
+    try {
+      candidate = await this.client.tariffCodeForProduct(s.productCode, s.fuel, region, registers);
+    } catch (err) {
+      this.error('Product-variant lookup failed during price recovery:', err);
+      return false;
+    }
+    if (!candidate || candidate === s.tariffCode) return false;
+    const previous = s.tariffCode;
+    await this.setStoreValue('tariffCode', candidate);
+    try {
       await this.refreshPrices();
+      this.log('Price-gap recovery: switched to a product-derived tariff variant and recovered the current price.');
+      return true;
+    } catch (retryErr) {
+      // Never persist an unverified guess — restore the original stored code.
+      await this.setStoreValue('tariffCode', previous).catch((error) => this.error(error));
+      this.error('Product-derived tariff variant did not resolve the price gap; reverted.', retryErr);
+      return false;
     }
   }
 
