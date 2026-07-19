@@ -4,7 +4,7 @@ Last updated: 19 July 2026
 
 ## Current state
 
-- Repository: `zarbjustin/homey-octopus-energy` (private), default branch `main`.
+- Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
 - Current source version: `1.0.14`; release tag: `v1.0.14`.
 - Homey App Store: Build 13 / version `1.0.13` is live.
@@ -18,8 +18,31 @@ Last updated: 19 July 2026
   19 July 2026. A streamed development-mode startup check could not be run
   because Docker was not running on the development Mac.
 - `main` contains the `1.0.14` release and matches uploaded Build 14.
-- Validation baseline: 83 tests pass, lint passes, dependency audit reports zero
+- Validation baseline: 93 tests pass, lint passes, dependency audit reports zero
   known vulnerabilities, and Homey `publish` validation passes.
+
+## Active investigation
+
+- A user on the community support topic reports that an import electricity meter
+  still shows a connection problem and blank price capabilities on `1.0.13`.
+- Other integrations continue to return data, and replacing the device reproduced
+  the price failure immediately. This points away from stale Homey device state.
+- The submitted diagnostic is not committed because it contains user and device
+  identifiers. The sanitised evidence, source analysis, hypotheses, and open
+  questions are in `docs/reviews/import-price-gap-handover.md`.
+- A model-neutral review prompt is in
+  `docs/reviews/import-price-gap-analysis-prompt.md` for independent analysis.
+- Current `main` / `1.0.14` still has the same current-rate fallback path as
+  `1.0.13`; Sprint 40 did not claim to resolve this incident.
+
+## Sprint 40 security reconciliation
+
+- PR #3 selectively reconciled the useful parts of the superseded security PR.
+- API and pairing requests now enforce HTTPS and trusted origins, follow redirects
+  manually, redact upstream error bodies, and honour bounded `Retry-After` delays.
+- Pagination validates each next URL, rejects repeated URLs, and has a 50-page cap.
+- Pairing state is isolated per Homey pair session.
+- The existing serial-aware transactional repair lifecycle remains intact.
 
 ## What v1.0.14 contains
 
@@ -147,12 +170,16 @@ validation error should be investigated.
 
 ## Next actions
 
-1. Confirm the installed `1.0.14` meters continue refreshing normally.
-2. Smoke-test Repair for one electricity meter plus gas/export where available;
+1. Independently review the current-rate gap using the sanitised incident handover
+   and analysis prompt before choosing a fix.
+2. Add privacy-safe rate-shape diagnostics and focused fixtures that reproduce the
+   selected root cause before changing fallback or health behaviour.
+3. Confirm the installed `1.0.14` meters continue refreshing normally.
+4. Smoke-test Repair for one electricity meter plus gas/export where available;
    confirm invalid credentials leave the existing device unchanged.
-3. Monitor Build 14 certification; Homey will publish it automatically after
+5. Monitor Build 14 certification; Homey will publish it automatically after
    approval.
-4. Monitor the new integration diagnostics and community feedback after release.
+6. Monitor the new integration diagnostics and community feedback after release.
 
 ## Useful release commits
 
@@ -160,3 +187,4 @@ validation error should be investigated.
 - `6ac139f` - Homey version bump and tag for `v1.0.10`.
 - `0c87ef9` - npm metadata synchronized to `1.0.10`.
 - `a13f413` - meter recovery and current Octoplus integrations for `v1.0.13`.
+- `43b4af3` - Sprint 40 API and pairing hardening.
