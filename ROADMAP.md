@@ -69,9 +69,14 @@ capability and Flow IDs unless a migration is explicitly documented.
     original, fail-closed IOG recovery supports both `DayNightTariff` and the newer
     `FourRateEvTariff`, requires current exact tariff/product matches, and exposes only
     the household base schedule without treating dispatch intent as settlement price.
-42. **NEXT - P0 - Shared Home Mini live-data poller** - add an account-scoped poller with
-    configurable 1/2/3/5-minute cadence, request deduplication, freshness timestamps,
-    backoff, lightweight diagnostics, and separate fast/slow refresh paths.
+42. **DELIVERED (unreleased, PR pending) - P0 - Shared Kraken budget + live-data poller** -
+    implemented Foundation F0 (one account-scoped Kraken request budget, ~90/hr, enforced
+    in `KrakenClient.post()` with core/live/best-effort priorities and a 429 backoff gate),
+    a subscription-based shared live-demand source (`lib/LiveDemandSource.ts`, polls only
+    while subscribed, single-flight, freshness via `lib/freshness.ts`, 60/120/300s cadence
+    default 120), and migrated electricity live power off the 30s/device timer (fixing the
+    latent throttling bug). Delivered via an Opus 4.8 + GPT-5.5 dual-model design and review.
+    F1 freshness is internal only for now. Not yet field-verified or released.
 43. **P0 - Intelligent dispatch truth model** - model linked smart devices, SMART versus
     BOOST dispatches, multiple devices, overlaps, late changes, DST, and Octopus's
     midday-to-midday dispatch limit; distinguish dispatch windows from settlement prices.

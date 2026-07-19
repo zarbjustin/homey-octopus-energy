@@ -135,6 +135,19 @@ in narrowing this down.
   effective-price Flows. Sprint 41 intentionally does not infer discounts from
   ambiguous account-level dispatch windows.
 
+## Sprint 42 shared Kraken budget and live-data poller (DELIVERED, unreleased)
+
+On branch `feat/sprint-42-shared-kraken-poller` (PR pending). Implements Foundation
+F0 — one account-scoped Kraken request budget (`lib/KrakenBudget.ts`) enforced inside
+`KrakenClient.post()`, with core/live/best-effort priorities and a 429 backoff gate —
+plus a shared, subscription-based live-demand source (`lib/LiveDemandSource.ts`) with
+an internal freshness struct (`lib/freshness.ts`, F1). Electricity live power now uses
+the shared source instead of a 30s-per-device timer, fixing a latent throttling bug.
+New app setting `live_demand_cadence_s` (60/120/300s, default 120). No version bump;
+145 tests pass. Designed and reviewed with Claude Opus 4.8 + GPT-5.5. Spec:
+`docs/handover/sprints-42-48-spec.md`; the next sprint per that spec is 43 (dispatch
+truth model). Do not release without field verification.
+
 ## What v1.0.15 contains
 
 Fixes and diagnostics for the import current-price gap and Octoplus points

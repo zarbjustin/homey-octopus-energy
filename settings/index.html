@@ -60,6 +60,18 @@
     <input class="homey-form-input" id="low_balance_threshold" type="number" step="1" value="0" />
   </div>
 
+  <h2>Live power</h2>
+  <p>How often to refresh live power from an Octopus Home Mini. Slower cadences use
+     less of your Octopus API allowance, which is shared with other apps.</p>
+  <div class="field">
+    <label for="live_demand_cadence_s">Live power update interval</label>
+    <select class="homey-form-input" id="live_demand_cadence_s">
+      <option value="60">Every 60 seconds</option>
+      <option value="120">Every 2 minutes (recommended)</option>
+      <option value="300">Every 5 minutes</option>
+    </select>
+  </div>
+
   <h2>Saving Sessions status</h2>
   <ul id="saving-session-status" class="status-list">
     <li><span>No poll status recorded yet.</span></li>
@@ -94,6 +106,12 @@
         if (value !== undefined && value !== null) thr.value = value;
       });
       thr.addEventListener('change', () => Homey.set('low_balance_threshold', Number(thr.value), () => {}));
+
+      const cadence = document.getElementById('live_demand_cadence_s');
+      Homey.get('live_demand_cadence_s', (err, value) => {
+        cadence.value = String(value === undefined || value === null ? 120 : value);
+      });
+      cadence.addEventListener('change', () => Homey.set('live_demand_cadence_s', Number(cadence.value), () => {}));
 
       const status = document.getElementById('saving-session-status');
       const maskIdentifier = (value) => {

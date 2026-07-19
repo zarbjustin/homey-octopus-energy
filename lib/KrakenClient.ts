@@ -11,6 +11,10 @@
  * is rejected as unauthenticated.
  */
 
+import {
+  KrakenPriority, BudgetError, isBudgetError, getBucket,
+} from './KrakenBudget';
+
 const GRAPHQL_URL = 'https://api.octopus.energy/v1/graphql/';
 
 const BACKEND_GRAPHQL_URL = 'https://api.backend.octopus.energy/v1/graphql/';
@@ -66,11 +70,17 @@ export class KrakenClient {
 
   private octoplusSessions?: { accountNumber: string; request: Promise<SavingSession[]> };
 
-  constructor(apiKey: string, url: string = GRAPHQL_URL, backendUrl?: string) {
+  private readonly accountKey: string;
+
+  constructor(apiKey: string, accountNumber?: string, url: string = GRAPHQL_URL, backendUrl?: string) {
     if (!apiKey) throw new Error('An Octopus API key is required.');
     this.apiKey = apiKey;
     this.url = url;
     this.backendUrl = backendUrl ?? (url === GRAPHQL_URL ? BACKEND_GRAPHQL_URL : url);
+    // All GraphQL traffic for one account shares a single request budget. When
+    // an account number is unknown (rare bootstrap paths) fall back to a stable
+    // non-reversible key so a missing account still gets *a* bucket.
+    this.accountKey = accountNumber || `key:${apiKey.slice(0, 6)}`;
   }
 
   private async post<T>(
@@ -78,10 +88,18 @@ export class KrakenClient {
     query: string,
     variables: Record<string, unknown>,
     url = this.url,
+    priority: KrakenPriority = 'best',
   ): Promise<GraphQLResponse<T>> {
+    const bucket = getBucket(this.accountKey);
     const maxAttempts = 3;
     let lastErr: unknown;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Admit under the shared per-account budget. Non-core requests are skipped
+      // (rather than queued) when no token is available or a 429 gate is open, so
+      // callers retain their last-known value instead of hammering the account.
+      if (!bucket.acquire(priority)) {
+        throw new BudgetError();
+      }
       try {
         const controller = new AbortController();
         const timer = globalThis.setTimeout(() => controller.abort(), 20_000);
@@ -96,16 +114,26 @@ export class KrakenClient {
         } finally {
           clearTimeout(timer);
         }
-        if (res.status === 429 || res.status >= 500) {
+        if (res.status === 429) {
+          // Rate limited: open the account backoff gate and stop — do NOT retry
+          // inline (that only deepens the throttling).
+          bucket.penalise();
+          throw new Error('Kraken rate limited (429)');
+        }
+        if (res.status >= 500) {
           throw new Error(`Transient Kraken error ${res.status}`);
         }
         if (!res.ok) {
           const body = await res.text().catch(() => '');
           throw new Error(`Kraken request failed (${res.status}): ${body.slice(0, 200)}`);
         }
-        return await res.json() as GraphQLResponse<T>;
+        const json = await res.json() as GraphQLResponse<T>;
+        bucket.reward();
+        return json;
       } catch (err) {
         lastErr = err;
+        if (isBudgetError(err)) throw err;
+        if (err instanceof Error && /rate limited \(429\)/.test(err.message)) throw err;
         const transient = err instanceof Error && /Transient Kraken error|fetch failed|network|abort/i.test(err.message);
         if (!transient || attempt === maxAttempts - 1) throw err;
         await new Promise((resolve) => {
@@ -121,10 +149,11 @@ export class KrakenClient {
     variables: Record<string, unknown>,
     auth = true,
     url = this.url,
+    priority: KrakenPriority = 'best',
   ): Promise<T> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (auth) headers.Authorization = await this.getToken();
-    const json = await this.post<T>(headers, query, variables, url);
+    const json = await this.post<T>(headers, query, variables, url, priority);
     if (json.errors?.length) {
       const unauthenticated = json.errors.some(
         (e) => e.extensions?.errorCode === 'KT-CT-1124' || /authenticat/i.test(e.message),
@@ -133,7 +162,7 @@ export class KrakenClient {
         // Token likely expired — refresh once and retry.
         this.token = null;
         headers.Authorization = await this.getToken();
-        const retryJson = await this.post<T>(headers, query, variables, url);
+        const retryJson = await this.post<T>(headers, query, variables, url, priority);
         if (retryJson.errors?.length) throw new Error(retryJson.errors[0].message);
         return retryJson.data as T;
       }
@@ -155,6 +184,8 @@ export class KrakenClient {
       mutation,
       { apiKey: this.apiKey },
       false,
+      this.url,
+      'core',
     );
     const token = data?.obtainKrakenToken?.token;
     if (!token) throw new Error('Could not obtain a Kraken token — check your API key.');
@@ -172,7 +203,7 @@ export class KrakenClient {
           balance
         }
       }`;
-    const data = await this.query<{ account: { balance: number } }>(query, { accountNumber });
+    const data = await this.query<{ account: { balance: number } }>(query, { accountNumber }, true, this.url, 'live');
     const pence = Number(data?.account?.balance ?? 0);
     return pence / 100;
   }
@@ -241,6 +272,9 @@ export class KrakenClient {
     const data = await this.query<{ account?: { electricityAgreements?: Agreement[] } }>(
       query,
       { accountNumber },
+      true,
+      this.url,
+      'core',
     );
     const agreements = data?.account?.electricityAgreements ?? [];
     const expectedTariff = expectedTariffCode.toUpperCase();
@@ -322,7 +356,7 @@ export class KrakenClient {
         }>;
       };
     }
-    const data = await this.query<Resp>(query, { accountNumber });
+    const data = await this.query<Resp>(query, { accountNumber }, true, this.url, 'live');
     for (const property of data?.account?.properties ?? []) {
       for (const mp of property.electricityMeterPoints ?? []) {
         for (const meter of mp.meters ?? []) {
@@ -336,6 +370,15 @@ export class KrakenClient {
 
   /** Latest instantaneous electricity demand in watts from a Home Mini, or null. */
   async getDemand(deviceId: string): Promise<number | null> {
+    return (await this.getDemandReading(deviceId)).demand;
+  }
+
+  /**
+   * Latest Home Mini demand together with the sample's `readAt` timestamp, so
+   * callers can reason about freshness. Demand is watts (negative during export)
+   * or null when unavailable.
+   */
+  async getDemandReading(deviceId: string): Promise<{ demand: number | null; readAt: string | null }> {
     const query = `
       query Telemetry($deviceId: String!) {
         smartMeterTelemetry(deviceId: $deviceId) {
@@ -346,6 +389,9 @@ export class KrakenClient {
     const data = await this.query<{ smartMeterTelemetry: Array<{ readAt?: string; demand: string | number }> | { readAt?: string; demand: string | number } | null }>(
       query,
       { deviceId },
+      true,
+      this.url,
+      'live',
     );
     const telemetry = data?.smartMeterTelemetry;
     let list: Array<{ readAt?: string; demand: string | number }> = [];
@@ -354,13 +400,16 @@ export class KrakenClient {
     } else if (telemetry) {
       list = [telemetry];
     }
-    if (!list.length) return null;
+    if (!list.length) return { demand: null, readAt: null };
     // Select the most recent sample by readAt rather than assuming array order.
     const latest = list.reduce((a, b) => (
       new Date(b.readAt ?? 0).getTime() >= new Date(a.readAt ?? 0).getTime() ? b : a
     ));
     const demand = Number(latest?.demand);
-    return Number.isFinite(demand) ? demand : null;
+    return {
+      demand: Number.isFinite(demand) ? demand : null,
+      readAt: latest?.readAt ?? null,
+    };
   }
 
   /**
@@ -429,7 +478,7 @@ export class KrakenClient {
         };
       };
     }
-    const data = await this.query<Resp>(query, { accountNumber }, true, this.backendUrl);
+    const data = await this.query<Resp>(query, { accountNumber }, true, this.backendUrl, 'best');
     const events = data?.savingSessions?.events ?? [];
     const account = data?.savingSessions?.account;
     const accountRegion = account?.signedUpMeterPoint?.regionId;
@@ -465,7 +514,7 @@ export class KrakenClient {
     interface Resp {
       plannedDispatches?: Array<{ start?: string; end?: string; startDt?: string; endDt?: string }>;
     }
-    const data = await this.query<Resp>(query, { accountNumber });
+    const data = await this.query<Resp>(query, { accountNumber }, true, this.url, 'live');
     const list = data?.plannedDispatches ?? [];
     return list
       .map((d) => ({ start: String(d.start ?? d.startDt ?? ''), end: String(d.end ?? d.endDt ?? '') }))
@@ -484,7 +533,7 @@ export class KrakenClient {
     interface Resp {
       completedDispatches?: Array<{ start?: string; end?: string; startDt?: string; endDt?: string }>;
     }
-    const data = await this.query<Resp>(query, { accountNumber });
+    const data = await this.query<Resp>(query, { accountNumber }, true, this.url, 'best');
     const list = data?.completedDispatches ?? [];
     return list
       .map((d) => ({ start: String(d.start ?? d.startDt ?? ''), end: String(d.end ?? d.endDt ?? '') }))
@@ -503,7 +552,7 @@ export class KrakenClient {
           krakenflexDeviceId
         }
       }`;
-    await this.query(mutation, { accountNumber });
+    await this.query(mutation, { accountNumber }, true, this.url, 'core');
   }
 
   /**
@@ -522,7 +571,7 @@ export class KrakenClient {
     }
     let data: Resp;
     try {
-      data = await this.query<Resp>(query, { accountNumber });
+      data = await this.query<Resp>(query, { accountNumber }, true, this.url, 'best');
     } catch (err) {
       // Loyalty points are only exposed to accounts enrolled in Octoplus with
       // the right field authorisation. Kraken answers unenrolled/ineligible

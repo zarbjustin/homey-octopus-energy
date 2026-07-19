@@ -44,7 +44,7 @@ export abstract class AccountPoller {
       getKrakenClient?(apiKey: string, accountNumber: string): KrakenClient;
     };
     return app.getKrakenClient?.(creds.apiKey, creds.accountNumber)
-      ?? new KrakenClient(creds.apiKey);
+      ?? new KrakenClient(creds.apiKey, creds.accountNumber);
   }
 
   private runPoll(): void {

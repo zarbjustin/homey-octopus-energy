@@ -3,9 +3,19 @@
 import { Rate, regionFromTariff } from '../../lib/rates';
 import { OctopusMeterDevice } from '../../lib/OctopusMeterDevice';
 import type { Dispatch } from '../../lib/KrakenClient';
+import type { Reading } from '../../lib/freshness';
 import {
   CarbonClient, CarbonPoint, carbonLevelId, isGreenestNow, regionIdFromGsp,
 } from '../../lib/carbon';
+
+interface LiveDemandApp {
+  subscribeLiveDemand(
+    creds: { apiKey: string; accountNumber: string },
+    subscriberId: string,
+    onUpdate: (reading: Reading<number>) => void,
+  ): void;
+  unsubscribeLiveDemand(accountNumber: string, subscriberId: string): void;
+}
 
 module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
@@ -13,9 +23,7 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
   private previousLevel: string | null = null;
 
-  private livePowerTimer: NodeJS.Timeout | null = null;
-
-  private liveDeviceId: string | null = null;
+  private liveSubscribedAccount: string | null = null;
 
   private carbon = new CarbonClient();
 
@@ -228,43 +236,46 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   }
 
   protected async onCredentialsApplied(): Promise<void> {
-    this.liveDeviceId = null;
+    // If live power is active, re-point the shared subscription at the (possibly
+    // new) account without disturbing the measure_power capability.
+    if (this.liveSubscribedAccount !== null && this.getSetting('live_power')) {
+      await this.enableLivePower();
+    }
+  }
+
+  private liveApp(): LiveDemandApp | null {
+    const app = this.homey.app as Partial<LiveDemandApp>;
+    return (app.subscribeLiveDemand && app.unsubscribeLiveDemand) ? app as LiveDemandApp : null;
   }
 
   private async enableLivePower(): Promise<void> {
-    if (this.livePowerTimer) {
-      this.homey.clearInterval(this.livePowerTimer);
-      this.livePowerTimer = null;
-    }
     if (!this.hasCapability('measure_power')) {
       await this.addCapability('measure_power').catch((err) => this.error('Add measure_power failed:', err));
     }
-    await this.pollLivePower().catch((err) => this.error('Live power poll failed:', err));
-    this.livePowerTimer = this.homey.setInterval(() => {
-      this.pollLivePower().catch((err) => this.error('Live power poll failed:', err));
-    }, 30_000);
+    const { apiKey, accountNumber } = this.store();
+    const app = this.liveApp();
+    if (!apiKey || !accountNumber || !app) return;
+    // Re-point to a new account if credentials changed while subscribed.
+    if (this.liveSubscribedAccount && this.liveSubscribedAccount !== accountNumber) {
+      app.unsubscribeLiveDemand(this.liveSubscribedAccount, this.getData().id);
+    }
+    this.liveSubscribedAccount = accountNumber;
+    app.subscribeLiveDemand({ apiKey, accountNumber }, this.getData().id, (reading) => {
+      // Only apply a genuinely current reading; never write a stale value as live.
+      if (reading.state === 'current' && reading.value !== null && this.hasCapability('measure_power')) {
+        this.setCapabilityValue('measure_power', Math.round(reading.value)).catch(this.error);
+      }
+    });
   }
 
   private async disableLivePower(): Promise<void> {
-    if (this.livePowerTimer) {
-      this.homey.clearInterval(this.livePowerTimer);
-      this.livePowerTimer = null;
+    const app = this.liveApp();
+    if (app && this.liveSubscribedAccount) {
+      app.unsubscribeLiveDemand(this.liveSubscribedAccount, this.getData().id);
     }
+    this.liveSubscribedAccount = null;
     if (this.hasCapability('measure_power')) {
       await this.removeCapability('measure_power').catch((err) => this.error('Remove measure_power failed:', err));
-    }
-  }
-
-  private async pollLivePower(): Promise<void> {
-    const accountNumber = this.getStoreValue('accountNumber');
-    if (!accountNumber) return;
-    if (!this.liveDeviceId) {
-      this.liveDeviceId = await this.kraken.getElectricityDeviceId(accountNumber);
-    }
-    if (!this.liveDeviceId) return; // No Home Mini on this account.
-    const watts = await this.kraken.getDemand(this.liveDeviceId);
-    if (watts !== null && this.hasCapability('measure_power')) {
-      await this.setCapabilityValue('measure_power', Math.round(watts)).catch(this.error);
     }
   }
 
@@ -285,10 +296,13 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   }
 
   async onUninit(): Promise<void> {
-    if (this.livePowerTimer) {
-      this.homey.clearInterval(this.livePowerTimer);
-      this.livePowerTimer = null;
+    // Release the shared subscription without removing the capability (the app
+    // is shutting down, not the device).
+    const app = this.liveApp();
+    if (app && this.liveSubscribedAccount) {
+      app.unsubscribeLiveDemand(this.liveSubscribedAccount, this.getData().id);
     }
+    this.liveSubscribedAccount = null;
     await super.onUninit();
   }
 
