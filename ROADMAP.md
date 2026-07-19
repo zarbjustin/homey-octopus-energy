@@ -69,10 +69,10 @@ capability and Flow IDs unless a migration is explicitly documented.
     before considering general release.
 
 ### Backlog gates
-- Sprint 41 is merged to `main`, but release promotion requires a fresh diagnostic from the
-  affected IOG account showing that current household prices recover through the intended
-  contract. Publish a patch to Homey Test first; do not claim the incident fixed or promote
-  to production solely from synthetic contract tests.
+- Sprint 41 is merged to `main` and released as `v1.0.16` / Homey Build 16 in Test, but
+  production promotion requires a fresh diagnostic from the affected IOG account showing
+  that current household prices recover through the intended contract. Do not claim the
+  incident fixed or promote solely from synthetic contract tests.
 - Sprints 42-43 require focused unit and integration fixtures before release work begins.
 - Experimental GraphQL fields must fail closed and must not replace official REST billing
   data without reconciliation.

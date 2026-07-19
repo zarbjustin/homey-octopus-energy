@@ -1,6 +1,6 @@
 # Import Current-Price Gap: Independent Review Handover
 
-Last updated: 19 July 2026 (updated after v1.0.15)
+Last updated: 19 July 2026 (updated after v1.0.16 entered Test)
 
 ## Fresh v1.0.15 diagnostic (19 July 2026)
 
@@ -26,14 +26,14 @@ SMART/BOOST type, or settlement semantics. Those contracts are deferred to
 Sprints 43-44. `IOG` is also classified as a dynamic tariff so half-hour boundary
 refreshes remain aligned.
 
-## Resolution status (v1.0.15 plus completed Sprint 41 implementation)
+## Resolution status (`v1.0.16` / Homey Build 16 in Test)
 
 `v1.0.15` shipped symptom and diagnosability fixes. A fresh diagnostic now
 confirms the public product-rate endpoint returns zero rows for the affected
 `IOG` agreement. Sprint 41 adds an exact-match, fail-closed GraphQL recovery for
 the legacy day/night and newer four-rate IOG unions. It uses only the household
-base day/night schedule. It is not yet
-field-confirmed or released.
+base day/night schedule. The implementation is released to Test as Build 16 but
+is not yet field-confirmed or production-released.
 
 Implemented in `v1.0.15` (PR #5, released in PR #6):
 - Price-only gap no longer raises the connection alarm — it is a non-blocking
@@ -46,8 +46,8 @@ Implemented in `v1.0.15` (PR #5, released in PR #6):
 - Octoplus points `Unauthorized.` → unsupported/null + 24 h backoff.
 
 Still open: which supported IOG union the affected account exposes and whether
-Octopus's VPP trial requires additional effective-price rules.
-Validate through a Test build; do not use ambiguous dispatch windows for billing.
+Octopus's VPP trial requires additional effective-price rules. Validate Build 16
+on the affected account; do not use ambiguous dispatch windows for billing.
 
 ### Decision tree for a fresh diagnostic
 
