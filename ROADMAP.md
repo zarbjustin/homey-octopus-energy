@@ -22,6 +22,19 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
 
 ## Future backlog - Sprints 40-48
 
+> **See `docs/handover/sprints-42-48-spec.md`** for the researched, opinionated
+> specification of Sprints 42–48. It proposes (and justifies) a revised execution
+> order and two cross-cutting foundations, based on verified Octopus API limits:
+> - Kraken allows only ~100–125 requests/hr/account, **shared across all apps** —
+>   so Sprint 42 must own a shared request budget (F0), and it also fixes a latent
+>   throttling bug (live power polls 30 s per electricity device today).
+> - **F1**: one data-provenance/freshness convention (current/estimated/stale/
+>   planned/finalised/unknown) applied to capabilities, widgets, and Flow tokens.
+> - Recommended order: `42 → 43 → 45 (pulled earlier) → 46 → 44 (scoped down,
+>   estimate-only) → 47 → 49 Trust & Polish`.
+> - **Sprint 48 (live gas) is recommended for drop** as a shipped feature
+>   (misleading, low value); research spike only.
+
 Priorities reflect dependencies and user impact. Each sprint should preserve existing
 capability and Flow IDs unless a migration is explicitly documented.
 

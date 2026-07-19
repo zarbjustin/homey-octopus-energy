@@ -45,6 +45,13 @@ references are stale merged history, not pending work.
 
 ## Recommended order
 
+> A researched, opinionated specification for Sprints 42–48 — with a **revised**
+> execution order, two cross-cutting foundations (F0 shared Kraken request budget,
+> F1 provenance/freshness convention), and a recommendation to drop Sprint 48
+> (live gas) — is in `docs/handover/sprints-42-48-spec.md`. The list below is the
+> original roadmap order; prefer the spec's order (`42 → 43 → 45 → 46 → 44 → 47 →
+> 49`) unless you deliberately choose otherwise.
+
 1. **Sprint 42: shared Home Mini poller.** Establish one account-scoped live-data
    source with deduplication, freshness, cadence, and backoff.
 2. **Sprint 43: dispatch truth model.** Define linked devices and SMART/BOOST
