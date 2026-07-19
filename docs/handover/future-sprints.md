@@ -38,6 +38,12 @@ silently pull later-sprint scope forward.
 Before implementation, inspect current GitHub pull requests and branches. Do not
 assume this document is newer than remote `main`.
 
+At this handover checkpoint there are no open pull requests. The remote
+`release/v1.0.16`, `agent/clarify-dispatch-roadmap`, and
+`agent/record-v1.0.16-test` branches are merged historical branches, not pending
+work. Start with `git fetch --all --prune`, a clean local `main`, and the latest
+`origin/main`; do not resume one of those branches.
+
 ## Recommended order
 
 1. **Sprint 42: shared Home Mini poller.** Establish one account-scoped live-data
@@ -124,8 +130,9 @@ https://homey.app/a/uk.co.zarb.octopusenergy/test/
 
 The follow-up should say that `1.0.16` adds guarded legacy/four-rate IOG household
 price recovery on top of the health wording, points backoff, and privacy-safe
-diagnostics. It must not claim
-the underlying missing-rate cause is proven fixed. If the price remains blank,
+diagnostics. A reply has been drafted in `HANDOVER.md`, but it is not confirmed as
+posted. It must not claim the underlying missing-rate cause is proven fixed. If
+the price remains blank,
 ask for a fresh diagnostic while blank, the approximate time, exact import tariff,
 and single-rate versus Economy 7 status. Ask the user to keep the existing device.
 
@@ -166,4 +173,9 @@ only when green, remove the branch, and update the handover and roadmap.
 
 Do not bump versions, publish a Homey build, retract a submission, post to the
 community, or expose user diagnostics unless I explicitly ask.
+
+Build 16 / v1.0.16 is already in Homey Test and is not in certification. Do not
+submit it for certification until Darren confirms the household current price or
+a fresh privacy-safe diagnostic is reviewed. Do not delete/re-pair his existing
+meter device as part of the test.
 ```
