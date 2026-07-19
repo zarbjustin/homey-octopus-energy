@@ -19,9 +19,8 @@ silently pull later-sprint scope forward.
   after approval. Build 13 / `1.0.13` remains live until approval.
 - Build 14 was retracted from certification and superseded by Build 15.
 - `1.0.15` has been installed successfully on the local Homey Pro.
-- Sprint 41 was merged through PR #10 and its production-completion follow-up is
-  on `sprint-41-production-completion` with 121 tests. Lint, dependency audit and
-  publish validation retain exactly the two
+- Sprint 41 was completed through PRs #10-#11 on `main` with 121 tests. Lint,
+  dependency audit and publish validation retain exactly the two
   documented cumulative-direction warnings.
 - The import current-price incident has a complete IOG household-base recovery
   for legacy and four-rate account contracts, but it is not

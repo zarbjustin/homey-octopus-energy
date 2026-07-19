@@ -19,14 +19,13 @@ Last updated: 19 July 2026
 - `main` contains the `1.0.15` release (tag `v1.0.15`, merge `16e5143`).
 - Version `1.0.15` was built, validated, packed, and installed successfully on
   `Justin's Homey Pro` on 19 July 2026.
-- Sprint 41 was merged through PR #10. Its production-completion follow-up on
-  `sprint-41-production-completion` has 121 passing tests; lint, dependency audit
-  and Homey publish validation pass as recorded below.
+- Sprint 41 was completed through PRs #10-#11 on `main` with 121 passing tests;
+  lint, dependency audit and Homey publish validation pass as recorded below.
 
 ## Next-model entry point
 
-- Sprint 41 implementation is complete on `sprint-41-production-completion`;
-  after that focused follow-up is merged, future feature work starts with Sprint 42.
+- Sprint 41 implementation is complete on `main`; future feature work starts
+  with Sprint 42.
 - Read `docs/handover/future-sprints.md` before selecting or implementing a
   future sprint. It contains the dependency order, acceptance gates, current
   release boundaries, and a copyable prompt for another AI model.
@@ -90,8 +89,7 @@ Last updated: 19 July 2026
 
 ## Sprint 41 Kraken contracts and IOG recovery
 
-- Merged research PR: #10; production-completion branch:
-  `sprint-41-production-completion`.
+- Merged research PR: #10; merged production-completion PR: #11.
 - Contract dossier: `docs/research/kraken-contracts.md`.
 - Synthetic fixtures: `test/fixtures/kraken/`; a test rejects credential-shaped
   content and any fixture identifier not visibly prefixed `synthetic-`.
