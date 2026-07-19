@@ -34,6 +34,26 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
 >   estimate-only) → 47 → 49 Trust & Polish`.
 > - **Sprint 48 (live gas) is recommended for drop** as a shipped feature
 >   (misleading, low value); research spike only.
+>
+> Supporting evidence and source links: **`docs/research/sprints-42-48-research.md`**.
+
+### Revised execution order & decisions (from the spec)
+
+| Order | Sprint | Priority | Decision vs original roadmap |
+|---|---|---|---|
+| 1 | 42 Shared Kraken budget + live poller | P0 | Elevated to own **F0** (shared request budget for all Kraken calls); also fixes the 30 s/device live-power throttling bug. |
+| 2 | 43 Dispatch truth model | P0 | Ratifies **F1** provenance/freshness convention; device-scoped SMART/BOOST state machine. |
+| 3 | 45 Billing-period summary | P1 | **Pulled earlier** — highest mainstream value, REST-authoritative, low ambiguity. |
+| 4 | 46 Live-energy presentation + widgets | P1 | Reuses S42 source; applies F1 badges. |
+| 5 | 44 Dispatch/effective-price Flows | P1 | **Scoped down** — effective rate is opt-in, estimated, confidence-tagged; household base stays authoritative. |
+| 6 | 47 Planner + tariff analytics | P2 | Unchanged; opt-in power-user. |
+| 7 | 49 Trust & Polish | P2 | **New**, replaces dropped S48; applies F1 everywhere + docs/maintenance. |
+| — | 48 Estimated live gas | — | **Dropped** as shippable; optional research spike only. |
+
+Foundations: **F0** shared Kraken request budget (~≤90/hr/account, hard 429 backoff,
+priority classes) delivered in S42; **F1** one data-provenance/freshness convention
+(`current/estimated/stale/planned/finalised/unknown`) applied across capabilities,
+widgets, and Flow tokens. Full spec: `docs/handover/sprints-42-48-spec.md`.
 
 Priorities reflect dependencies and user impact. Each sprint should preserve existing
 capability and Flow IDs unless a migration is explicitly documented.

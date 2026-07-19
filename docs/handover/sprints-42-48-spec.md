@@ -20,6 +20,8 @@ The existing roadmap (Sprints 42–48) is well-scoped but is framed as "add more
 
 ## 2. Key research findings (verified)
 
+> Full evidence, primary/secondary sources, and links: **`docs/research/sprints-42-48-research.md`**.
+
 | Finding | Source | Design consequence |
 |---|---|---|
 | Home Mini uploads ~every 10 s; safe API pull ~30–60 s; **hard limit ~100–125 req/hr/account, shared across all apps** | openHAB/HA/community threads, Aug 2026 | Sprint 42 must be a **shared account-scoped request budget**, not just a poller. Conservative default cadence; leave headroom for Octopus's own app. |

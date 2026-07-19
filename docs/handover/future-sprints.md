@@ -32,8 +32,10 @@ silently pull later-sprint scope forward.
 2. `ROADMAP.md`, especially Sprints 41-48 and their backlog gates
 3. `SECURITY.md`
 4. `docs/reviews/import-price-gap-handover.md`
-5. The architecture files relevant to the selected sprint
-6. Existing tests for the same ownership boundary
+5. For Sprints 42–48: `docs/handover/sprints-42-48-spec.md` (spec) and
+   `docs/research/sprints-42-48-research.md` (evidence + links)
+6. The architecture files relevant to the selected sprint
+7. Existing tests for the same ownership boundary
 
 Before implementation, inspect current GitHub pull requests and branches. Do not
 assume this document is newer than remote `main`.
