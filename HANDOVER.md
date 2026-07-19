@@ -6,34 +6,45 @@ Last updated: 19 July 2026
 
 - Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current source version: `1.0.14`; release tag: `v1.0.14`.
-- Homey App Store: Build 13 / version `1.0.13` is live.
+- Current source version: `1.0.15`; release tag: `v1.0.15` (GitHub release published).
+- Homey App Store: Build 13 / version `1.0.13` is live. `1.0.15` is NOT yet
+  published to the App Store — run the `Publish Homey App` workflow (or
+  `npx homey app publish`) when ready.
 - Automatic publication after certification approval is enabled.
 - Test channel: https://homey.app/a/uk.co.zarb.octopusenergy/test/
-- Build 14 / version `1.0.14` is published to Test and under certification review.
-  Automatic publication after approval is enabled.
+- Build 14 / version `1.0.14` was the last uploaded build (Test + certification).
 - Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/14
 - Community support topic: https://community.homey.app/t/156860
-- Version `1.0.14` was installed successfully on `Justin's Homey Pro` on
-  19 July 2026. A streamed development-mode startup check could not be run
-  because Docker was not running on the development Mac.
-- `main` contains the `1.0.14` release and matches uploaded Build 14.
-- Validation baseline: 93 tests pass, lint passes, dependency audit reports zero
+- `main` contains the `1.0.15` release (tag `v1.0.15`, merge `16e5143`).
+- Validation baseline: 108 tests pass, lint passes, dependency audit reports zero
   known vulnerabilities, and Homey `publish` validation passes.
 
-## Active investigation
+## Active investigation — import current-price gap (PARTIALLY addressed in 1.0.15)
 
-- A user on the community support topic reports that an import electricity meter
-  still shows a connection problem and blank price capabilities on `1.0.13`.
-- Other integrations continue to return data, and replacing the device reproduced
-  the price failure immediately. This points away from stale Homey device state.
-- The submitted diagnostic is not committed because it contains user and device
-  identifiers. The sanitised evidence, source analysis, hypotheses, and open
-  questions are in `docs/reviews/import-price-gap-handover.md`.
+- A user (Darren) on community topic 156860 reported an import electricity meter
+  still showing a connection problem and blank price on `1.0.13`, while the Mini
+  live readings and other integrations worked. Replacing the device reproduced the
+  price failure immediately (deterministic — points away from stale device state).
+- `1.0.15` addressed the **symptoms and diagnosability**, but the underlying
+  cause of the missing current rate for that user's tariff is **not yet confirmed**
+  — it needs one fresh diagnostic on `1.0.15`+ (see `docs/reviews/import-price-gap-handover.md`,
+  "Resolution status" at the top).
+- What `1.0.15` changed for this incident:
+  - A price-only gap no longer raises the generic connection alarm; it shows a
+    non-blocking advisory and the device stays available (`refreshHealthDecision`,
+    `setHealth`). This directly answers "shows a connection error in the status".
+  - Guarded product-derived tariff-variant recovery: if rediscovery returns the
+    same tariff code, it tries the code the product advertises for the meter's
+    region/register count, reverting on failure (targets a variant mismatch).
+  - Privacy-safe `price-gap diagnostic (no identifiers)` log line records row
+    counts, open-ended counts, and day-only validity bounds so the next report
+    distinguishes variant-mismatch vs closed-agreement vs upstream gap.
+  - Octoplus points `Unauthorized.` no longer logs every cycle: it is treated as
+    an unsupported field (null) with a 24 h backoff.
+- The sanitised evidence, ranked hypotheses, and the decision tree for reading a
+  fresh diagnostic are in `docs/reviews/import-price-gap-handover.md`.
 - A model-neutral review prompt is in
   `docs/reviews/import-price-gap-analysis-prompt.md` for independent analysis.
-- Current `main` / `1.0.14` still has the same current-rate fallback path as
-  `1.0.13`; Sprint 40 did not claim to resolve this incident.
 
 ## Sprint 40 security reconciliation
 
@@ -44,7 +55,36 @@ Last updated: 19 July 2026
 - Pairing state is isolated per Homey pair session.
 - The existing serial-aware transactional repair lifecycle remains intact.
 
-## What v1.0.14 contains
+## What v1.0.15 contains
+
+Fixes and diagnostics for the import current-price gap and Octoplus points
+(community topic 156860, posts #11–#12). Delivered via PR #5 and released in PR #6.
+
+- Import price-only degradation is now surfaced as a non-blocking advisory
+  (`setWarning`) instead of the generic connection alarm; the device stays
+  available. `alarm_generic` is reserved for genuine connectivity/auth failures
+  (`refreshHealthDecision`, `setHealth`). This is intentional: it does NOT revert
+  to the pre-1.0.10 behaviour of showing a stale price as current.
+- Guarded product-derived tariff-variant recovery (`tryProductVariantRecovery`):
+  after same-code rediscovery, tries the tariff code the product advertises for
+  the meter's region and register count, retries the price refresh once, and
+  reverts the stored tariff code if the retry still fails (never persists an
+  unverified guess).
+- Privacy-safe price-gap diagnostic (`logPriceGapDiagnostic`): logs fuel, role,
+  register, product family, dynamic flag, primary/fallback row counts, open-ended
+  counts, and day-only validity bounds — no credentials, identifiers, tariff
+  codes, or raw bodies.
+- Octoplus points `Unauthorized.`/enrolment errors are treated as an unsupported
+  field (`getOctoplusPoints` returns null via `isUnsupportedFieldError`) with a
+  24 h backoff and a single log line; genuinely transient errors are re-thrown and
+  capped to hourly retries.
+- Fixes the `Update Homey App Version` workflow to sync `package.json` (and its
+  lockfile) to the bumped version, so automated release PRs no longer fail the
+  manifest-version test.
+- Root cause of the missing current rate for the affected tariff is still open —
+  see the Active investigation section and the incident handover doc.
+
+
 
 - Adds the missing custom Repair views for electricity, gas, and export meters.
 - Makes Repair wait for in-flight work, apply credentials transactionally with
@@ -131,8 +171,10 @@ Sprints 33-39 completed the bug-bash hardening phase:
 - `package.json`, `package-lock.json`, `.homeycompose/app.json`, and generated
   `app.json` must carry the same release version.
 - Homey's publisher updates its own manifests and changelog but does not update
-  npm package metadata. Always synchronize `package.json` and `package-lock.json`
-  after a Homey version bump, rerun tests, commit, and push.
+  npm package metadata. The `Update Homey App Version` workflow now includes a
+  "Sync package.json version" step that reconciles `package.json` and
+  `package-lock.json` automatically; a manual `npx homey app publish` still
+  requires you to sync npm metadata yourself, rerun tests, commit, and push.
 - API keys and account numbers belong only in Homey's device store. Never place
   real credentials in logs, screenshots, fixtures, issues, or documentation.
 - Repair must preserve MPAN/MPRN and serial identity. A replacement meter should
@@ -168,18 +210,37 @@ validation error should be investigated.
 8. In Homey Developer Tools, publish the build to Test and submit it for
    certification. Keep automatic publication enabled when desired.
 
+## Release automation
+
+- `Update Homey App Version` (`homey-app-version.yml`, manual `workflow_dispatch`)
+  bumps the manifests + changelog, syncs `package.json`, validates, and opens a
+  `release/vX.Y.Z` PR.
+- `Create GitHub Release` (`homey-app-release.yml`) triggers on push to `main`,
+  reads the version, and creates the annotated tag + GitHub release when missing.
+- `Publish Homey App` (`homey-app-publish.yml`, manual `workflow_dispatch`)
+  publishes the build to the Homey App Store (requires the `HOMEY_PAT` secret,
+  which is configured).
+- CAVEAT observed on 19 July 2026: merging a release PR via the `gh` CLI did NOT
+  emit the `push` event that triggers `Create GitHub Release` (merging via the
+  GitHub web UI does). If a release PR is merged from the CLI, create the tag and
+  release manually: `git tag -a vX.Y.Z -m "Release vX.Y.Z" <sha> && git push
+  origin refs/tags/vX.Y.Z` then `gh release create vX.Y.Z --verify-tag --title
+  vX.Y.Z --generate-notes`. `v1.0.15` was created this way.
+
 ## Next actions
 
-1. Independently review the current-rate gap using the sanitised incident handover
-   and analysis prompt before choosing a fix.
-2. Add privacy-safe rate-shape diagnostics and focused fixtures that reproduce the
-   selected root cause before changing fallback or health behaviour.
-3. Confirm the installed `1.0.14` meters continue refreshing normally.
-4. Smoke-test Repair for one electricity meter plus gas/export where available;
+1. Publish `1.0.15` to the App Store when ready (`Publish Homey App` workflow or
+   `npx homey app publish`); it is tagged and released on GitHub but not yet live.
+2. Ask the affected user for one fresh diagnostic on `1.0.15`+ while the price is
+   blank, plus their tariff type (flat/fixed vs time-of-use; single-rate vs
+   Economy 7). Read the new `price-gap diagnostic (no identifiers)` line and
+   follow the decision tree in `docs/reviews/import-price-gap-handover.md`.
+3. If the diagnostic shows a variant mismatch, confirm the guarded recovery
+   self-heals it; otherwise implement the indicated fix (closed-agreement
+   selection or an evidence-backed upstream-gap handling) with fixtures first.
+4. Monitor the new advisory/health behaviour and community feedback after release.
+5. Smoke-test Repair for one electricity meter plus gas/export where available;
    confirm invalid credentials leave the existing device unchanged.
-5. Monitor Build 14 certification; Homey will publish it automatically after
-   approval.
-6. Monitor the new integration diagnostics and community feedback after release.
 
 ## Useful release commits
 
@@ -188,3 +249,6 @@ validation error should be investigated.
 - `0c87ef9` - npm metadata synchronized to `1.0.10`.
 - `a13f413` - meter recovery and current Octoplus integrations for `v1.0.13`.
 - `43b4af3` - Sprint 40 API and pairing hardening.
+- `f2d08f9` - import price-gap fixes, points backoff, diagnostics, guarded
+  variant recovery, and price-only advisory health state (PR #5).
+- `16e5143` - `v1.0.15` release: version bump, changelog, version-workflow fix (PR #6).

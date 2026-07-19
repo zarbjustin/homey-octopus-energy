@@ -1,6 +1,48 @@
 # Import Current-Price Gap: Independent Review Handover
 
-Last updated: 19 July 2026
+Last updated: 19 July 2026 (updated after v1.0.15)
+
+## Resolution status (v1.0.15)
+
+`v1.0.15` shipped symptom + diagnosability fixes; the **root cause of the missing
+current rate for the affected user's tariff is not yet confirmed**. What changed,
+and what a follow-up AI/engineer should do next:
+
+Implemented in `v1.0.15` (PR #5, released in PR #6):
+- Price-only gap no longer raises the connection alarm — it is a non-blocking
+  advisory and the device stays available (`refreshHealthDecision` /`setHealth` in
+  `lib/OctopusMeterDevice.ts`). Addresses "shows a connection error in the status".
+- Guarded product-derived tariff-variant recovery (`tryProductVariantRecovery`):
+  after same-code rediscovery, tries the product's advertised code for the meter's
+  region/register count and reverts on failure. Targets hypothesis 2 (variant).
+- Privacy-safe `price-gap diagnostic (no identifiers)` log line (`logPriceGapDiagnostic`).
+- Octoplus points `Unauthorized.` → unsupported/null + 24 h backoff.
+
+Still open: exactly why `standardUnitRates` + `latestStandardUnitRates` both lack a
+row covering "now" for this user. Needs one fresh diagnostic on `1.0.15`+.
+
+### Decision tree for a fresh diagnostic
+
+Find the `price-gap diagnostic (no identifiers)` JSON line in the report and read:
+
+- `primaryCount == 0` and `fallbackCurrentFound == true` → the date window
+  excluded a long-lived row but the fallback recovered it: should no longer error;
+  if it still does, inspect the fallback wiring.
+- `primaryHttp`/lookup indicates a 404, or `register` disagrees with the meter's
+  real register count, or the guarded recovery log shows it switched codes →
+  **variant mismatch (hypothesis 2)**; the guarded recovery should self-heal it.
+  If it cannot (product advertises the same code), the stored agreement's tariff
+  code is authoritative-but-wrong and needs account-level correction.
+- `primaryCount > 0`, `primaryOpenEnded == 0`, and `primaryBounds.newest` is in the
+  past (all rows ended) → **stale/closed tariff (hypothesis 3)**; likely
+  `activeTariff()` selecting a closed agreement (`lib/OctopusClient.ts:374`). Fix
+  the agreement selection (prefer a covering or upcoming agreement) with fixtures.
+- `dynamic == true` and counts look normal but no current row → likely a
+  publication-timing gap for a time-of-use tariff; treat as transient, not a fix.
+
+Also collect from the user: fuel/role, flat vs time-of-use tariff, single-rate vs
+Economy 7. Do NOT change price-selection behaviour without a fixture reproducing
+the confirmed cause first.
 
 ## Purpose
 
