@@ -108,3 +108,44 @@ test('Kraken Octoplus points uses the current account-number balance query', asy
   assert.match(requests[1].query, /loyaltyPointsBalance\(input: \{ accountNumber: \$accountNumber \}\)/);
   assert.doesNotMatch(requests[1].query, /loyaltyPointLedgers/);
 });
+
+test('Octoplus points returns null (unsupported) when Kraken answers Unauthorized', async (t) => {
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    calls += 1;
+    return jsonResponse({ errors: [{ message: 'Unauthorized.' }] });
+  });
+
+  const points = await new KrakenClient('api-key').getOctoplusPoints('A-ONE');
+
+  assert.equal(points, null);
+  // A field-level authorisation rejection must not trigger a token-refresh retry.
+  assert.equal(calls, 1);
+});
+
+test('Octoplus points re-throws genuinely transient failures instead of hiding them', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return new Response('upstream down', { status: 503 });
+  });
+
+  await assert.rejects(
+    new KrakenClient('api-key').getOctoplusPoints('A-ONE'),
+    /Transient Kraken error 503/,
+  );
+});
+
+test('isUnsupportedFieldError classifies authorisation vs transient errors', () => {
+  assert.equal(KrakenClient.isUnsupportedFieldError(new Error('Unauthorized.')), true);
+  assert.equal(KrakenClient.isUnsupportedFieldError(new Error('Forbidden')), true);
+  assert.equal(KrakenClient.isUnsupportedFieldError(new Error('Account is not enrolled')), true);
+  assert.equal(KrakenClient.isUnsupportedFieldError(new Error('Transient Kraken error 500')), false);
+  assert.equal(KrakenClient.isUnsupportedFieldError(new Error('fetch failed')), false);
+});
