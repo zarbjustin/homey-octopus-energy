@@ -19,12 +19,12 @@ silently pull later-sprint scope forward.
   after approval. Build 13 / `1.0.13` remains live until approval.
 - Build 14 was retracted from certification and superseded by Build 15.
 - `1.0.15` has been installed successfully on the local Homey Pro.
-- Released `main` baseline: 108 tests. Sprint 41's branch baseline is 117 tests,
-  with clean lint and dependency audit; publish validation has exactly the two
+- Sprint 41 was merged through PR #10 and its production-completion follow-up is
+  on `sprint-41-production-completion` with 121 tests. Lint, dependency audit and
+  publish validation retain exactly the two
   documented cumulative-direction warnings.
-- Sprint 41 is complete on `sprint-41-kraken-contracts`. Review and merge it
-  before starting Sprint 42.
-- The import current-price incident has a candidate IOG recovery but is not
+- The import current-price incident has a complete IOG household-base recovery
+  for legacy and four-rate account contracts, but it is not
   field-confirmed or released. Do not remove its diagnostics or relax safeguards.
 
 ## Required reading order
@@ -63,12 +63,13 @@ last because it is explicitly experimental. Sprint 45 or 47 may be planned while
 ## Sprint 41 outcome and continuing reuse gate
 
 Sprint 41 produced original research, synthetic fixtures and an independently
-implemented fail-closed IOG candidate. Its detailed result and provenance record
+implemented fail-closed IOG recovery. Its detailed result and provenance record
 are in `docs/research/kraken-contracts.md`.
 
-David Piper's `db-piper/com.kraken.energy` repository may still be reviewed for
-ideas, but no implementation may copy or adapt its code until explicit permission,
-reuse boundaries, licence implications and attribution are recorded.
+David Piper's `db-piper/com.kraken.energy` repository may still be reviewed as
+prior art, but the roadmap does not require source reuse. Continue from public
+Octopus contracts and original implementations. Any deliberate GPL source reuse
+would require an explicit scope decision, licence compliance and attribution.
 
 Any GraphQL fixture must be sanitised. Never commit API keys, account numbers,
 MPANs/MPRNs, serials, Homey device IDs, authorization headers, exact user payloads,
@@ -146,9 +147,9 @@ I explicitly request analysis only. Follow existing architecture and preserve al
 Homey capability, driver, widget, and Flow IDs. Keep account data isolated,
 diagnostics privacy-safe, and official REST data authoritative for billing.
 
-For code influenced by db-piper/com.kraken.energy, do not copy or adapt code until
-explicit permission and attribution terms are documented. Public contract research
-and an original implementation remain acceptable.
+Use public Octopus contracts and original implementations. The roadmap does not
+require source reuse from db-piper/com.kraken.energy; any deliberate reuse must
+be separately scoped for GPL compliance and attribution.
 
 Add focused tests proportional to risk. Run lint, the full test suite, npm audit,
 git diff --check, and Homey publish validation. Treat the two documented

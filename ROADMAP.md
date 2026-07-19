@@ -30,12 +30,12 @@ capability and Flow IDs unless a migration is explicitly documented.
     `Retry-After` backoff, pagination validation, and pair-session isolation onto current
     `main`. The current identity-safe repair lifecycle and valid Octopus account-format
     compatibility were preserved; the original PR and branch are superseded.
-41. **COMPLETE - P0 - Kraken collaboration and contract research** - documented current
+41. **COMPLETE - P0 - Kraken contracts and IOG production recovery** - documented current
     Home Mini, tariff-union, device, dispatch, relative-price, authority, failure and
-    privacy contracts; added sanitised synthetic fixtures and contract tests; recorded
-    David Piper's repository provenance and the no-reuse boundary while explicit
-    permission/attribution terms remain unrecorded. Added an original, fail-closed IOG
-    day/night recovery candidate without treating dispatch intent as settlement price.
+    privacy contracts; added sanitised synthetic fixtures and contract tests. The
+    original, fail-closed IOG recovery supports both `DayNightTariff` and the newer
+    `FourRateEvTariff`, requires current exact tariff/product matches, and exposes only
+    the household base schedule without treating dispatch intent as settlement price.
 42. **NEXT - P0 - Shared Home Mini live-data poller** - add an account-scoped poller with
     configurable 1/2/3/5-minute cadence, request deduplication, freshness timestamps,
     backoff, lightweight diagnostics, and separate fast/slow refresh paths.
@@ -61,10 +61,8 @@ capability and Flow IDs unless a migration is explicitly documented.
 - Sprints 42-43 require focused unit and integration fixtures before release work begins.
 - Experimental GraphQL fields must fail closed and must not replace official REST billing
   data without reconciliation.
-- Features derived from `com.kraken.energy` require David Piper's explicit permission and
-  appropriate attribution before implementation is merged.
-- Sprint 41's original implementation is based on public Octopus contracts and does not
-  grant permission to copy or adapt David Piper's implementation in later sprints.
+- Planned work should continue from public Octopus contracts and original implementations;
+  deliberate source reuse from another GPL project requires licence compliance and attribution.
 
 ## Sprints
 1. **Foundation & API client** — tsconfig/types fix, `OctopusClient`, account/tariff helpers, unit tests.

@@ -130,7 +130,7 @@ test('Kraken Octoplus points uses the current account-number balance query', asy
   assert.doesNotMatch(requests[1].query, /loyaltyPointLedgers/);
 });
 
-test('active day/night tariff uses the matching account agreement', async (t) => {
+test('active IOG tariff uses the matching day/night account agreement', async (t) => {
   const requests = [];
   const response = fixture('active-day-night-tariff');
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
@@ -142,12 +142,14 @@ test('active day/night tariff uses the matching account agreement', async (t) =>
     return jsonResponse(response);
   });
 
-  const tariff = await new KrakenClient('api-key').getActiveDayNightTariff(
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff(
     'A-ONE',
     'E-1R-IOG-SYNTHETIC-26-01-01-C',
+    'IOG-SYNTHETIC-26-01-01',
   );
 
   assert.deepEqual(tariff, {
+    tariffType: 'DayNightTariff',
     tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
     productCode: 'IOG-SYNTHETIC-26-01-01',
     displayName: 'Synthetic Intelligent Go',
@@ -155,13 +157,51 @@ test('active day/night tariff uses the matching account agreement', async (t) =>
     nightRate: 8,
     preVatDayRate: 30,
     preVatNightRate: 7.619,
+    evDevicePeakRate: null,
+    evDeviceOffPeakRate: null,
+    preVatEvDevicePeakRate: null,
+    preVatEvDeviceOffPeakRate: null,
     standingCharge: 49.2,
   });
   assert.match(requests[1].query, /electricityAgreements\(active: true\)/);
   assert.match(requests[1].query, /\.\.\. on DayNightTariff/);
+  assert.match(requests[1].query, /\.\.\. on FourRateEvTariff/);
 });
 
-test('active day/night tariff fails closed for a different agreement', async (t) => {
+test('active IOG tariff accepts the matching four-rate EV agreement', async (t) => {
+  const response = fixture('active-four-rate-ev-tariff');
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff(
+    'A-ONE',
+    'E-1R-IOG-FOUR-SYNTHETIC-26-01-01-C',
+    'IOG-FOUR-SYNTHETIC-26-01-01',
+  );
+
+  assert.deepEqual(tariff, {
+    tariffType: 'FourRateEvTariff',
+    tariffCode: 'E-1R-IOG-FOUR-SYNTHETIC-26-01-01-C',
+    productCode: 'IOG-FOUR-SYNTHETIC-26-01-01',
+    displayName: 'Synthetic Four Rate Intelligent Go',
+    dayRate: 31.5,
+    nightRate: 8,
+    evDevicePeakRate: 31.5,
+    evDeviceOffPeakRate: 8,
+    preVatDayRate: 30,
+    preVatNightRate: 7.619,
+    preVatEvDevicePeakRate: 30,
+    preVatEvDeviceOffPeakRate: 7.619,
+    standingCharge: 49.2,
+  });
+});
+
+test('active IOG tariff fails closed for a different agreement', async (t) => {
   const response = fixture('active-day-night-tariff');
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
     const request = JSON.parse(init.body);
@@ -171,12 +211,55 @@ test('active day/night tariff fails closed for a different agreement', async (t)
     return jsonResponse(response);
   });
 
-  const tariff = await new KrakenClient('api-key').getActiveDayNightTariff(
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff(
     'A-ONE',
     'E-1R-IOG-DIFFERENT-26-01-01-C',
+    'IOG-SYNTHETIC-26-01-01',
   );
 
   assert.equal(tariff, null);
+});
+
+test('active IOG tariff fails closed for a product mismatch or null rate', async (t) => {
+  const response = fixture('active-four-rate-ev-tariff');
+  response.data.account.electricityAgreements[0].tariff.evDeviceOffPeakRate = null;
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  const client = new KrakenClient('api-key');
+  assert.equal(await client.getActiveIogTariff(
+    'A-ONE',
+    'E-1R-IOG-FOUR-SYNTHETIC-26-01-01-C',
+    'IOG-OTHER-SYNTHETIC-26-01-01',
+  ), null);
+  assert.equal(await client.getActiveIogTariff(
+    'A-ONE',
+    'E-1R-IOG-FOUR-SYNTHETIC-26-01-01-C',
+    'IOG-FOUR-SYNTHETIC-26-01-01',
+  ), null);
+});
+
+test('active IOG tariff rejects an agreement that is not yet valid', async (t) => {
+  const response = fixture('active-day-night-tariff');
+  response.data.account.electricityAgreements[0].validFrom = '2099-01-01T00:00:00Z';
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  assert.equal(await new KrakenClient('api-key').getActiveIogTariff(
+    'A-ONE',
+    'E-1R-IOG-SYNTHETIC-26-01-01-C',
+    'IOG-SYNTHETIC-26-01-01',
+  ), null);
 });
 
 test('Home Mini discovery and telemetry use sanitized contract fixtures', async (t) => {

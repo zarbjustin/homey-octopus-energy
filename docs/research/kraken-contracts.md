@@ -5,7 +5,8 @@ Last verified: 19 July 2026
 ## Sprint 41 outcome
 
 Sprint 41 establishes the evidence, ownership and safety boundaries for future
-Kraken work. It does not implement the shared poller, device-scoped dispatch
+Kraken work and implements the account-tariff recovery needed by the IOG price
+gap. It does not implement the shared poller, device-scoped dispatch
 model, new Flows, billing summary, live-energy UI or estimated live gas planned
 for Sprints 42-48.
 
@@ -33,6 +34,8 @@ The contract was checked against:
   https://developer.octopus.energy/rest/guides/endpoints
 - Intelligent Octopus tariff terms:
   https://octopus.energy/policies/smart-tariffs-terms-and-condition/
+- Intelligent Octopus Go four-rate and Charge Cap explanation:
+  https://octopus.energy/blog/intelligent-octopus-go-smarter-charging-for-a-greener-grid/
 - Live schema introspection at:
   https://api.octopus.energy/v1/graphql/
 
@@ -51,6 +54,8 @@ Schema introspection on 19 July 2026 confirmed:
   `FourRateEvTariff`, `HalfHourlyTariff` and `PrepayTariff`.
 - `DayNightTariff` exposes VAT-inclusive and pre-VAT day/night rates plus
   tariff identity.
+- `FourRateEvTariff` exposes household day/night rates and separate EV-device
+  peak/off-peak rates, with VAT-inclusive and pre-VAT values.
 
 The API is versionless and fields may be permission- or account-dependent.
 Fixtures therefore define the shapes this app accepts, not a promise that every
@@ -63,7 +68,7 @@ Octopus account exposes every field.
 | Meter identity and agreements | Authenticated REST account endpoint | Discovery/enrichment only | REST remains authoritative for pairing and repair. |
 | Historical import/export consumption | REST consumption endpoints | Telemetry is not a replacement | Billing and cumulative energy continue to use REST. |
 | Published tariff rate history | REST product tariff endpoints | Narrow current-rate recovery only | Never replace valid REST rows with GraphQL. |
-| IOG quoted day/night rate | REST when rows exist | Matching active `DayNightTariff` fallback | Exact tariff-code match; unsupported unions fail closed. |
+| IOG household base rate | REST when rows exist | Matching active `DayNightTariff` or `FourRateEvTariff` fallback | Exact tariff and product match; device/dispatch rates remain separate. |
 | Home Mini demand | GraphQL telemetry | Operational live value | Latest timestamp wins; null/stale remains unavailable. |
 | Planned dispatch | GraphQL | Intent, mutable | Not treated as settlement or proof of a cheap rate. |
 | Completed dispatch | GraphQL | Completed control window | Not sufficient alone for historical billing. |
@@ -89,20 +94,52 @@ non-finite demand yields `null`.
 
 Sprint 42 owns cadence, shared account polling, freshness and backoff.
 
-### Active day/night tariff
+### Active IOG tariff
 
 The IOG recovery query requests active electricity agreements and the
-`DayNightTariff` fragment. A result is accepted only when:
+`DayNightTariff` and `FourRateEvTariff` fragments. A result is accepted only when:
 
-1. the union type is `DayNightTariff`;
-2. its full tariff code exactly matches REST discovery, case-insensitively;
-3. product/tariff identity is present; and
-4. both VAT-inclusive and pre-VAT day/night rates are finite.
+1. the union is one of those two known types;
+2. its full tariff and product codes both exactly match REST discovery,
+   case-insensitively;
+3. the agreement is valid at the current instant;
+4. VAT-inclusive and pre-VAT household day/night rates are finite; and
+5. a four-rate result also has all four finite EV-device rate fields.
 
 The fallback is restricted to electricity import products in the `IOG` family
 or Intelligent Go products that are not Intelligent Flux. It produces the
-published 23:30-05:30 base window. It does not fabricate historical billing
+published household 23:30-05:30 base window. The newer contract's EV peak and
+off-peak values are retained in the typed response for later work but are not
+applied to whole-home meter usage. It does not fabricate historical billing
 rates or infer dispatch discounts.
+
+### Current IOG four-rate boundary
+
+Octopus's public May 2026 explanation describes household day/night prices plus
+separate EV peak/off-peak prices. Managed charging is measured over a
+midday-to-midday allowance and billing is finalised in half-hour chunks. A
+planned dispatch is therefore useful intent, but cannot prove the final rate:
+actual charging, BOOST behavior and exhaustion of the allowance can change the
+result. Sprint 41 deliberately exposes the guaranteed household base schedule
+only. Sprints 43-44 own effective and finalised dispatch-aware prices.
+
+## Tariff framework coverage
+
+The app is already data-driven for most tariffs: it consumes dated REST rate
+rows rather than reproducing Octopus's tariff formula or timetable. That is the
+correct default because product schedules and formulas can change.
+
+| Tariff shape/family | Current route | Further work |
+| --- | --- | --- |
+| Standard, Fixed, Flexible, Tracker and gas | REST standard-unit rows | Tracker remains a daily rate, not an intraday tariff. |
+| Agile / `HalfHourlyTariff` | REST half-hour rows | Existing negative-price and planning support applies. |
+| Go and Economy 7 / day-night | REST time slots or register endpoints | Economy 7 local switch settings remain user-configurable. |
+| Cosy, Aira Zero, Flux, Intelligent Flux, Snug / multi-rate | REST dated rows | Refreshes align to half-hour boundaries; no hard-coded schedule is needed. |
+| IOG / `DayNightTariff` and `FourRateEvTariff` | REST first, exact-match GraphQL household-base fallback | Dispatch settlement stays in Sprints 43-44. |
+| Import/export tariffs | Separate REST meter agreements and rate rows | Preserve separate device and cost/value semantics. |
+| Power Pack, Charge Pack, Intelligent Drive Pack, Saving/Free Electricity sessions | Add-on, credit or type-of-use settlement | Do not reinterpret these as the household unit rate; model them separately. |
+| Zero Bills and allowance products | Allowance/threshold billing | Requires a future billing-policy model, not a synthetic p/kWh schedule. |
+| Unknown/new GraphQL union | None | Fail closed and retain the price advisory until independently verified. |
 
 ### Dispatch
 
@@ -178,22 +215,19 @@ names or algorithms from that repository were copied or adapted in this sprint.
 The app's implementation and fixtures are based on Octopus's public documentation,
 live schema introspection and this project's pre-existing architecture.
 
-Explicit personal permission and preferred attribution terms from David are not
-recorded in this repository. Until they are:
-
-- future work may use public Octopus contracts and original implementations;
-- his repository may be cited as prior art and reviewed for interoperability;
-- no code or project-specific fixture may be copied or adapted;
-- any later reuse requires a dated record of scope, licence and attribution.
-
-This unresolved permission does not block completion of the original research
-contract, but it remains a gate for work directly derived from his implementation.
+Technical discussion with David helped identify questions worth validating, but
+private correspondence is not copied into this public repository. This project
+does not need to reuse his code: future work will continue from public Octopus
+contracts and original implementations. Any deliberate source reuse would be a
+separate decision requiring GPL-3.0 compliance and clear attribution.
 
 ## Sprint boundaries
 
-Sprint 41 is complete when its contract tests and project validation pass. It
-does not prove that the IOG fallback works on the affected account. That requires
-a separately authorized Test build and community confirmation before release.
+Sprint 41's implementation is complete when both IOG union shapes, strict
+identity/date/rate validation, tariff-family cadence tests and project validation
+pass. Field confirmation remains a release gate, not unfinished implementation:
+the affected account must verify a separately authorised Test build before the
+incident is claimed fixed.
 
 Next:
 
