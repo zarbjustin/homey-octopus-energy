@@ -22,6 +22,20 @@ Last updated: 19 July 2026
 - Validation baseline: 108 tests pass, lint passes, dependency audit reports zero
   known vulnerabilities, and Homey `publish` validation passes.
 
+## Next-model entry point
+
+- Future feature work starts with Sprint 41 in `ROADMAP.md`; Sprints 41-48 are
+  not implemented unless explicitly marked otherwise there.
+- Read `docs/handover/future-sprints.md` before selecting or implementing a
+  future sprint. It contains the dependency order, acceptance gates, current
+  release boundaries, and a copyable prompt for another AI model.
+- Sprint 41 is research and contract definition first. David Piper's code must
+  not be copied or adapted until explicit reuse permission and attribution terms
+  are recorded. Public API and architecture research may proceed independently.
+- Work on one sprint at a time using a short-lived branch and pull request. Do
+  not combine an unrelated incident fix, release bump, or App Store action with
+  a feature sprint.
+
 ## Active investigation — import current-price gap (PARTIALLY addressed in 1.0.15)
 
 - A user (Darren) on community topic 156860 reported an import electricity meter
@@ -48,6 +62,12 @@ Last updated: 19 July 2026
   fresh diagnostic are in `docs/reviews/import-price-gap-handover.md`.
 - A model-neutral review prompt is in
   `docs/reviews/import-price-gap-analysis-prompt.md` for independent analysis.
+- Community post 14 promises a Test-build follow-up. Build 15 is now available at
+  https://homey.app/a/uk.co.zarb.octopusenergy/test/ but the follow-up reply has
+  not been posted from this repository workflow. The reply should acknowledge
+  Darren, avoid claiming the root cause is fixed, ask him to keep the existing
+  device, and request a fresh diagnostic plus exact tariff/register type if the
+  price remains blank.
 
 ## Sprint 40 security reconciliation
 
@@ -223,6 +243,10 @@ validation error should be investigated.
 - `Publish Homey App` (`homey-app-publish.yml`, manual `workflow_dispatch`)
   publishes the build to the Homey App Store (requires the `HOMEY_PAT` secret,
   which is configured).
+- GitHub currently warns that the pinned checkout/setup-node actions target the
+  deprecated Node 20 action runtime and are being forced onto Node 24. The
+  warning did not affect Build 15, but the pinned actions should be reviewed in
+  a separate maintenance change when upstream releases compatible revisions.
 - CAVEAT observed on 19 July 2026: merging a release PR via the `gh` CLI did NOT
   emit the `push` event that triggers `Create GitHub Release` (merging via the
   GitHub web UI does). If a release PR is merged from the CLI, create the tag and

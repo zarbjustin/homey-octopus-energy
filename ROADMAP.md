@@ -30,7 +30,7 @@ capability and Flow IDs unless a migration is explicitly documented.
     `Retry-After` backoff, pagination validation, and pair-session isolation onto current
     `main`. The current identity-safe repair lifecycle and valid Octopus account-format
     compatibility were preserved; the original PR and branch are superseded.
-41. **P0 - Kraken collaboration and contract research** - agree attribution and reuse
+41. **NEXT - P0 - Kraken collaboration and contract research** - agree attribution and reuse
     boundaries with David Piper; capture sanitised GraphQL fixtures; document Home Mini,
     Intelligent Octopus, device, dispatch, and relative-price semantics before coding.
 42. **P0 - Shared Home Mini live-data poller** - add an account-scoped poller with
@@ -55,7 +55,7 @@ capability and Flow IDs unless a migration is explicitly documented.
     before considering general release.
 
 ### Backlog gates
-- Sprints 40-43 require focused unit and integration fixtures before release work begins.
+- Sprints 41-43 require focused unit and integration fixtures before release work begins.
 - Experimental GraphQL fields must fail closed and must not replace official REST billing
   data without reconciliation.
 - Features derived from `com.kraken.energy` require David Piper's explicit permission and
