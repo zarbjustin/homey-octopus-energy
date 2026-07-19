@@ -20,6 +20,48 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
   `/standing-charges/`, `/electricity-meter-points/{mpan}/meters/{serial}/consumption/`, gas equivalents.
 - Tariff code → product code: strip `^[EG]-\dR-` and trailing `-[A-P]` (region).
 
+## Future backlog - Sprints 40-48
+
+Priorities reflect dependencies and user impact. Each sprint should preserve existing
+capability and Flow IDs unless a migration is explicitly documented.
+
+40. **P0 - Reconcile security PR #1** - selectively port the still-useful API-boundary
+    protections onto current `main`: manual redirect handling, HTTPS/origin enforcement,
+    redacted API errors, standards-compliant `Retry-After` backoff, pagination validation,
+    and pair-session isolation. Preserve the current identity-safe repair lifecycle and
+    compatibility with valid Octopus account formats. Close PR #1 and delete
+    `security/sprints-1-2` when the replacement is merged.
+41. **P0 - Kraken collaboration and contract research** - agree attribution and reuse
+    boundaries with David Piper; capture sanitised GraphQL fixtures; document Home Mini,
+    Intelligent Octopus, device, dispatch, and relative-price semantics before coding.
+42. **P0 - Shared Home Mini live-data poller** - add an account-scoped poller with
+    configurable 1/2/3/5-minute cadence, request deduplication, freshness timestamps,
+    backoff, lightweight diagnostics, and separate fast/slow refresh paths.
+43. **P0 - Intelligent dispatch truth model** - model linked smart devices, SMART versus
+    BOOST dispatches, multiple devices, overlaps, late changes, DST, and Octopus's
+    midday-to-midday dispatch limit; distinguish dispatch windows from settlement prices.
+44. **P1 - Dispatch and effective-price Flows** - expose current/next dispatch details,
+    device and dispatch type tokens, effective import price, and the finalised previous
+    half-hour price while retaining all existing Flow card IDs.
+45. **P1 - Billing-period summary** - discover the billing-period start with a user
+    override and report import, export, cost/value, standing charge, net position,
+    projection, and confidence; rebuild official REST history after restart.
+46. **P1 - Live-energy presentation** - expose import, export, and net demand with source
+    timestamp and freshness while preserving `measure_power` and Homey Energy behaviour.
+47. **P2 - Planner and tariff analytics** - add earliest/latest/random tie strategies,
+    richer import/export plan tokens, relative daily price bands, negative-price and spike
+    handling, weighted averages, off-peak share, and estimated savings.
+48. **P3 - Estimated live-gas pilot** - investigate an opt-in GraphQL estimate, label it
+    clearly as estimated or stale, and reconcile it against official REST consumption
+    before considering general release.
+
+### Backlog gates
+- Sprints 40-43 require focused unit and integration fixtures before release work begins.
+- Experimental GraphQL fields must fail closed and must not replace official REST billing
+  data without reconciliation.
+- Features derived from `com.kraken.energy` require David Piper's explicit permission and
+  appropriate attribution before implementation is merged.
+
 ## Sprints
 1. **Foundation & API client** — tsconfig/types fix, `OctopusClient`, account/tariff helpers, unit tests.
 2. **Electricity meter device (core)** — driver, custom pairing, discovery, price/standing-charge/balance, refresh.
