@@ -20,9 +20,9 @@ Last updated: 19 July 2026
   `Justin's Homey Pro` on 19 July 2026.
 - Sprint 41 was completed through PRs #10-#11 on `main` with 121 passing tests;
   lint, dependency audit and Homey publish validation pass as recorded below.
-- GitHub has no open pull requests. Remote branches `release/v1.0.16`,
-  `agent/clarify-dispatch-roadmap`, and `agent/record-v1.0.16-test` are fully
-  merged historical branches and contain no pending work.
+- GitHub has no open pull requests and the remote contains only `main`. Any local
+  remote-tracking references for earlier `release/*` or `agent/*` branches are
+  stale, fully merged history and can be removed with `git fetch --prune`.
 
 ## Next-model entry point
 

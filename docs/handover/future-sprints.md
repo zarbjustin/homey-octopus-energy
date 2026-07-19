@@ -38,11 +38,10 @@ silently pull later-sprint scope forward.
 Before implementation, inspect current GitHub pull requests and branches. Do not
 assume this document is newer than remote `main`.
 
-At this handover checkpoint there are no open pull requests. The remote
-`release/v1.0.16`, `agent/clarify-dispatch-roadmap`, and
-`agent/record-v1.0.16-test` branches are merged historical branches, not pending
-work. Start with `git fetch --all --prune`, a clean local `main`, and the latest
-`origin/main`; do not resume one of those branches.
+At this handover checkpoint there are no open pull requests and the remote contains
+only `main`. Start with `git fetch --all --prune`, a clean local `main`, and the
+latest `origin/main`; any older local `release/*` or `agent/*` remote-tracking
+references are stale merged history, not pending work.
 
 ## Recommended order
 
