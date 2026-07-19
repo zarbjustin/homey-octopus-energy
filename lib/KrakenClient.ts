@@ -385,11 +385,34 @@ export class KrakenClient {
     interface Resp {
       loyaltyPointsBalance?: { loyaltyPoints?: number | string };
     }
-    const data = await this.query<Resp>(query, { accountNumber });
+    let data: Resp;
+    try {
+      data = await this.query<Resp>(query, { accountNumber });
+    } catch (err) {
+      // Loyalty points are only exposed to accounts enrolled in Octoplus with
+      // the right field authorisation. Kraken answers unenrolled/ineligible
+      // accounts with a field-level "Unauthorized." (which is not a token
+      // problem — other authenticated queries keep working). Honour this
+      // method's documented best-effort contract and report the field as
+      // unavailable (null) rather than surfacing it as a recurring error.
+      if (KrakenClient.isUnsupportedFieldError(err)) return null;
+      throw err;
+    }
     const raw = data?.loyaltyPointsBalance?.loyaltyPoints;
     if (raw === undefined || raw === null) return null;
     const points = Number(raw);
     return Number.isFinite(points) ? points : null;
+  }
+
+  /**
+   * Whether a GraphQL error is a permanent field-level authorisation/enrolment
+   * rejection (as opposed to a transient network/5xx error or an expired token,
+   * both of which should be retried rather than swallowed).
+   */
+  static isUnsupportedFieldError(err: unknown): boolean {
+    const message = err instanceof Error ? err.message : String(err ?? '');
+    if (/Transient Kraken error|fetch failed|network|abort|timeout/i.test(message)) return false;
+    return /unauthori[sz]ed|forbidden|permission|not\s+enrol|enrol(?:led|ment)|eligib|no\s+access/i.test(message);
   }
 
   /** Octopus Power Up sessions (formerly Free Electricity) for the account. */

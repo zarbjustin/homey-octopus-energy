@@ -156,6 +156,10 @@ export class OctopusMeterDevice extends Homey.Device {
 
   private lastPointsRefresh = 0;
 
+  private pointsUnsupportedUntil = 0;
+
+  private pointsUnsupportedLogged = false;
+
   private notified401 = false;
 
   private consecutiveTotalFailures = 0;
@@ -385,6 +389,8 @@ export class OctopusMeterDevice extends Homey.Device {
     this.lastStandingRefresh = 0;
     this.lastMonthlyRefresh = 0;
     this.lastPointsRefresh = 0;
+    this.pointsUnsupportedUntil = 0;
+    this.pointsUnsupportedLogged = false;
     this.notified401 = false;
     this.consecutiveTotalFailures = 0;
     this.lastHealthyRefreshAt = 0;
@@ -578,7 +584,13 @@ export class OctopusMeterDevice extends Homey.Device {
       const message = err instanceof Error ? err.message : String(err ?? '');
       if (!/no (?:current )?.*rate|no rate covering|404|not found/i.test(message)) throw err;
       const changed = await this.checkTariffChange(true);
-      if (!changed) throw err;
+      if (!changed) {
+        // Rediscovery returned the same tariff code, so there is nothing to
+        // retry with — the stored tariff simply has no rate covering now. Record
+        // that the automatic recovery could not act, then surface the failure.
+        this.log('Price-gap recovery: rediscovery returned the same tariff code; no auto-switch performed.');
+        throw err;
+      }
       this.log('Tariff changed during price refresh; retrying with the active tariff.');
       await this.refreshPrices();
     }
@@ -792,25 +804,71 @@ export class OctopusMeterDevice extends Homey.Device {
       s.tariffCode,
       this.periodWindow(),
     );
+    const primaryRates = rates;
     let current = rateAt(rates);
+    let fallbackRates: Rate[] | null = null;
     if (!current) {
-      const latest = await this.client.latestStandardUnitRates(s.fuel, s.productCode, s.tariffCode);
-      const fallback = rateAt(latest);
+      fallbackRates = await this.client.latestStandardUnitRates(s.fuel, s.productCode, s.tariffCode);
+      const fallback = rateAt(fallbackRates);
       if (fallback) {
-        rates = latest;
+        rates = fallbackRates;
         current = fallback;
       }
     }
     this.rates = rates;
     await this.onRatesUpdated();
-    if (!current) throw new Error('Octopus returned no rate covering the current time.');
+    if (!current) {
+      this.logPriceGapDiagnostic(s, primaryRates, fallbackRates);
+      throw new Error('Octopus returned no rate covering the current time.');
+    }
     const value = Number(valueOf(current, this.vatInc()).toFixed(4));
     this.currentPrice = value;
     await this.setCapabilityValue('measure_octopus_price', value).catch(this.error);
     await this.onPriceUpdated(value, current);
   }
 
-  /** Economy 7 / two-register tariffs: fetch separate day and night unit rates. */
+  /**
+   * Emit a privacy-safe summary of a "no rate covering now" failure so a user
+   * diagnostic report can distinguish the competing root causes (stale/closed
+   * agreement vs wrong tariff variant vs a genuine upstream gap) without ever
+   * logging credentials, account/meter identifiers, or raw upstream bodies.
+   */
+  private logPriceGapDiagnostic(s: MeterStore, primary: Rate[], fallback: Rate[] | null): void {
+    try {
+      const bounds = (rows: Rate[]): { oldest: string | null; newest: string | null } => {
+        const froms = rows
+          .map((r) => new Date(r.valid_from).getTime())
+          .filter((t) => Number.isFinite(t))
+          .sort((a, b) => a - b);
+        const day = (t: number): string => new Date(t).toISOString().slice(0, 10);
+        return froms.length
+          ? { oldest: day(froms[0]), newest: day(froms[froms.length - 1]) }
+          : { oldest: null, newest: null };
+      };
+      const family = `${s.productCode ?? ''}`.toUpperCase().split('-')[0] || null;
+      const shape = {
+        fuel: s.fuel,
+        role: s.isExport ? 'export' : 'import',
+        register: this.isTwoRegisterTariff() ? '2R' : '1R',
+        productFamily: family,
+        dynamic: this.isDynamicTariff(),
+        primaryCount: primary.length,
+        primaryCurrentFound: rateAt(primary) !== null,
+        primaryOpenEnded: primary.filter((r) => !r.valid_to).length,
+        primaryBounds: bounds(primary),
+        fallbackFetched: fallback !== null,
+        fallbackCount: fallback?.length ?? 0,
+        fallbackCurrentFound: fallback ? rateAt(fallback) !== null : false,
+        fallbackOpenEnded: fallback ? fallback.filter((r) => !r.valid_to).length : 0,
+        fallbackBounds: fallback ? bounds(fallback) : null,
+      };
+      this.log('price-gap diagnostic (no identifiers):', JSON.stringify(shape));
+    } catch (err) {
+      // Diagnostics must never interfere with the refresh outcome.
+      this.error('Could not build price-gap diagnostic:', err);
+    }
+  }
+
   protected async refreshTwoRegisterPrices(productCode: string, tariffCode: string): Promise<void> {
     let [day, night] = await Promise.all([
       this.client.registerUnitRates('day', productCode, tariffCode, this.periodWindow()),
@@ -1547,12 +1605,25 @@ export class OctopusMeterDevice extends Homey.Device {
     if (!this.hasCapability('octopus_points')) return;
     const { accountNumber } = this.store();
     if (!accountNumber) return;
-    if (Date.now() - this.lastPointsRefresh < 60 * 60_000) return;
+    const now = Date.now();
+    // Once points are known to be unavailable for this account, back off for a
+    // full day so an unenrolled/ineligible account is not polled every cycle.
+    if (now < this.pointsUnsupportedUntil) return;
+    if (now - this.lastPointsRefresh < 60 * 60_000) return;
+    // Advance the cooldown up-front so a transient failure backs off to at most
+    // once an hour instead of re-attempting (and re-logging) on every refresh.
+    this.lastPointsRefresh = now;
     const points = await this.kraken.getOctoplusPoints(accountNumber);
-    this.lastPointsRefresh = Date.now();
-    if (points !== null) {
-      await this.setCapabilityValue('octopus_points', points).catch(this.error);
+    if (points === null) {
+      this.pointsUnsupportedUntil = now + 24 * 60 * 60_000;
+      if (!this.pointsUnsupportedLogged) {
+        this.pointsUnsupportedLogged = true;
+        this.log('Octoplus points are unavailable for this account; pausing points refresh for 24h.');
+      }
+      return;
     }
+    this.pointsUnsupportedLogged = false;
+    await this.setCapabilityValue('octopus_points', points).catch(this.error);
   }
 
   /** Fire an app-level Flow trigger (device matching handled by app.ts). */
