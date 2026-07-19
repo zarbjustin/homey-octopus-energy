@@ -43,5 +43,8 @@
   },
   "1.0.14": {
     "en": "Improves meter Repair and pairing reliability, adds privacy-safe integration diagnostics and data freshness indicators, strengthens tariff comparison and account caching, and improves widget accessibility."
+  },
+  "1.0.15": {
+    "en": "Fixes electricity meters that showed a connection error when only the current tariff price was briefly unavailable — the device now stays online with a clear advisory instead. Adds automatic recovery for a mismatched stored tariff, stops repeated Octoplus points errors on accounts without loyalty points, and adds privacy-safe price diagnostics to speed up future troubleshooting."
   }
 }

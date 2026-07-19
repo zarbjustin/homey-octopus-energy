@@ -40,6 +40,14 @@ jobs:
         with:
           node-version: 22
 
+      # The Homey version action bumps app.json/.homeycompose but not package.json.
+      # Keep package.json (and its lockfile) in lockstep so the manifest-version
+      # test passes and the GitHub release reads the same version.
+      - name: Sync package.json version
+        run: npm version "${VERSION}" --no-git-tag-version --allow-same-version
+        env:
+          VERSION: ${{ steps.update_app_version.outputs.version }}
+
       - name: Install dependencies
         run: npm ci
 
