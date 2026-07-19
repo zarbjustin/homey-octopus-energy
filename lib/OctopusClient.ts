@@ -4,6 +4,20 @@ import type { Rate, ConsumptionRecord } from './rates';
 import { productCodeFromTariff } from './rates';
 
 const BASE_URL = 'https://api.octopus.energy/v1';
+const MAX_PAGINATION_PAGES = 50;
+
+function parseRetryAfter(value: string | null): number | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+
+  if (/^\d+$/.test(trimmed)) {
+    const milliseconds = Number(trimmed) * 1000;
+    return Number.isSafeInteger(milliseconds) ? milliseconds : undefined;
+  }
+
+  const retryAt = Date.parse(trimmed);
+  return Number.isFinite(retryAt) ? Math.max(0, retryAt - Date.now()) : undefined;
+}
 
 export interface Paginated<T> {
   count: number;
@@ -69,7 +83,11 @@ export interface DiscoveredMeter {
 }
 
 export class OctopusApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+    public retryAfterMs?: number,
+  ) {
     super(message);
     this.name = 'OctopusApiError';
   }
@@ -96,6 +114,8 @@ export class OctopusClient {
 
   private readonly baseUrl: string;
 
+  private readonly baseOrigin: string;
+
   private readonly maxRetries: number;
 
   private readonly timeoutMs: number;
@@ -105,7 +125,15 @@ export class OctopusClient {
   constructor(opts: OctopusClientOptions) {
     if (!opts.apiKey) throw new Error('An Octopus API key is required.');
     this.apiKey = opts.apiKey;
-    this.baseUrl = opts.baseUrl ?? BASE_URL;
+    this.baseUrl = (opts.baseUrl ?? BASE_URL).replace(/\/+$/, '');
+    const parsedBase = new URL(this.baseUrl);
+    if (parsedBase.protocol !== 'https:' && !opts.fetchImpl) {
+      throw new Error('The Octopus API endpoint must use HTTPS.');
+    }
+    if (parsedBase.username || parsedBase.password) {
+      throw new Error('The Octopus API endpoint must not contain credentials.');
+    }
+    this.baseOrigin = parsedBase.origin;
     this.maxRetries = opts.maxRetries ?? 3;
     this.timeoutMs = opts.timeoutMs ?? 20_000;
     this.fetchImpl = opts.fetchImpl ?? fetch;
@@ -120,7 +148,12 @@ export class OctopusClient {
     const controller = new AbortController();
     const timer = globalThis.setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      return await this.fetchImpl(url, { ...init, signal: controller.signal });
+      return await this.fetchImpl(url, {
+        ...init,
+        signal: controller.signal,
+        // Authorization must never be forwarded to a redirect target.
+        redirect: 'manual',
+      });
     } finally {
       clearTimeout(timer);
     }
@@ -132,9 +165,10 @@ export class OctopusClient {
   }
 
   private buildUrl(path: string, params?: Record<string, string | number | undefined>): string {
-    const url = new URL(path.startsWith('http') ? path : `${this.baseUrl}${path}`);
-    const base = new URL(this.baseUrl);
-    if (url.origin !== base.origin) {
+    const absolute = /^https?:\/\//i.test(path);
+    const separator = path.startsWith('/') ? '' : '/';
+    const url = new URL(absolute ? path : `${this.baseUrl}${separator}${path}`);
+    if (url.origin !== this.baseOrigin) {
       throw new Error('Refusing to send Octopus credentials to an unexpected origin.');
     }
     if (params) {
@@ -160,27 +194,41 @@ export class OctopusClient {
             Accept: 'application/json',
           },
         });
+        if (res.status >= 300 && res.status < 400) {
+          throw new OctopusApiError(res.status, 'Octopus API redirects are not permitted.');
+        }
         if (res.status === 401) {
           throw new OctopusApiError(401, 'Authentication failed — check your API key.');
         }
         if (res.status === 404) {
-          throw new OctopusApiError(404, `Not found: ${url}`);
+          throw new OctopusApiError(404, 'The requested Octopus resource was not found.');
         }
         if (res.status === 429 || res.status >= 500) {
-          // Transient — back off and retry.
-          throw new OctopusApiError(res.status, `Transient error ${res.status}`);
+          const retryAfter = res.headers?.get?.('retry-after') ?? null;
+          throw new OctopusApiError(
+            res.status,
+            `Temporary Octopus API error (${res.status}).`,
+            parseRetryAfter(retryAfter),
+          );
         }
         if (!res.ok) {
-          const body = await res.text().catch(() => '');
-          throw new OctopusApiError(res.status, `Request failed (${res.status}): ${body}`);
+          throw new OctopusApiError(res.status, `Octopus API request failed (${res.status}).`);
         }
         return await res.json() as T;
       } catch (err) {
         lastErr = err;
         const status = err instanceof OctopusApiError ? err.status : 0;
-        const transient = status === 429 || status >= 500 || status === 0;
-        if (!transient || attempt === this.maxRetries - 1) throw err;
-        const backoff = 2 ** attempt * 1000;
+        const networkFailure = err instanceof TypeError
+          || (err instanceof Error && err.name === 'AbortError');
+        const transient = status === 429 || status >= 500 || networkFailure;
+        if (!transient || attempt === this.maxRetries - 1) {
+          if (networkFailure) {
+            throw new OctopusApiError(0, 'The Octopus API request could not be completed.');
+          }
+          throw err;
+        }
+        const retryAfterMs = err instanceof OctopusApiError ? err.retryAfterMs : undefined;
+        const backoff = retryAfterMs ?? ((2 ** attempt * 1000) + Math.floor(Math.random() * 250));
         await new Promise((resolve) => {
           globalThis.setTimeout(resolve, backoff);
         });
@@ -193,11 +241,33 @@ export class OctopusClient {
   async getAll<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T[]> {
     const out: T[] = [];
     let page: Paginated<T> | null = await this.get<Paginated<T>>(path, params);
-    let guard = 0;
-    while (page && guard < 50) {
+    const seenPages = new Set<string>();
+    let pages = 0;
+    while (page !== null) {
+      if (typeof page !== 'object'
+        || !Array.isArray(page.results)
+        || !Number.isFinite(page.count)
+        || (page.next !== null && typeof page.next !== 'string')) {
+        throw new Error('Octopus API returned an invalid paginated response.');
+      }
+      pages++;
+      if (pages > MAX_PAGINATION_PAGES) {
+        throw new Error('Octopus API pagination exceeded the safety limit.');
+      }
       out.push(...page.results);
-      page = page.next ? await this.get<Paginated<T>>(page.next) : null;
-      guard++;
+      if (!page.next) {
+        page = null;
+        continue;
+      }
+      if (pages === MAX_PAGINATION_PAGES) {
+        throw new Error('Octopus API pagination exceeded the safety limit.');
+      }
+      const next = this.buildUrl(page.next);
+      if (seenPages.has(next)) {
+        throw new Error('Octopus API pagination returned a repeated page.');
+      }
+      seenPages.add(next);
+      page = await this.get<Paginated<T>>(next);
     }
     return out;
   }

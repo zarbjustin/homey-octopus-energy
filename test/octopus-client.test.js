@@ -44,17 +44,31 @@ const ACCOUNT = {
 };
 
 test('client sends HTTP Basic auth with the API key as username', async () => {
-  let seen;
+  let seenAuth;
+  let seenRedirect;
   const client = new OctopusClient({
     apiKey: 'sk_test_123',
     fetchImpl: async (url, opts) => {
-      seen = opts.headers.Authorization;
+      seenAuth = opts.headers.Authorization;
+      seenRedirect = opts.redirect;
       return jsonResponse(ACCOUNT);
     },
   });
   await client.getAccount('A-ABCD1234');
   const expected = `Basic ${Buffer.from('sk_test_123:').toString('base64')}`;
-  assert.strictEqual(seen, expected);
+  assert.strictEqual(seenAuth, expected);
+  assert.strictEqual(seenRedirect, 'manual');
+});
+
+test('production clients require HTTPS endpoints without embedded credentials', () => {
+  assert.throws(
+    () => new OctopusClient({ apiKey: 'secret', baseUrl: 'http://api.example/v1' }),
+    /must use HTTPS/,
+  );
+  assert.throws(
+    () => new OctopusClient({ apiKey: 'secret', baseUrl: 'https://user:pass@api.example/v1' }),
+    /must not contain credentials/,
+  );
 });
 
 test('discoverMeters flattens import, export and gas meters with product codes', async () => {
@@ -99,6 +113,165 @@ test('getAll refuses pagination links on an unexpected origin', async () => {
     fetchImpl: async () => jsonResponse({ count: 1, next: 'https://evil.example/steal', previous: null, results: [] }),
   });
   await assert.rejects(() => client.getAll('/products/'), /unexpected origin/);
+});
+
+test('redirect responses are rejected without forwarding credentials', async () => {
+  let calls = 0;
+  const client = new OctopusClient({
+    apiKey: 'secret',
+    fetchImpl: async () => {
+      calls += 1;
+      return {
+        ok: false,
+        status: 302,
+        headers: { get: () => null },
+        json: async () => ({}),
+        text: async () => '',
+      };
+    },
+  });
+
+  await assert.rejects(() => client.getAccount('A-ABCD1234'), /redirects are not permitted/);
+  assert.strictEqual(calls, 1);
+});
+
+test('API errors do not expose request URLs or response bodies', async () => {
+  const privateBody = 'upstream-secret-account-data';
+  const client = new OctopusClient({
+    apiKey: 'secret',
+    fetchImpl: async () => ({
+      ok: false,
+      status: 400,
+      headers: { get: () => null },
+      json: async () => ({}),
+      text: async () => privateBody,
+    }),
+  });
+
+  await assert.rejects(
+    () => client.get('/accounts/A-PRIVATE/?token=private-token'),
+    (err) => {
+      assert.match(err.message, /request failed \(400\)/);
+      assert.doesNotMatch(err.message, /A-PRIVATE|private-token|upstream-secret-account-data/);
+      return true;
+    },
+  );
+});
+
+test('throttled requests accept Retry-After seconds and HTTP dates', async () => {
+  for (const retryAfter of ['0', new Date(Date.now() - 1000).toUTCString()]) {
+    let calls = 0;
+    const client = new OctopusClient({
+      apiKey: 'secret',
+      maxRetries: 2,
+      fetchImpl: async () => {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            ok: false,
+            status: 429,
+            headers: { get: (name) => name.toLowerCase() === 'retry-after' ? retryAfter : null },
+            json: async () => ({}),
+            text: async () => '',
+          };
+        }
+        return jsonResponse(ACCOUNT);
+      },
+    });
+
+    assert.strictEqual((await client.getAccount('A-ABCD1234')).number, 'A-ABCD1234');
+    assert.strictEqual(calls, 2);
+  }
+});
+
+test('only network failures and transient HTTP statuses are retried', async () => {
+  let networkCalls = 0;
+  const networkClient = new OctopusClient({
+    apiKey: 'secret',
+    maxRetries: 2,
+    fetchImpl: async () => {
+      networkCalls += 1;
+      if (networkCalls === 1) throw new TypeError('socket closed');
+      return jsonResponse(ACCOUNT);
+    },
+  });
+  assert.strictEqual((await networkClient.getAccount('A-ABCD1234')).number, 'A-ABCD1234');
+  assert.strictEqual(networkCalls, 2);
+
+  let parseCalls = 0;
+  const parseClient = new OctopusClient({
+    apiKey: 'secret',
+    maxRetries: 3,
+    fetchImpl: async () => {
+      parseCalls += 1;
+      return {
+        ...jsonResponse(ACCOUNT),
+        json: async () => { throw new SyntaxError('invalid JSON'); },
+      };
+    },
+  });
+  await assert.rejects(() => parseClient.getAccount('A-ABCD1234'), /invalid JSON/);
+  assert.strictEqual(parseCalls, 1);
+
+  let failedCalls = 0;
+  const privateNetworkDetail = 'request to https://api.example/A-PRIVATE failed';
+  const failedClient = new OctopusClient({
+    apiKey: 'secret',
+    maxRetries: 1,
+    fetchImpl: async () => {
+      failedCalls += 1;
+      throw new TypeError(privateNetworkDetail);
+    },
+  });
+  await assert.rejects(
+    () => failedClient.getAccount('A-ABCD1234'),
+    (err) => {
+      assert.match(err.message, /could not be completed/);
+      assert.doesNotMatch(err.message, /api\.example|A-PRIVATE/);
+      return true;
+    },
+  );
+  assert.strictEqual(failedCalls, 1);
+});
+
+test('getAll rejects malformed, repeated, and excessive pagination', async () => {
+  const malformed = new OctopusClient({
+    apiKey: 'secret',
+    fetchImpl: async () => jsonResponse({ count: 1, next: null, previous: null, results: 'invalid' }),
+  });
+  await assert.rejects(() => malformed.getAll('/products/'), /invalid paginated response/);
+
+  let repeatedCalls = 0;
+  const repeated = new OctopusClient({
+    apiKey: 'secret',
+    fetchImpl: async () => {
+      repeatedCalls += 1;
+      return jsonResponse({
+        count: 2,
+        next: 'https://api.octopus.energy/v1/products/?page=2',
+        previous: null,
+        results: [],
+      });
+    },
+  });
+  await assert.rejects(() => repeated.getAll('/products/'), /repeated page/);
+  assert.strictEqual(repeatedCalls, 2);
+
+  let pageNumber = 0;
+  const excessive = new OctopusClient({
+    apiKey: 'secret',
+    fetchImpl: async () => {
+      pageNumber += 1;
+      return jsonResponse({
+        count: 51,
+        next: `https://api.octopus.energy/v1/products/?page=${pageNumber + 1}`,
+        previous: null,
+        results: [],
+      });
+    },
+  });
+  await assert.rejects(() => excessive.getAll('/products/'), /exceeded the safety limit/);
+  assert.strictEqual(pageNumber, 50);
 });
 
 test('latest unit rates returns one bounded page without following history', async () => {
