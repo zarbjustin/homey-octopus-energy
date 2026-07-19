@@ -4,6 +4,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { resetBudget } = require('../.homeybuild/lib/KrakenBudget.js');
+
+// The Kraken request budget is a module-global registry; isolate each test.
+test.beforeEach(() => resetBudget());
 
 const { KrakenClient } = require('../.homeybuild/lib/KrakenClient.js');
 
@@ -342,4 +346,37 @@ test('isUnsupportedFieldError classifies authorisation vs transient errors', () 
   assert.equal(KrakenClient.isUnsupportedFieldError(new Error('Account is not enrolled')), true);
   assert.equal(KrakenClient.isUnsupportedFieldError(new Error('Transient Kraken error 500')), false);
   assert.equal(KrakenClient.isUnsupportedFieldError(new Error('fetch failed')), false);
+});
+
+test('a 429 opens the account backoff gate without hammering (no inline retry)', async (t) => {
+  let balanceFetches = 0;
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    balanceFetches += 1;
+    return new Response('rate limited', { status: 429 });
+  });
+
+  await assert.rejects(new KrakenClient('api-key', 'A-ONE').getBalance('A-ONE'), /429/);
+  assert.equal(balanceFetches, 1, 'the 429 request is not retried inline');
+});
+
+test('an exhausted budget skips a best-effort call instead of fetching', async (t) => {
+  const { getBucket } = require('../.homeybuild/lib/KrakenBudget.js');
+  const bucket = getBucket('A-ONE');
+  for (let i = 0; i < 6; i += 1) bucket.acquire('live'); // drain the burst
+  let pointsFetches = 0;
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    pointsFetches += 1;
+    return jsonResponse({ data: { loyaltyPointsBalance: { loyaltyPoints: 5 } } });
+  });
+
+  await assert.rejects(new KrakenClient('api-key', 'A-ONE').getOctoplusPoints('A-ONE'), /budget/i);
+  assert.equal(pointsFetches, 0, 'the best-effort query never reaches the network');
 });

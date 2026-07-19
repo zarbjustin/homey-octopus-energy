@@ -4,6 +4,9 @@ import Homey from 'homey';
 import { SavingSessionsPoller } from './lib/SavingSessionsPoller';
 import { DispatchPoller } from './lib/DispatchPoller';
 import { Dispatch, KrakenClient } from './lib/KrakenClient';
+import { LiveDemandSource, LiveDemandCreds } from './lib/LiveDemandSource';
+import { resetBudget, budgetDiagnostics } from './lib/KrakenBudget';
+import { Reading } from './lib/freshness';
 import { crossedAbove, crossedBelow } from './lib/rates';
 
 interface BalanceDevice extends Homey.Device {
@@ -15,6 +18,8 @@ module.exports = class OctopusEnergyApp extends Homey.App {
   private savingSessions?: SavingSessionsPoller;
 
   private dispatches?: DispatchPoller;
+
+  private liveDemand?: LiveDemandSource;
 
   private balanceCache = new Map<string, { value: number; ts: number }>();
 
@@ -43,7 +48,7 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     const existing = this.krakenClients.get(accountNumber);
     if (existing?.apiKey === apiKey) return existing.client;
     this.invalidateAccountCaches(accountNumber);
-    const client = new KrakenClient(apiKey);
+    const client = new KrakenClient(apiKey, accountNumber);
     this.krakenClients.set(accountNumber, { apiKey, client });
     this.trimMap(this.krakenClients);
     return client;
@@ -58,6 +63,25 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     this.plannedDispatchInflight.delete(accountNumber);
     this.completedDispatchCache.delete(accountNumber);
     this.completedDispatchInflight.delete(accountNumber);
+    resetBudget(accountNumber);
+    this.liveDemand?.invalidate(accountNumber);
+  }
+
+  // --- Live Home Mini demand (shared, account-scoped) ---------------------
+
+  /** Subscribe a device to shared live-demand updates for its account. */
+  subscribeLiveDemand(creds: LiveDemandCreds, subscriberId: string, onUpdate: (reading: Reading<number>) => void): void {
+    this.liveDemand?.subscribe(creds, subscriberId, onUpdate);
+  }
+
+  /** Remove a device's live-demand subscription. */
+  unsubscribeLiveDemand(accountNumber: string, subscriberId: string): void {
+    this.liveDemand?.unsubscribe(accountNumber, subscriberId);
+  }
+
+  /** Latest shared live-demand reading for an account, if any. */
+  getLiveDemand(accountNumber: string): Reading<number> | null {
+    return this.liveDemand?.getLiveDemand(accountNumber) ?? null;
   }
 
   /** Account-wide balance with a short TTL cache (dedupes per-device calls). */
@@ -123,12 +147,36 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     this.dispatches = new DispatchPoller(this);
     this.registerDispatchCards();
     this.dispatches.start();
+    this.startLiveDemand();
     this.log('Octopus Energy app has been initialized');
+  }
+
+  /** Create the shared live-demand source and track the cadence setting. */
+  private startLiveDemand(): void {
+    const cadence = Number(this.homey.settings.get('live_demand_cadence_s')) || 120;
+    this.liveDemand = new LiveDemandSource({
+      getClient: (creds) => this.getKrakenClient(creds.apiKey, creds.accountNumber),
+      setInterval: (fn, ms) => this.homey.setInterval(fn, ms),
+      clearInterval: (handle) => this.homey.clearInterval(handle as NodeJS.Timeout),
+      now: () => Date.now(),
+      onError: (message, err) => this.error(message, err),
+    }, cadence);
+    this.homey.settings.on('set', (key: string) => {
+      if (key === 'live_demand_cadence_s') {
+        this.liveDemand?.setCadenceSeconds(Number(this.homey.settings.get('live_demand_cadence_s')) || 120);
+      }
+    });
+  }
+
+  /** Aggregate, identifier-free live-data diagnostics snapshot. */
+  liveDataDiagnostics(): { budget: ReturnType<typeof budgetDiagnostics>; liveAccounts: number } {
+    return { budget: budgetDiagnostics(), liveAccounts: this.liveDemand?.activeAccounts() ?? 0 };
   }
 
   async onUninit(): Promise<void> {
     this.savingSessions?.stop();
     this.dispatches?.stop();
+    this.liveDemand?.stopAll();
   }
 
   /** App-level Saving Session Flow triggers. */

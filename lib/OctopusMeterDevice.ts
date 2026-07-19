@@ -254,7 +254,7 @@ export class OctopusMeterDevice extends Homey.Device {
     const app = this.homey.app as Homey.App & {
       getKrakenClient?(key: string, account: string): KrakenClient;
     };
-    this.kraken = app.getKrakenClient?.(apiKey, accountNumber) ?? new KrakenClient(apiKey);
+    this.kraken = app.getKrakenClient?.(apiKey, accountNumber) ?? new KrakenClient(apiKey, accountNumber);
   }
 
   // --- Data access for Flow cards / subclasses -----------------------------

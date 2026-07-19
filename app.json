@@ -2251,7 +2251,7 @@
           },
           "value": false,
           "hint": {
-            "en": "Off by default. Tick this if you have an Octopus Home Mini to show near real-time power (W); it adds a Power capability and polls every 30 seconds. Leave off if you have no Home Mini."
+            "en": "Off by default. Tick this if you have an Octopus Home Mini to show near real-time power (W); it adds a Power capability. Live power is shared and rate-limited to protect your Octopus API allowance (cadence is configurable in the app settings). Leave off if you have no Home Mini."
           }
         },
         {

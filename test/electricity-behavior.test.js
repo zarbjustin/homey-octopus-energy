@@ -74,9 +74,12 @@ test('plunge trigger and notification fire only when crossing below zero', async
   assert.equal(notifications.length, 1);
 });
 
-test('repair clears a cached Home Mini device id', async () => {
+test('repair leaves live power alone when it is inactive', async () => {
   const device = Object.create(ElectricityDevice.prototype);
-  device.liveDeviceId = 'old-device';
+  device.liveSubscribedAccount = null;
+  device.getSetting = () => false;
+  // Device-id caching now lives in the shared LiveDemandSource (invalidated via
+  // the app on a credential change), so repair is a no-op when live power is off.
   await device.onCredentialsApplied();
-  assert.equal(device.liveDeviceId, null);
+  assert.equal(device.liveSubscribedAccount, null);
 });
