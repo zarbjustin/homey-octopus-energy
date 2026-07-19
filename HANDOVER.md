@@ -7,15 +7,18 @@ Last updated: 19 July 2026
 - Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
 - Current source version: `1.0.15`; release tag: `v1.0.15` (GitHub release published).
-- Homey App Store: Build 13 / version `1.0.13` is live. `1.0.15` is NOT yet
-  published to the App Store — run the `Publish Homey App` workflow (or
-  `npx homey app publish`) when ready.
-- Automatic publication after certification approval is enabled.
+- Homey App Store: Build 13 / version `1.0.13` remains live while Build 15 /
+  version `1.0.15` is under certification review.
+- Build 15 / version `1.0.15` is published to Test and was submitted for
+  certification on 19 July 2026. Automatic publication after approval is enabled.
 - Test channel: https://homey.app/a/uk.co.zarb.octopusenergy/test/
-- Build 14 / version `1.0.14` was the last uploaded build (Test + certification).
-- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/14
+- Build 14 / version `1.0.14` was retracted from certification so Build 15 could
+  supersede it; Build 14 remains an older Test build.
+- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/15
 - Community support topic: https://community.homey.app/t/156860
 - `main` contains the `1.0.15` release (tag `v1.0.15`, merge `16e5143`).
+- Version `1.0.15` was built, validated, packed, and installed successfully on
+  `Justin's Homey Pro` on 19 July 2026.
 - Validation baseline: 108 tests pass, lint passes, dependency audit reports zero
   known vulnerabilities, and Homey `publish` validation passes.
 
@@ -229,17 +232,18 @@ validation error should be investigated.
 
 ## Next actions
 
-1. Publish `1.0.15` to the App Store when ready (`Publish Homey App` workflow or
-   `npx homey app publish`); it is tagged and released on GitHub but not yet live.
-2. Ask the affected user for one fresh diagnostic on `1.0.15`+ while the price is
+1. Monitor Build 15 certification; Homey will publish `1.0.15` automatically
+   after approval.
+2. After release, announce `1.0.15` in the community support topic.
+3. Ask the affected user for one fresh diagnostic on `1.0.15`+ while the price is
    blank, plus their tariff type (flat/fixed vs time-of-use; single-rate vs
    Economy 7). Read the new `price-gap diagnostic (no identifiers)` line and
    follow the decision tree in `docs/reviews/import-price-gap-handover.md`.
-3. If the diagnostic shows a variant mismatch, confirm the guarded recovery
+4. If the diagnostic shows a variant mismatch, confirm the guarded recovery
    self-heals it; otherwise implement the indicated fix (closed-agreement
    selection or an evidence-backed upstream-gap handling) with fixtures first.
-4. Monitor the new advisory/health behaviour and community feedback after release.
-5. Smoke-test Repair for one electricity meter plus gas/export where available;
+5. Monitor the new advisory/health behaviour and community feedback after release.
+6. Smoke-test Repair for one electricity meter plus gas/export where available;
    confirm invalid credentials leave the existing device unchanged.
 
 ## Useful release commits
