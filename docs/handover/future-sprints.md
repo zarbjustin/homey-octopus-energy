@@ -43,15 +43,22 @@ assume this document is newer than remote `main`.
 1. **Sprint 42: shared Home Mini poller.** Establish one account-scoped live-data
    source with deduplication, freshness, cadence, and backoff.
 2. **Sprint 43: dispatch truth model.** Define linked devices and SMART/BOOST
-   dispatch semantics before exposing additional automation.
+   dispatch semantics before exposing additional automation. Audit the current
+   `dispatch_started`, `dispatch_ended`, `dispatch_completed`, and `dispatch_active`
+   behavior so planned intent is not surfaced as confirmed charging or settlement.
 3. **Sprint 44: dispatch/effective-price Flows.** Build on the Sprint 43 model;
-   preserve all existing Flow card and capability IDs.
+   preserve all existing Flow card and capability IDs. Separate household base,
+   EV-specific, estimated effective, and finalised previous-half-hour prices; add
+   changed/cancelled and price-finalised events only where the contract supports them.
 4. **Sprint 45: billing-period summary.** Keep official REST history authoritative
    and label projections and confidence explicitly.
-5. **Sprint 46: live-energy presentation.** Reuse the Sprint 42 source while
-   preserving `measure_power` and Homey Energy behavior.
+5. **Sprint 46: live-energy presentation and widgets.** Reuse the Sprint 42 source
+   while preserving `measure_power` and Homey Energy behavior. Make source freshness,
+   estimated values, household-versus-EV pricing, and planned-versus-finalised outcomes
+   visible without overstating certainty.
 6. **Sprint 47: planner and tariff analytics.** Preserve negative prices, complete
-   plans, contiguous-slot checks, and current-slot eligibility.
+   plans, contiguous-slot checks, and current-slot eligibility. Keep broader tariff
+   comparison and visual analytics out of the Sprint 41 incident fix.
 7. **Sprint 48: estimated live-gas pilot.** Keep it opt-in, clearly estimated,
    freshness-aware, and reconciled against official REST data.
 
