@@ -94,7 +94,9 @@ export class TokenBucket {
     this.refill();
     if (this.gated) return false;
     if (priority === 'core') {
-      this.tokens -= 1; // may go slightly negative; refill recovers it
+      // Core is never blocked (outside a 429 gate) but its debt is bounded so a
+      // rare burst cannot starve live/best for longer than one refill of capacity.
+      this.tokens = Math.max(this.tokens - 1, -this.capacity);
       return true;
     }
     if (this.tokens >= 1) {
@@ -113,8 +115,13 @@ export class TokenBucket {
     if (this.tokens > 0) this.tokens = 0;
   }
 
-  /** A successful request clears the backoff escalation. */
+  /**
+   * A successful request clears the backoff escalation — but must NOT lift a
+   * currently-active 429 gate, since an in-flight request admitted before the
+   * rate limit can complete successfully during the cool-down.
+   */
   reward(): void {
+    if (this.gated) return;
     this.penalties = 0;
     this.backoffUntil = 0;
   }

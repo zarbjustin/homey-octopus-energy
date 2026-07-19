@@ -49,18 +49,40 @@ test('a 429 penalty gates the account (including core) until the backoff elapses
   assert.equal(bucket.acquire('core'), true);
 });
 
-test('backoff escalates on repeated penalties and resets after a success', (t) => {
+test('an in-flight success does not lift an active 429 gate', (t) => {
   t.mock.method(Math, 'random', () => 0);
   const clock = { t: 0 };
   const bucket = new TokenBucket(() => clock.t);
-  bucket.penalise(); // 24s
+  bucket.penalise(); // 24s gate
+  bucket.reward(); // an earlier in-flight request completing must not clear it
+  assert.equal(bucket.gated, true, 'gate survives an in-flight success');
+  clock.t += 25_000;
+  assert.equal(bucket.gated, false, 'gate lifts only after the backoff elapses');
+});
+
+test('backoff escalates on repeated penalties and resets after a clean success', (t) => {
+  t.mock.method(Math, 'random', () => 0);
+  const clock = { t: 0 };
+  const bucket = new TokenBucket(() => clock.t);
+  bucket.penalise(); // 1st: 30s * 0.8 = 24s
   clock.t += 25_000;
   bucket.penalise(); // 2nd: 60s * 0.8 = 48s
   assert.equal(bucket.gated, true);
   clock.t += 30_000;
   assert.equal(bucket.gated, true, 'still gated at 30s into a 48s window');
-  bucket.reward();
-  assert.equal(bucket.gated, false, 'a success clears the gate/escalation');
+  clock.t += 20_000; // now past the 48s window
+  assert.equal(bucket.gated, false);
+  bucket.reward(); // clean success once ungated resets escalation
+  bucket.penalise(); // back to 1st level (24s), not 3rd
+  assert.equal(bucket.gated, true);
+  clock.t += 25_000;
+  assert.equal(bucket.gated, false);
+});
+
+test('core debt is bounded so it cannot starve live/best indefinitely', () => {
+  const bucket = new TokenBucket(() => 0);
+  for (let i = 0; i < 100; i += 1) bucket.acquire('core');
+  assert.equal(bucket.snapshot().tokens, -6, 'debt is floored at -capacity');
 });
 
 test('buckets are isolated per account key', () => {
