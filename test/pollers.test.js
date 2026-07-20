@@ -142,3 +142,76 @@ test('dispatch failures are logged once and redacted', async (t) => {
   assert.equal(typeof diagnostics.accounts, 'number');
   assert.equal(JSON.stringify(diagnostics).includes('A-ONE'), false, 'v2 diagnostics carry no account identifiers');
 });
+
+test('dispatch_changed fires on a reschedule and dispatch_cancelled on removal (Sprint 44)', async () => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  const now = Date.now();
+  const win = (startMin, endMin, kind = 'SMART') => ({
+    deviceId: 'dev-1',
+    start: new Date(now + startMin * 60_000).toISOString(),
+    end: new Date(now + endMin * 60_000).toISOString(),
+    kind,
+  });
+  let planned = [win(120, 360)];
+  app.getFlexPlanned = async () => planned;
+  app.getCachedCompletedWindows = async () => [];
+  const poller = new DispatchPoller(app);
+
+  await poller.poll(); // seed: announces next = W1
+  planned = [win(120, 420)]; // same start, later end => reschedule
+  await poller.poll();
+  planned = []; // removed => cancelled
+  await poller.poll();
+
+  const changed = app.fired.find((e) => e.id === 'dispatch_changed');
+  const cancelled = app.fired.find((e) => e.id === 'dispatch_cancelled');
+  assert.ok(changed, 'dispatch_changed should fire on reschedule');
+  assert.equal(changed.tokens.type, 'SMART');
+  assert.ok(cancelled, 'dispatch_cancelled should fire on removal');
+  assert.equal(cancelled.tokens.type, 'SMART');
+});
+
+test('a failed dispatch poll never fires cancelled or changed (Sprint 44)', async () => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  const now = Date.now();
+  const planned = [{
+    deviceId: 'dev-1',
+    start: new Date(now + 120 * 60_000).toISOString(),
+    end: new Date(now + 360 * 60_000).toISOString(),
+    kind: 'SMART',
+  }];
+  let fail = false;
+  app.getFlexPlanned = async () => { if (fail) throw new Error('boom'); return planned; };
+  app.getCachedCompletedWindows = async () => [];
+  const poller = new DispatchPoller(app);
+
+  await poller.poll(); // seed
+  fail = true;
+  await poller.poll(); // stale poll: retains prior state, fabricates nothing
+
+  const ids = app.fired.map((e) => e.id);
+  assert.ok(!ids.includes('dispatch_cancelled'), 'no cancellation from a failed poll');
+  assert.ok(!ids.includes('dispatch_changed'), 'no reschedule from a failed poll');
+});
+
+test('a failed first poll does not later fabricate dispatch_started (Sprint 44)', async () => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  const now = Date.now();
+  const active = [{
+    deviceId: 'dev-1',
+    start: new Date(now - 5 * 60_000).toISOString(),
+    end: new Date(now + 25 * 60_000).toISOString(),
+    kind: 'SMART',
+  }];
+  let fail = true;
+  app.getFlexPlanned = async () => { if (fail) throw new Error('boom'); return active; };
+  app.getCachedCompletedWindows = async () => [];
+  const poller = new DispatchPoller(app);
+
+  await poller.poll(); // first poll FAILS: retains nothing, must not seed
+  fail = false;
+  await poller.poll(); // first SUCCESSFUL poll observes an already-active dispatch
+
+  const started = app.fired.filter((e) => e.id === 'dispatch_started');
+  assert.equal(started.length, 0, 'no started edge from the first successful observation');
+});

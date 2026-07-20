@@ -204,6 +204,88 @@
         }
       },
       {
+        "id": "dispatch_cancelled",
+        "title": {
+          "en": "A planned smart-charge dispatch was cancelled"
+        },
+        "hint": {
+          "en": "Triggers when a previously planned Intelligent Octopus Go dispatch is removed from the plan (confirmed by a successful update, never from a failed poll)."
+        },
+        "tokens": [
+          {
+            "name": "type",
+            "type": "string",
+            "title": {
+              "en": "Type"
+            },
+            "example": {
+              "en": "SMART"
+            }
+          },
+          {
+            "name": "start",
+            "type": "string",
+            "title": {
+              "en": "Was starting"
+            },
+            "example": {
+              "en": "Tue 01:30"
+            }
+          },
+          {
+            "name": "end",
+            "type": "string",
+            "title": {
+              "en": "Was ending"
+            },
+            "example": {
+              "en": "Tue 05:30"
+            }
+          }
+        ]
+      },
+      {
+        "id": "dispatch_changed",
+        "title": {
+          "en": "A planned smart-charge dispatch was rescheduled"
+        },
+        "hint": {
+          "en": "Triggers when a future Intelligent Octopus Go dispatch window is rescheduled (its end time or type changed). A moved start time is reported as a cancellation plus a new dispatch."
+        },
+        "tokens": [
+          {
+            "name": "type",
+            "type": "string",
+            "title": {
+              "en": "Type"
+            },
+            "example": {
+              "en": "SMART"
+            }
+          },
+          {
+            "name": "start",
+            "type": "string",
+            "title": {
+              "en": "Starts"
+            },
+            "example": {
+              "en": "Tue 00:30"
+            }
+          },
+          {
+            "name": "end",
+            "type": "string",
+            "title": {
+              "en": "Now ending"
+            },
+            "example": {
+              "en": "Tue 05:30"
+            }
+          }
+        ]
+      },
+      {
         "id": "dispatch_started",
         "title": {
           "en": "A smart-charge dispatch started"
@@ -212,6 +294,16 @@
           "en": "Triggers when Intelligent Octopus Go begins a planned smart-charge dispatch."
         },
         "tokens": [
+          {
+            "name": "type",
+            "type": "string",
+            "title": {
+              "en": "Type"
+            },
+            "example": {
+              "en": "SMART"
+            }
+          },
           {
             "name": "end",
             "type": "string",

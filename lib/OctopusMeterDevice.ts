@@ -2,7 +2,7 @@
 
 import Homey from 'homey';
 import { OctopusClient, FuelType } from './OctopusClient';
-import { KrakenClient } from './KrakenClient';
+import { KrakenClient, AccountIogTariff } from './KrakenClient';
 import {
   Rate, rateAt, valueOf, sumConsumption, cheapestRate, cheapestWindow,
   isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers, ratesInWindow,
@@ -11,6 +11,10 @@ import {
 import { daysSpanned, estimateAnnualCost } from './compare';
 import { resolveBillingPeriod } from './billing/period';
 import { computeBillingSummary } from './billing/aggregate';
+import { DispatchView } from './dispatch/types';
+import {
+  computeEffectiveRate, EffectiveDispatchKind, EffectiveRateResult,
+} from './effectiveRate';
 
 export interface MeterStore {
   apiKey: string;
@@ -156,6 +160,11 @@ export class OctopusMeterDevice extends Homey.Device {
   protected standingRates: Rate[] = [];
 
   protected currentPrice: number | null = null;
+
+  /** Provenance of `this.rates`: REST is settlement-authoritative; the IOG
+   *  GraphQL base-schedule fallback is NOT, so finalised prices are only ever
+   *  derived when this is 'rest'. */
+  protected rateSource: 'rest' | 'iog-fallback' | 'unknown' = 'unknown';
 
   protected currentBalance: number | null = null;
 
@@ -921,6 +930,7 @@ export class OctopusMeterDevice extends Homey.Device {
     );
     const primaryRates = rates;
     let current = rateAt(rates);
+    let rateSource: 'rest' | 'iog-fallback' | 'unknown' = current ? 'rest' : 'unknown';
     let fallbackRates: Rate[] | null = null;
     if (!current) {
       fallbackRates = await this.client.latestStandardUnitRates(s.fuel, s.productCode, s.tariffCode);
@@ -928,6 +938,7 @@ export class OctopusMeterDevice extends Homey.Device {
       if (fallback) {
         rates = fallbackRates;
         current = fallback;
+        rateSource = 'rest';
       }
     }
     if (!current) {
@@ -936,10 +947,12 @@ export class OctopusMeterDevice extends Homey.Device {
       if (fallback && intelligentGoRates) {
         rates = intelligentGoRates;
         current = fallback;
+        rateSource = 'iog-fallback';
         this.log('Price-gap recovery: using the account IOG household base schedule.');
       }
     }
     this.rates = rates;
+    this.rateSource = rateSource;
     await this.onRatesUpdated();
     if (!current) {
       this.logPriceGapDiagnostic(s, primaryRates, fallbackRates);
@@ -961,11 +974,7 @@ export class OctopusMeterDevice extends Homey.Device {
     if (s.fuel !== 'electricity' || s.isExport || !s.accountNumber || !s.tariffCode || !s.productCode
       || !this.isIntelligentGoTariff()) return null;
     try {
-      const tariff = await this.kraken.getActiveIogTariff(
-        s.accountNumber,
-        s.tariffCode,
-        s.productCode,
-      );
+      const tariff = await this.activeIogTariff();
       if (!tariff) return null;
       const from = this.localMidnight(-2).getTime();
       const to = this.localMidnight(3).getTime();
@@ -986,6 +995,86 @@ export class OctopusMeterDevice extends Homey.Device {
       this.log('Intelligent Octopus Go account-rate fallback was unavailable.');
       return null;
     }
+  }
+
+  /** Shared, cached active IOG tariff (dedupes the price-recovery and
+   *  effective-rate reads to a single account-scoped, budgeted call). */
+  private async activeIogTariff(): Promise<AccountIogTariff | null> {
+    const s = this.store();
+    if (!s.accountNumber || !s.tariffCode || !s.productCode) return null;
+    const app = this.homey.app as (Homey.App & {
+      getCachedIogTariff?(a: string, acc: string, t: string, p: string): Promise<AccountIogTariff | null>;
+    }) | undefined;
+    if (app?.getCachedIogTariff) {
+      return app.getCachedIogTariff(s.apiKey, s.accountNumber, s.tariffCode, s.productCode);
+    }
+    return this.kraken.getActiveIogTariff(s.accountNumber, s.tariffCode, s.productCode);
+  }
+
+  /**
+   * Sprint 44 — opt-in *estimated* effective rate for Intelligent Octopus Go.
+   * Populated only for IOG electricity import meters (null otherwise, so no
+   * other tariff gets a spurious "estimate"). The whole-home effective rate
+   * equals the authoritative household base; EV device rates are returned
+   * separately and never folded in. Never a bill or settled price.
+   */
+  async getEffectiveRateView(): Promise<EffectiveRateResult | null> {
+    const s = this.store();
+    if (s.fuel !== 'electricity' || s.isExport || !this.isIntelligentGoTariff()) return null;
+    // Opt-in: the estimate is off by default and only computed when the user has
+    // explicitly enabled it (app setting), so no meter surfaces an estimate — or
+    // triggers a tariff lookup for it — without consent.
+    if (!this.effectiveRateOptIn()) return null;
+
+    let tariff: { evPeak: number | null; evOffPeak: number | null } | null = null;
+    try {
+      const t = await this.activeIogTariff();
+      if (t) {
+        const inc = this.vatInc();
+        tariff = {
+          evPeak: inc ? t.evDevicePeakRate : t.preVatEvDevicePeakRate,
+          evOffPeak: inc ? t.evDeviceOffPeakRate : t.preVatEvDeviceOffPeakRate,
+        };
+      }
+    } catch (err) {
+      tariff = null; // fail closed
+    }
+
+    return computeEffectiveRate({
+      optedIn: true,
+      householdBase: this.currentPrice,
+      inGuaranteedWindow: this.isIogNightTime(new Date()),
+      activeKinds: this.activeDispatchKinds(),
+      tariff,
+      finalisedPrevHalfHour: this.finalisedPreviousHalfHourRate(),
+    });
+  }
+
+  /** Whether the user has opted into the estimated effective rate (default off). */
+  private effectiveRateOptIn(): boolean {
+    try {
+      return Boolean(this.homey.settings.get('effective_rate_estimate'));
+    } catch (err) {
+      return false;
+    }
+  }
+
+  /** Kinds of dispatch active right now, from the reconciled dispatch view. */
+  private activeDispatchKinds(): EffectiveDispatchKind[] {
+    const view = this.getDispatchView() as DispatchView | null;
+    if (!view || !Array.isArray(view.active)) return [];
+    return view.active.map((w) => w.kind);
+  }
+
+  /** REST-authoritative rate for the just-ended half-hour, else null. The IOG
+   *  GraphQL base-schedule fallback is intent, not settlement, so it never
+   *  yields a "finalised" figure. */
+  private finalisedPreviousHalfHourRate(): number | null {
+    if (this.rateSource !== 'rest') return null;
+    const slot = 30 * 60_000;
+    const prev = new Date(Math.floor(Date.now() / slot) * slot - slot);
+    const rate = rateAt(this.rates, prev);
+    return rate ? Number(valueOf(rate, this.vatInc()).toFixed(2)) : null;
   }
 
   private isIntelligentGoTariff(): boolean {
@@ -1065,6 +1154,7 @@ export class OctopusMeterDevice extends Homey.Device {
     // day/night switch time is region-specific and set via device settings.
     this.rates = day;
     this.nightRates = night;
+    this.rateSource = 'rest';
     await this.onRatesUpdated();
     if (!dayRate || !nightRate) {
       throw new Error('Octopus returned no current day/night register rate.');

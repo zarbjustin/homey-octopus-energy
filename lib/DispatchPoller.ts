@@ -122,27 +122,52 @@ export class DispatchPoller extends AccountPoller {
     }
 
     const prev = this.state(creds.accountNumber);
+    const wasSeeded = this.seeded.has(creds.accountNumber);
     const result = reconcile(prev, planned, ok, completed, Date.now());
 
-    if (result.started) {
-      const nextEnd = result.activeNow
-        .map((w) => w.end)
-        .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0];
-      this.fire('dispatch_started', { end: nextEnd ? this.fmt(nextEnd) : '' });
+    // Transition edges are only meaningful once we have a prior observation:
+    // suppress started/ended (and the notification) on the very first poll so an
+    // already-active dispatch at startup is seeded silently, never announced as
+    // a transition we did not actually observe.
+    if (wasSeeded && result.started) {
+      const soonest = [...result.activeNow]
+        .sort((a, b) => new Date(a.end).getTime() - new Date(b.end).getTime())[0];
+      this.fire('dispatch_started', {
+        type: soonest?.kind ?? 'unknown',
+        end: soonest?.end ? this.fmt(soonest.end) : '',
+      });
       if (this.notifyEnabled('notify_dispatch', false)) {
         await this.notify('🚗 Intelligent Octopus Go smart-charge dispatch has started.');
       }
     }
-    if (result.ended) {
+    if (wasSeeded && result.ended) {
       this.fire('dispatch_ended', {});
     }
+    // dispatch_cancelled / dispatch_changed: reconcile only populates these from
+    // a SUCCESSFUL poll, and only for windows that were still FUTURE at poll time
+    // — never fabricated from stale data or from a window merely elapsing.
+    if (wasSeeded) {
+      for (const w of result.cancelled) {
+        this.fire('dispatch_cancelled', {
+          type: w.kind, start: this.fmt(w.start), end: this.fmt(w.end),
+        });
+      }
+      for (const w of result.changed) {
+        this.fire('dispatch_changed', {
+          type: w.kind, start: this.fmt(w.start), end: this.fmt(w.end),
+        });
+      }
+    }
     // Suppress the first completed batch after (re)start to avoid a backfill storm.
-    if (this.seeded.has(creds.accountNumber)) {
+    if (wasSeeded) {
       for (const c of result.newlyCompleted) {
         this.fire('dispatch_completed', { end: this.fmt(c.end) });
       }
     }
-    this.seeded.add(creds.accountNumber);
+    // Only seed on a SUCCESSFUL planned poll: a failed poll retains prior state
+    // and observes no transition, so the first *successful* poll must seed
+    // silently (never announce an already-active dispatch as a fresh "started").
+    if (ok) this.seeded.add(creds.accountNumber);
     if (result.newlyCompleted.length) {
       const list = this.recentCompleted.get(creds.accountNumber) ?? [];
       for (const c of result.newlyCompleted) list.push({ start: c.start, end: c.end, delta: c.delta });

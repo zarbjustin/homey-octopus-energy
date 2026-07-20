@@ -3,7 +3,7 @@
 import Homey from 'homey';
 import { SavingSessionsPoller } from './lib/SavingSessionsPoller';
 import { DispatchPoller } from './lib/DispatchPoller';
-import { Dispatch, KrakenClient } from './lib/KrakenClient';
+import { Dispatch, KrakenClient, AccountIogTariff } from './lib/KrakenClient';
 import { SmartFlexDevice, DispatchView } from './lib/dispatch/types';
 import { PlannedInput, CompletedInput } from './lib/dispatch/reconcile';
 import { LiveDemandSource, LiveDemandCreds } from './lib/LiveDemandSource';
@@ -49,6 +49,10 @@ module.exports = class OctopusEnergyApp extends Homey.App {
 
   private completedWindowInflight = new Map<string, Promise<CompletedInput[]>>();
 
+  private iogTariffCache = new Map<string, { value: AccountIogTariff | null; ts: number }>();
+
+  private iogTariffInflight = new Map<string, Promise<AccountIogTariff | null>>();
+
   private trimMap<T>(map: Map<string, T>, max = 20): void {
     while (map.size > max) {
       const oldest = map.keys().next().value as string | undefined;
@@ -83,6 +87,13 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     this.flexPlannedInflight.delete(accountNumber);
     this.completedWindowCache.delete(accountNumber);
     this.completedWindowInflight.delete(accountNumber);
+    const iogPrefix = `${accountNumber}|`;
+    for (const key of [...this.iogTariffCache.keys()]) {
+      if (key.startsWith(iogPrefix)) this.iogTariffCache.delete(key);
+    }
+    for (const key of [...this.iogTariffInflight.keys()]) {
+      if (key.startsWith(iogPrefix)) this.iogTariffInflight.delete(key);
+    }
     resetBudget(accountNumber);
     this.liveDemand?.invalidate(accountNumber);
   }
@@ -229,6 +240,33 @@ module.exports = class OctopusEnergyApp extends Homey.App {
       })
       .finally(() => this.completedWindowInflight.delete(accountNumber));
     this.completedWindowInflight.set(accountNumber, request);
+    return request;
+  }
+
+  /**
+   * Active IOG tariff (household day/night + separate EV device rates) shared
+   * across the meter's price-recovery path and the Sprint 44 effective-rate
+   * view. Long TTL (30 min) + inflight dedup so it costs the F0 budget at most
+   * one `core`-priority GraphQL call per account per half-hour. Returns null on
+   * failure (fail closed — never fabricates rates).
+   */
+  async getCachedIogTariff(
+    apiKey: string, accountNumber: string, tariffCode: string, productCode: string,
+  ): Promise<AccountIogTariff | null> {
+    const key = `${accountNumber}|${tariffCode}|${productCode}`;
+    const cached = this.iogTariffCache.get(key);
+    if (cached && Date.now() - cached.ts < 30 * 60_000) return cached.value;
+    const inflight = this.iogTariffInflight.get(key);
+    if (inflight) return inflight;
+    const request = this.getKrakenClient(apiKey, accountNumber)
+      .getActiveIogTariff(accountNumber, tariffCode, productCode)
+      .then((value) => {
+        this.iogTariffCache.set(key, { value, ts: Date.now() });
+        this.trimMap(this.iogTariffCache);
+        return value;
+      })
+      .finally(() => this.iogTariffInflight.delete(key));
+    this.iogTariffInflight.set(key, request);
     return request;
   }
 

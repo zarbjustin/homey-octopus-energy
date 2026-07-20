@@ -41,7 +41,15 @@ export interface ReconcileResult {
   started: boolean;
   /** Aggregate falling edge (>=1 -> 0 active). Never true on a stale/failed poll. */
   ended: boolean;
+  /** Previously-planned windows, still FUTURE at poll time, that a successful
+   *  poll omitted — a genuine cancellation. Never inferred from a failed/absent
+   *  poll, and never for a window that has already elapsed (ambiguous:
+   *  completed vs cancelled). */
   cancelled: DispatchWindow[];
+  /** Still-FUTURE planned windows whose end or kind changed vs the prior plan
+   *  (same device + start) — a genuine reschedule, not a window elapsing or a
+   *  new/removed window. */
+  changed: DispatchWindow[];
   newlyCompleted: CompletedInput[];
   /** Planned data was unavailable this cycle; prior windows were retained. */
   stale: boolean;
@@ -65,6 +73,7 @@ export function reconcile(
 ): ReconcileResult {
   let windows: DispatchWindow[];
   const cancelled: DispatchWindow[] = [];
+  const changed: DispatchWindow[] = [];
   let stale = false;
 
   if (!plannedOk) {
@@ -93,10 +102,17 @@ export function reconcile(
         delta: null,
       });
     }
-    const freshKeys = new Set(fresh.map((w) => windowKey(w.deviceId, w.start)));
+    const freshByKey = new Map(fresh.map((w) => [windowKey(w.deviceId, w.start), w]));
     for (const w of prev.windows) {
-      if (w.state === 'planned' && !freshKeys.has(windowKey(w.deviceId, w.start))) {
+      // Only reason about windows that were still FUTURE at this poll — a
+      // previously-planned window that has already elapsed is ambiguous
+      // (completed vs cancelled), so we never claim it was cancelled/changed.
+      if (w.state !== 'planned' || ms(w.start) <= now) continue;
+      const match = freshByKey.get(windowKey(w.deviceId, w.start));
+      if (!match) {
         cancelled.push({ ...w, state: 'cancelled' });
+      } else if (match.end !== w.end || match.kind !== w.kind) {
+        changed.push({ ...match });
       }
     }
     windows = fresh;
@@ -130,6 +146,7 @@ export function reconcile(
     started,
     ended,
     cancelled,
+    changed,
     newlyCompleted,
     stale,
   };

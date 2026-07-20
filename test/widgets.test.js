@@ -92,8 +92,14 @@ test('widget APIs pass device freshness through to their frontends', async () =>
   assert.deepEqual(result.freshness, freshness);
 });
 
-test('summary widget exposes live demand, dispatch, and an inert S44 effective-price hook', async () => {
+test('summary widget populates the S44 effective-price hook from the device', async () => {
   const api = require('../widgets/summary/api.js');
+  const effective = {
+    householdBase: 24.5, estimatedEffective: 24.5, finalisedPrevHalfHour: 22.3,
+    confidence: 'medium', estimated: true, settlement: false,
+    reasons: ['bonus-smart-ev-only', 'estimate-not-settlement'],
+    ev: { peak: 30.1, offPeak: 7.5, allowanceWindow: '12:00–12:00 local', allowanceRemaining: null },
+  };
   const device = {
     getData: () => ({ id: 'd1' }),
     getName: () => 'Meter',
@@ -102,20 +108,42 @@ test('summary widget exposes live demand, dispatch, and an inert S44 effective-p
     getDataFreshness: () => ({ updatedAt: null, stale: false, problem: false }),
     getLiveDemandView: () => ({ netW: -900, importW: 0, exportW: 900, state: 'current', readAt: '2026-07-20T00:00:00Z', source: 'graphql' }),
     getDispatchView: () => ({ activeNow: true, active: [], next: null, recentFinalised: [{ start: 'x', end: 'y', delta: 2.3 }] }),
+    getEffectiveRateView: async () => effective,
   };
   const homey = { drivers: { getDriver: () => ({ getDevices: () => [device] }) } };
   const data = await api.getData({ homey, query: { id: 'd1' } });
   assert.equal(data.live.exportW, 900);
   assert.equal(data.dispatch.activeNow, true);
+  assert.equal(data.effectivePrice.estimated, true);
+  assert.equal(data.effectivePrice.settlement, false);
+  assert.equal(data.effectivePrice.ev.offPeak, 7.5);
+});
+
+test('summary widget returns a null effective price when the device has no view', async () => {
+  const api = require('../widgets/summary/api.js');
+  const device = {
+    getData: () => ({ id: 'd1' }),
+    getName: () => 'Meter',
+    hasCapability: () => false,
+    getCapabilityValue: () => null,
+  };
+  const homey = { drivers: { getDriver: () => ({ getDevices: () => [device] }) } };
+  const data = await api.getData({ homey, query: { id: 'd1' } });
   assert.equal(data.effectivePrice, null);
 });
 
-test('summary widget renders provenance badges and never labels a finalised window as settlement', () => {
+test('summary widget renders the estimated effective rate and EV pricing separately', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'widgets', 'summary', 'public', 'index.html'), 'utf8');
   assert.match(html, /function badge\(/);
   assert.match(html, /Net-derived from Home Mini/);
   assert.match(html, /not a billed rate or settlement/i);
-  // Every dynamic dispatch/live label is escaped and no effective price is rendered.
-  assert.match(html, /liveHtml\(d\) \+ dispatchHtml\(d\)/);
-  assert.doesNotMatch(html, /effectivePrice/); // S46 leaves it inert (api-only hook)
+  // The S44 effective-price block is rendered, clearly labelled Estimated and
+  // never as settlement, with EV rates in a separate section.
+  assert.match(html, /effectiveHtml\(d\)/);
+  assert.match(html, /Estimated/);
+  assert.match(html, /not a bill or settlement/i);
+  assert.match(html, /EV device pricing/);
+  assert.match(html, /EV-device rates only, not your household rate/i);
+  // Every dynamic value goes through esc()/n(); null renders as an en dash.
+  assert.match(html, /function confBadge\(/);
 });
