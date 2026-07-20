@@ -27,8 +27,9 @@ Last updated: 20 July 2026
 
 ## Next-model entry point
 
-- Sprints 41-47 are complete on `main`/pending PRs; the next feature work is
-  Sprint 49 (Trust & Polish, replacing dropped Sprint 48 live-gas).
+- Sprints 42-47 are merged to `main` under version 1.0.17 (S42 #20, S43 #21,
+  S45 #24, S46 #25, S44 #26, S47 #27); Sprint 49 (Trust & Polish) is the
+  current/last planned sprint of this arc.
 - Read `docs/handover/future-sprints.md` before selecting or implementing a
   future sprint. It contains the dependency order, acceptance gates, current
   release boundaries, and a copyable prompt for another AI model.
@@ -135,6 +136,54 @@ in narrowing this down.
 - Sprint 43 owns device-aware SMART/BOOST and settlement semantics; Sprint 44 owns
   effective-price Flows. Sprint 41 intentionally does not infer discounts from
   ambiguous account-level dispatch windows.
+
+## Sprint 49 Trust & Polish (DELIVERED, unreleased)
+
+On branch `feat/sprint-49-trust-polish` (PR pending). A consistency/docs/confidence
+pass over the Sprint 42-47 arc — **no new data features, no new capabilities, no
+Flow-ID changes, no version bump (stays 1.0.17)**.
+
+- **F1 provenance everywhere:** all six widgets now render one shared, namespaced
+  provenance badge (`.prov-badge` + `b-current/stale/unknown/estimated` — namespaced
+  to avoid colliding with the price/carbon *level* `.badge`). `freshnessHtml(d,
+  sourceLabel)` shows "Device refresh · Current/Stale/Unknown · age"; a connection
+  problem is never shown as Current. App-derived recommendations (cheapest/peak slots)
+  and the carbon forecast carry an explicit **Estimated** badge; published forward
+  tariff rows (timeline/agile price rows) are NOT mislabelled as estimates.
+- **F1 vocabulary (important):** `Reading<T>.state` has exactly three values —
+  `current | stale | unknown`. `estimated | planned | finalised` are *presentation*
+  provenance labels, NOT `Reading.state` values; docs and code must not conflate them.
+- **Settings consistency + safety:** added the missing "Intelligent dispatch status"
+  heading; relabelled the S44 toggle to "Show estimated IOG household rate in the
+  Summary widget"; rebuilt the billing-summary list with `textContent`/DOM nodes
+  instead of `innerHTML` (defense-in-depth against injected account/period/confidence
+  strings). No settings keys added or changed.
+- **Machine-checked consistency:** `test/ui-consistency.test.js` (node:vm evaluates the
+  real `freshnessHtml`/`esc` per widget: current/stale/problem/unknown mapping +
+  escaping of malicious input; asserts the namespaced badge and the estimate-vs-
+  published distinction; asserts settings has no dynamic `li.innerHTML`) and
+  `test/docs-currency.test.js` (README is 1.0.17, lists the six S47 card IDs, and the
+  IOG gate stays "not field-confirmed").
+- **Docs:** README refreshed to 1.0.17 with the S44 toggle + S47 advanced cards;
+  ROADMAP row 7 marked delivered; this section added.
+
+### Community feedback loop (Intelligent Octopus Go price-gap incident)
+- Topic: community.homey.app t/156860. The reply to the reporter was drafted but must
+  not claim the incident fixed until an affected account confirms on Build 17.
+- When collecting a report: record build/version, date, tariff/register type, and
+  whether the household price appeared; request only the privacy-safe diagnostic while
+  the failure is visible; never request re-pairing or raw identifiers; do not treat
+  "no new report" as confirmation.
+
+### GitHub Actions Node-runtime maintenance (tracked, not done here)
+- All workflow actions remain pinned to full 40-char SHAs (guarded by
+  `test/release-security.test.js`). GitHub warns that `actions/checkout@v4` /
+  `actions/setup-node@v4` run on the deprecated Node 20 action runtime.
+- **Do this in a SEPARATE, SHA-pinned maintenance PR** (not a docs/UI sprint):
+  re-pin checkout/setup-node to their newer 40-char SHAs (keep the `# v5` comment
+  format), then re-run `release-security`, the full suite, and `homey app validate`.
+  Never unpin to a floating tag. Not changed in Sprint 49 to keep the supply-chain
+  change independently reviewable.
 
 ## Sprint 47 planner and tariff analytics (DELIVERED, unreleased)
 

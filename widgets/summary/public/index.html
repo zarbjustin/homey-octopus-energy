@@ -28,6 +28,9 @@
     .ev { font-size: 12px; margin-top: 8px; border-top: 1px solid var(--homey-line-color, #eee); padding-top: 6px; }
     .ev .k { font-size: 11px; color: var(--homey-text-color-light, #888); }
     .muted { font-size: 10px; color: var(--homey-text-color-light, #888); }
+    .prov-badge { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 6px; margin-left: 4px; }
+    .prov-row { margin: 4px 0 6px; }
+    .prov-msg { color: #b45309; font-size: 10px; margin-left: 4px; }
   </style>
 </head>
 <body>
@@ -39,11 +42,20 @@
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
       });
     }
-    function freshnessHtml(d) {
-      const f = d && d.freshness;
-      if (!f || (!f.problem && !f.stale)) return '';
-      const message = f.problem ? 'Connection issue; showing the last available data.' : 'Data may be out of date.';
-      return '<div class="freshness" role="status">' + esc(message) + '</div>';
+    function provenanceBadge(label, cls) { return '<span class="prov-badge ' + cls + '">' + esc(label) + '</span>'; }
+    function estimatedBadge(label) { return provenanceBadge(label || 'Estimated', 'b-estimated'); }
+    function freshnessHtml(d, sourceLabel) {
+      var f = d && d.freshness;
+      var state = 'Unknown';
+      var cls = 'b-unknown';
+      var message = 'Freshness is not yet known.';
+      if (f && f.updatedAt && !f.stale && !f.problem) { state = 'Current'; cls = 'b-current'; message = ''; }
+      else if (f && f.updatedAt) { state = 'Stale'; cls = 'b-stale'; message = f.problem ? 'Connection issue; showing the last available data.' : 'Data may be out of date.'; }
+      else if (f && f.problem) { message = 'Connection issue; current data is unavailable.'; }
+      var age = (typeof ageText === 'function' && f) ? ageText(f.updatedAt) : '';
+      var label = (sourceLabel || 'Device refresh') + ' \u00b7 ' + state + (age ? ' \u00b7 ' + age : '');
+      return '<div class="prov-row" role="status">' + provenanceBadge(label, cls)
+        + (message ? '<span class="prov-msg">' + esc(message) + '</span>' : '') + '</div>';
     }
     function badge(label, cls) { return '<span class="badge ' + cls + '">' + esc(label) + '</span>'; }
     function ageText(readAt) {
@@ -120,7 +132,7 @@
         cells += '<div class="cell"><div class="k">Octoplus</div><div class="v">' + n(d.points, 0) + ' pts</div></div>';
       }
       el.innerHTML = '<div class="name">' + esc(d.name || 'Octopus') + '</div>'
-        + freshnessHtml(d) + '<div class="grid">' + cells + '</div>'
+        + freshnessHtml(d, 'Device refresh') + '<div class="grid">' + cells + '</div>'
         + liveHtml(d) + dispatchHtml(d) + effectiveHtml(d);
     }
     function onHomeyReady(Homey) {
