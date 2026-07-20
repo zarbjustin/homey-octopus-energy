@@ -22,12 +22,12 @@ test('README documents the current 1.0.17 release, not a stale version', () => {
 
 test('README lists the Sprint 47 advanced Flow cards by id', () => {
   const readme = read('README.md');
-  for (const id of S47_CARDS) assert.match(readme, new RegExp(id), `README should mention ${id}`);
+  for (const id of S47_CARDS) assert.ok(readme.includes(id), `README should mention ${id}`);
 });
 
 test('README release version matches package.json', () => {
   const pkg = JSON.parse(read('package.json'));
-  assert.match(read('README.md'), new RegExp(pkg.version.replace(/\./g, '\\.')));
+  assert.ok(read('README.md').includes(pkg.version), `README should mention ${pkg.version}`);
 });
 
 test('the IOG price-gap recovery is never claimed as production-proven', () => {
