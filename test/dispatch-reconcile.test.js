@@ -140,3 +140,54 @@ test('a large stable completed history never re-fires an already-seen window', (
   );
   assert.equal(second.newlyCompleted.length, 0, 'no window is re-fired regardless of history size');
 });
+
+// --- Sprint 44: reschedule (changed) vs cancellation vs elapsing ------------
+
+function plannedWindow(deviceId, startMin, endMin, kind = 'SMART') {
+  return {
+    deviceId, kind,
+    start: new Date(NOW + startMin * 60_000).toISOString(),
+    end: new Date(NOW + endMin * 60_000).toISOString(),
+    state: 'planned', provenance: 'planned', confidence: 'medium', delta: null,
+  };
+}
+
+test('a future window whose end moves is reported as changed, not cancelled', () => {
+  const prev = { windows: [plannedWindow('d1', 60, 90)], anyActive: false, lastCompletedEnd: 0 };
+  const r = reconcile(prev, [planned('d1', 60, 120)], true, [], NOW);
+  assert.equal(r.cancelled.length, 0);
+  assert.equal(r.changed.length, 1);
+  assert.equal(r.changed[0].end, new Date(NOW + 120 * 60_000).toISOString());
+});
+
+test('a future window whose kind changes is reported as changed', () => {
+  const prev = { windows: [plannedWindow('d1', 60, 90, 'SMART')], anyActive: false, lastCompletedEnd: 0 };
+  const r = reconcile(prev, [planned('d1', 60, 90, 'BOOST')], true, [], NOW);
+  assert.equal(r.changed.length, 1);
+  assert.equal(r.changed[0].kind, 'BOOST');
+  assert.equal(r.cancelled.length, 0);
+});
+
+test('an unchanged future window produces no changed/cancelled edge', () => {
+  const prev = { windows: [plannedWindow('d1', 60, 90)], anyActive: false, lastCompletedEnd: 0 };
+  const r = reconcile(prev, [planned('d1', 60, 90)], true, [], NOW);
+  assert.equal(r.changed.length, 0);
+  assert.equal(r.cancelled.length, 0);
+});
+
+test('a moved start is a cancellation of the old window plus a new one, not a change', () => {
+  const prev = { windows: [plannedWindow('d1', 60, 90)], anyActive: false, lastCompletedEnd: 0 };
+  const r = reconcile(prev, [planned('d1', 75, 105)], true, [], NOW);
+  assert.equal(r.changed.length, 0);
+  assert.equal(r.cancelled.length, 1);
+  assert.equal(r.windows.length, 1); // the new window is present as fresh planned
+});
+
+test('an already-elapsed planned window absent on a good poll is NOT cancelled (ambiguous)', () => {
+  // start was 30m ago, so by poll time it has begun — completed vs cancelled is
+  // ambiguous, so we never claim cancellation.
+  const prev = { windows: [plannedWindow('d1', -30, -5)], anyActive: false, lastCompletedEnd: 0 };
+  const r = reconcile(prev, [], true, [], NOW);
+  assert.equal(r.cancelled.length, 0);
+  assert.equal(r.changed.length, 0);
+});

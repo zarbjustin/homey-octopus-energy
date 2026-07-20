@@ -209,3 +209,60 @@ test('IOG account-rate recovery fails closed when GraphQL is unavailable', async
   assert.equal(logs.length, 1);
   assert.doesNotMatch(logs[0], /A-ONE|E-1R-/);
 });
+
+test('effective-rate view is opt-in: null when the estimate setting is off', async () => {
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({
+    apiKey: 'k', accountNumber: 'A-ONE', fuel: 'electricity', isExport: false,
+    productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C',
+  });
+  device.currentPrice = 24.5;
+  device.rates = [];
+  device.rateSource = 'rest';
+  device.vatInc = () => true;
+  device.kraken = { getActiveIogTariff: async () => ({ evDevicePeakRate: 30, evDeviceOffPeakRate: 7 }) };
+  let enabled = false;
+  device.homey = {
+    settings: { get: () => enabled },
+    clock: { getTimezone: () => 'Europe/London' },
+    app: { getDispatchView: () => ({ activeNow: false, active: [], next: null, recentFinalised: [] }) },
+  };
+
+  assert.equal(await device.getEffectiveRateView(), null, 'off by default → null');
+
+  enabled = true;
+  const view = await device.getEffectiveRateView();
+  assert.ok(view, 'enabled → a view');
+  assert.equal(view.estimated, true);
+  assert.equal(view.settlement, false);
+  assert.equal(view.householdBase, 24.5);
+  assert.equal(view.ev.offPeak, 7);
+});
+
+test('effective-rate view never derives a finalised price from the IOG GraphQL fallback', async () => {
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({
+    apiKey: 'k', accountNumber: 'A-ONE', fuel: 'electricity', isExport: false,
+    productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C',
+  });
+  device.currentPrice = 24.5;
+  // A rate row that WOULD cover the previous half-hour, but sourced from the IOG
+  // GraphQL fallback — must NOT be reported as a finalised (settled) price.
+  device.rates = [{
+    value_inc_vat: 8, value_exc_vat: 7.6,
+    valid_from: new Date(Date.now() - 3 * 3600_000).toISOString(),
+    valid_to: new Date(Date.now() + 3 * 3600_000).toISOString(),
+    payment_method: null,
+  }];
+  device.rateSource = 'iog-fallback';
+  device.vatInc = () => true;
+  device.kraken = { getActiveIogTariff: async () => ({ evDevicePeakRate: 30, evDeviceOffPeakRate: 7 }) };
+  device.homey = {
+    settings: { get: () => true },
+    clock: { getTimezone: () => 'Europe/London' },
+    app: { getDispatchView: () => ({ activeNow: false, active: [], next: null, recentFinalised: [] }) },
+  };
+
+  const view = await device.getEffectiveRateView();
+  assert.equal(view.finalisedPrevHalfHour, null, 'iog-fallback is intent, not settlement');
+});

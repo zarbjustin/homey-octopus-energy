@@ -19,13 +19,21 @@ module.exports = {
     if (wanted && !device) return { error: 'The selected meter is no longer available.' };
     if (!device) return { error: 'No meter added yet.' };
     const cap = (c) => (device.hasCapability(c) ? device.getCapabilityValue(c) : null);
+    let effectivePrice = null;
+    try {
+      if (typeof device.getEffectiveRateView === 'function') {
+        effectivePrice = await device.getEffectiveRateView();
+      }
+    } catch (e) {
+      effectivePrice = null;
+    }
     return {
       name: device.getName(),
       freshness: typeof device.getDataFreshness === 'function' ? device.getDataFreshness() : null,
       live: typeof device.getLiveDemandView === 'function' ? device.getLiveDemandView() : null,
       dispatch: typeof device.getDispatchView === 'function' ? device.getDispatchView() : null,
-      // S44 hook: opt-in estimated effective rate (confidence-tagged). Not populated in S46.
-      effectivePrice: null,
+      // S44: opt-in estimated effective rate (confidence-tagged). Null unless IOG.
+      effectivePrice,
       balance: cap('measure_octopus_balance'),
       usage: cap('octopus_usage_today'),
       cost: cap('octopus_cost_today'),

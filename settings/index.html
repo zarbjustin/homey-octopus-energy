@@ -72,6 +72,16 @@
     </select>
   </div>
 
+  <h2>Estimated effective rate (Intelligent Octopus Go)</h2>
+  <p>Show an opt-in <em>estimated</em> effective rate on the summary widget for
+     Intelligent Octopus Go. This is an estimate for your whole-home meter — never a
+     bill or settled price — and equals your household unit rate (smart-charge bonuses
+     discount only the separately-metered EV device). EV device rates are shown
+     separately. Off by default.</p>
+  <div class="field">
+    <label><input type="checkbox" id="effective_rate_estimate" /> Show estimated effective rate</label>
+  </div>
+
   <h2>Billing period</h2>
   <p>Set your Octopus billing day for an accurate "this billing period" summary.
      Leave blank to use the calendar month (lower confidence). Figures are from
@@ -102,7 +112,7 @@
 
   <script type="text/javascript">
     function onHomeyReady(Homey) {
-      const checks = ['notify_plunge', 'notify_saving_sessions', 'notify_dispatch', 'notify_low_balance'];
+      const checks = ['notify_plunge', 'notify_saving_sessions', 'notify_dispatch', 'notify_low_balance', 'effective_rate_estimate'];
       const defaults = { notify_plunge: true };
 
       checks.forEach((key) => {

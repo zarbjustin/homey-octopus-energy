@@ -45,7 +45,7 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
 | 2 | 43 Dispatch truth model | P0 | Ratifies **F1** provenance/freshness convention; device-scoped SMART/BOOST state machine. |
 | 3 | 45 Billing-period summary | P1 | **Pulled earlier** — highest mainstream value, REST-authoritative, low ambiguity. |
 | 4 | 46 Live-energy presentation + widgets | P1 | Reuses S42 source; applies F1 badges. |
-| 5 | 44 Dispatch/effective-price Flows | P1 | **Scoped down** — effective rate is opt-in, estimated, confidence-tagged; household base stays authoritative. |
+| 5 | 44 Dispatch/effective-price Flows | P1 | **DELIVERED (unreleased)** — opt-in estimated effective rate (== household base; EV rates separate) + `dispatch_cancelled`/`dispatch_changed` triggers; no capabilities, no version bump. |
 | 6 | 47 Planner + tariff analytics | P2 | Unchanged; opt-in power-user. |
 | 7 | 49 Trust & Polish | P2 | **New**, replaces dropped S48; applies F1 everywhere + docs/maintenance. |
 | — | 48 Estimated live gas | — | **Dropped** as shippable; optional research spike only. |
@@ -89,12 +89,28 @@ capability and Flow IDs unless a migration is explicitly documented.
     `dispatch_diagnostics_v2`. Dual-model design (Opus 4.8 + GPT-5.5) + GPT-5.5 review
     (2 fixes). No price logic (that is Sprint 44). Merged in PR #21 and released in
     `v1.0.17` / Homey Build 17; field verification remains outstanding.
-44. **P1 - Dispatch and effective-price Flows** - expose current/next dispatch details,
-    device and dispatch type tokens, household base rate, estimated current effective rate,
-    and the finalised previous half-hour rate while retaining all existing Flow card IDs.
-    Add changed/cancelled and price-finalised triggers only after Sprint 43 defines their
-    event truth; expose EV peak/off-peak rates and the midday-to-midday allowance separately
-    from household pricing rather than folding them into one ambiguous current-price value.
+44. **DELIVERED (unreleased, PR pending) - P1 - Dispatch and effective-price Flows** -
+    new pure `lib/effectiveRate.ts` model exposing an OPT-IN, confidence-tagged
+    ESTIMATED effective rate for Intelligent Octopus Go. Core honesty rule: for a
+    whole-home import meter the estimated effective rate EQUALS the authoritative
+    household base in every case (guaranteed 23:30-05:30 window = whole-home off-peak,
+    high confidence; bonus SMART = EV-only benefit, medium; BOOST = no assumed discount,
+    low; unknown tariff/base = null) - it is never below base, never an EV rate, always
+    `estimated:true`/`settlement:false`. EV peak/off-peak + the midday-to-midday
+    allowance window are surfaced SEPARATELY (never folded in); the finalised previous
+    half-hour rate is REST-authoritative only (never derived from the IOG GraphQL
+    fallback). Surfaced via the summary widget's `effectivePrice` hook (no manifest
+    change) with Estimated/confidence/REST badges. Two new truthful app-level Flow
+    triggers - `dispatch_cancelled` and `dispatch_changed` (reschedule) - fire only on a
+    successful non-stale poll; enriched `dispatch_started` (type) and `dispatch_completed`
+    (delta) tokens; all existing dispatch Flow IDs preserved. Shared, budgeted
+    `app.getCachedIogTariff` (30-min TTL + inflight dedup) dedupes the price-recovery and
+    effective-rate reads. `.homeycompose/flow/**` <-> `app.json` kept byte-consistent and
+    guarded by `test/manifest-parity.test.js`. NO new capabilities, NO version bump.
+    Tri-model design (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) + dual review. `price_finalised`
+    trigger and a standalone effective-rate Flow condition were deliberately DEFERRED to
+    Sprint 47 (a "finalised" trigger risks reading as settlement). Not field-verified or
+    released.
 45. **DELIVERED (unreleased, PR pending) - P1 - Billing-period summary** - new pure
     `lib/billing/` engine (period resolution with a user billing-day override else a
     low-confidence calendar-month fallback; DST-safe; import cost + standing + export

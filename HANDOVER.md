@@ -27,8 +27,8 @@ Last updated: 20 July 2026
 
 ## Next-model entry point
 
-- Sprints 41-43 are complete on `main`; future feature work starts with Sprint 45
-  in the researched execution order.
+- Sprints 41-46 and 44 are complete on `main`/pending PRs; the next feature work is
+  Sprint 47 (planner + tariff analytics), then Sprint 49 (Trust & Polish).
 - Read `docs/handover/future-sprints.md` before selecting or implementing a
   future sprint. It contains the dependency order, acceptance gates, current
   release boundaries, and a copyable prompt for another AI model.
@@ -135,6 +135,34 @@ in narrowing this down.
 - Sprint 43 owns device-aware SMART/BOOST and settlement semantics; Sprint 44 owns
   effective-price Flows. Sprint 41 intentionally does not infer discounts from
   ambiguous account-level dispatch windows.
+
+## Sprint 44 dispatch and effective-price Flows (DELIVERED, unreleased)
+
+On branch `feat/sprint-44-effective-price` (PR pending). New pure
+`lib/effectiveRate.ts` (`computeEffectiveRate`) exposes an OPT-IN, confidence-tagged
+ESTIMATED effective rate for Intelligent Octopus Go. Core honesty rule: for a
+whole-home import meter the estimated effective rate EQUALS the authoritative
+household base in every case — guaranteed 23:30-05:30 window = whole-home off-peak
+(high), bonus SMART = EV-only benefit so household stays at base (medium), BOOST =
+no assumed discount (low), unknown tariff/base = `null`. It is never below base,
+never an EV rate, always `estimated:true`/`settlement:false`. EV peak/off-peak and
+the midday-to-midday allowance window are surfaced SEPARATELY (never folded in). The
+finalised previous half-hour rate is REST-authoritative only — `rateSource` tracking
+in `OctopusMeterDevice` blocks the IOG GraphQL base-schedule fallback from ever being
+presented as "finalised". Surfaced via the summary widget's `effectivePrice` hook
+(`getEffectiveRateView`, no manifest change) with Estimated/confidence/REST badges,
+all `esc()`-routed. Two new truthful app-level Flow triggers — `dispatch_cancelled`
+and `dispatch_changed` (reschedule) — fire only on a successful non-stale poll
+(`wasSeeded` + `lastNextKey` gating); `dispatch_started` gains a `type` token and
+`dispatch_completed` a `delta` token; all existing dispatch Flow IDs preserved.
+Shared, budgeted `app.getCachedIogTariff` (30-min TTL + inflight dedup, invalidated
+in `invalidateAccountCaches`) dedupes the price-recovery and effective-rate reads —
+no new polling cadence. `.homeycompose/flow/**` <-> `app.json` kept byte-consistent
+and guarded by `test/manifest-parity.test.js`. NO new capabilities, NO version bump.
+Tri-model design (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) + dual review; 225 tests pass,
+lint+build clean. The `price_finalised` trigger and a standalone effective-rate Flow
+condition were deliberately DEFERRED to Sprint 47 (a "finalised" trigger risks reading
+as settlement). Next per the spec is Sprint 47 (planner + tariff analytics).
 
 ## Sprint 46 live-energy presentation and widgets (DELIVERED, unreleased)
 
