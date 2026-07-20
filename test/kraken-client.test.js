@@ -627,3 +627,46 @@ test('Octoplus event cache dedupes within a cycle, refetches after its TTL, and 
   await client.getSavingSessions('A-ONE');
   assert.equal(octoplusFetches, 4, 'the rejected fetch was not cached; the retry hits the network again');
 });
+
+test('concurrent token consumers share a single obtainKrakenToken request (S51 single-flight)', async (t) => {
+  let tokenRequests = 0;
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      tokenRequests += 1;
+      // Defer so both callers are waiting on the same in-flight token.
+      await new Promise((r) => setTimeout(r, 5));
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse({ data: { account: { balance: 100 } } });
+  });
+
+  const client = new KrakenClient('api-key', 'A-ONE');
+  // Two authenticated calls started together must not each fetch a token.
+  await Promise.all([client.getBalance('A-ONE'), client.getBalance('A-ONE')]);
+  assert.equal(tokenRequests, 1, 'both concurrent callers shared one token request');
+
+  // A later call reuses the cached token (no new token request).
+  await client.getBalance('A-ONE');
+  assert.equal(tokenRequests, 1, 'the cached token is reused');
+});
+
+test('a failed token fetch is not memoised and the next attempt retries (S51 single-flight)', async (t) => {
+  let tokenRequests = 0;
+  let failToken = true;
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      tokenRequests += 1;
+      if (failToken) return jsonResponse({ errors: [{ message: 'bad key' }] });
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse({ data: { account: { balance: 100 } } });
+  });
+
+  const client = new KrakenClient('api-key', 'A-ONE');
+  await assert.rejects(client.getBalance('A-ONE'), /bad key/);
+  failToken = false;
+  await client.getBalance('A-ONE');
+  assert.equal(tokenRequests, 2, 'the rejected token was not cached; the retry fetched again');
+});

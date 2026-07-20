@@ -86,6 +86,8 @@ export class KrakenClient {
 
   private tokenExpiry = 0;
 
+  private tokenInflight: Promise<string> | null = null;
+
   private octoplusSessions?: { accountNumber: string; request: Promise<SavingSession[]>; ts: number };
 
   private readonly accountKey: string;
@@ -189,9 +191,21 @@ export class KrakenClient {
     return json.data as T;
   }
 
-  /** Obtain (and cache) a Kraken JWT from the REST API key. */
+  /** Obtain (and cache) a Kraken JWT from the REST API key. Concurrent callers
+   *  (e.g. every device + poller on one account refreshing at startup) share a
+   *  SINGLE in-flight token request rather than each spending a `core` Kraken call
+   *  — the app caches one client per account, so this de-duplicates the whole
+   *  account's startup token traffic. */
   async getToken(): Promise<string> {
     if (this.token && Date.now() < this.tokenExpiry) return this.token;
+    if (this.tokenInflight) return this.tokenInflight;
+    this.tokenInflight = this.fetchToken().finally(() => {
+      this.tokenInflight = null;
+    });
+    return this.tokenInflight;
+  }
+
+  private async fetchToken(): Promise<string> {
     const mutation = `
       mutation ObtainKrakenToken($apiKey: String!) {
         obtainKrakenToken(input: { APIKey: $apiKey }) {
