@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "uk.co.zarb.octopusenergy",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -174,36 +174,6 @@
         ]
       },
       {
-        "id": "dispatch_completed",
-        "title": {
-          "en": "A smart-charge dispatch completed"
-        },
-        "hint": {
-          "en": "Triggers when an Intelligent Octopus Go smart-charge dispatch finishes (from completed history)."
-        },
-        "tokens": [
-          {
-            "name": "end",
-            "type": "string",
-            "title": {
-              "en": "Ended"
-            },
-            "example": {
-              "en": "Tue 05:30"
-            }
-          }
-        ]
-      },
-      {
-        "id": "dispatch_ended",
-        "title": {
-          "en": "A smart-charge dispatch ended"
-        },
-        "hint": {
-          "en": "Triggers when an Intelligent Octopus Go smart-charge dispatch finishes."
-        }
-      },
-      {
         "id": "dispatch_cancelled",
         "title": {
           "en": "A planned smart-charge dispatch was cancelled"
@@ -284,6 +254,36 @@
             }
           }
         ]
+      },
+      {
+        "id": "dispatch_completed",
+        "title": {
+          "en": "A smart-charge dispatch completed"
+        },
+        "hint": {
+          "en": "Triggers when an Intelligent Octopus Go smart-charge dispatch finishes (from completed history)."
+        },
+        "tokens": [
+          {
+            "name": "end",
+            "type": "string",
+            "title": {
+              "en": "Ended"
+            },
+            "example": {
+              "en": "Tue 05:30"
+            }
+          }
+        ]
+      },
+      {
+        "id": "dispatch_ended",
+        "title": {
+          "en": "A smart-charge dispatch ended"
+        },
+        "hint": {
+          "en": "Triggers when an Intelligent Octopus Go smart-charge dispatch finishes."
+        }
       },
       {
         "id": "dispatch_started",
@@ -1611,6 +1611,64 @@
         ]
       },
       {
+        "id": "relative_price_band_is",
+        "title": {
+          "en": "The relative price band !{{is|is not}} ..."
+        },
+        "titleFormatted": {
+          "en": "The relative price band !{{is|is not}} [[band]]"
+        },
+        "hint": {
+          "en": "Compares the current price to the whole local tariff day (duration-weighted). False until the day is fully published."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "dropdown",
+            "name": "band",
+            "values": [
+              {
+                "id": "negative",
+                "label": {
+                  "en": "Negative"
+                }
+              },
+              {
+                "id": "low",
+                "label": {
+                  "en": "Low"
+                }
+              },
+              {
+                "id": "typical",
+                "label": {
+                  "en": "Typical"
+                }
+              },
+              {
+                "id": "high",
+                "label": {
+                  "en": "High"
+                }
+              },
+              {
+                "id": "spike",
+                "label": {
+                  "en": "Spike"
+                }
+              }
+            ],
+            "title": {
+              "en": "Band"
+            }
+          }
+        ]
+      },
+      {
         "id": "is_peak_export_now",
         "title": {
           "en": "Now !{{is|is not}} the best time to export"
@@ -1677,64 +1735,6 @@
             },
             "title": {
               "en": "Price (p/kWh)"
-            }
-          }
-        ]
-      },
-      {
-        "id": "relative_price_band_is",
-        "title": {
-          "en": "The relative price band !{{is|is not}} ..."
-        },
-        "titleFormatted": {
-          "en": "The relative price band !{{is|is not}} [[band]]"
-        },
-        "hint": {
-          "en": "Compares the current price to the whole local tariff day (duration-weighted). False until the day is fully published."
-        },
-        "args": [
-          {
-            "type": "device",
-            "name": "device",
-            "filter": "driver_id=electricity"
-          },
-          {
-            "type": "dropdown",
-            "name": "band",
-            "values": [
-              {
-                "id": "negative",
-                "label": {
-                  "en": "Negative"
-                }
-              },
-              {
-                "id": "low",
-                "label": {
-                  "en": "Low"
-                }
-              },
-              {
-                "id": "typical",
-                "label": {
-                  "en": "Typical"
-                }
-              },
-              {
-                "id": "high",
-                "label": {
-                  "en": "High"
-                }
-              },
-              {
-                "id": "spike",
-                "label": {
-                  "en": "Spike"
-                }
-              }
-            ],
-            "title": {
-              "en": "Band"
             }
           }
         ]
@@ -2176,71 +2176,6 @@
               "en": "Best annual cost (£)"
             },
             "example": 859.5
-          }
-        ]
-      },
-      {
-        "id": "find_peak_export_slot",
-        "title": {
-          "en": "Find the best time to export"
-        },
-        "titleFormatted": {
-          "en": "Find the highest-priced [[duration]] h export slot in the next [[within]] h"
-        },
-        "hint": {
-          "en": "Returns the start time and average price of the most expensive upcoming export block — the best time to sell."
-        },
-        "args": [
-          {
-            "type": "device",
-            "name": "device",
-            "filter": "driver_id=export"
-          },
-          {
-            "type": "number",
-            "name": "duration",
-            "min": 0.5,
-            "max": 12,
-            "step": 0.5,
-            "placeholder": {
-              "en": "1"
-            },
-            "title": {
-              "en": "Duration (hours)"
-            }
-          },
-          {
-            "type": "number",
-            "name": "within",
-            "min": 1,
-            "max": 48,
-            "step": 1,
-            "placeholder": {
-              "en": "12"
-            },
-            "title": {
-              "en": "Within the next (hours)"
-            }
-          }
-        ],
-        "tokens": [
-          {
-            "name": "start_time",
-            "type": "string",
-            "title": {
-              "en": "Start time"
-            },
-            "example": {
-              "en": "Tue 17:30"
-            }
-          },
-          {
-            "name": "price",
-            "type": "number",
-            "title": {
-              "en": "Average export rate (p/kWh)"
-            },
-            "example": 15
           }
         ]
       },
@@ -2755,6 +2690,71 @@
             "example": {
               "en": "Relative to the stated local-day window — tariff prices, not settled"
             }
+          }
+        ]
+      },
+      {
+        "id": "find_peak_export_slot",
+        "title": {
+          "en": "Find the best time to export"
+        },
+        "titleFormatted": {
+          "en": "Find the highest-priced [[duration]] h export slot in the next [[within]] h"
+        },
+        "hint": {
+          "en": "Returns the start time and average price of the most expensive upcoming export block — the best time to sell."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=export"
+          },
+          {
+            "type": "number",
+            "name": "duration",
+            "min": 0.5,
+            "max": 12,
+            "step": 0.5,
+            "placeholder": {
+              "en": "1"
+            },
+            "title": {
+              "en": "Duration (hours)"
+            }
+          },
+          {
+            "type": "number",
+            "name": "within",
+            "min": 1,
+            "max": 48,
+            "step": 1,
+            "placeholder": {
+              "en": "12"
+            },
+            "title": {
+              "en": "Within the next (hours)"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "start_time",
+            "type": "string",
+            "title": {
+              "en": "Start time"
+            },
+            "example": {
+              "en": "Tue 17:30"
+            }
+          },
+          {
+            "name": "price",
+            "type": "number",
+            "title": {
+              "en": "Average export rate (p/kWh)"
+            },
+            "example": 15
           }
         ]
       },
