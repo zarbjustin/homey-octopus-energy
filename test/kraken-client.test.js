@@ -380,3 +380,70 @@ test('an exhausted budget skips a best-effort call instead of fetching', async (
   await assert.rejects(new KrakenClient('api-key', 'A-ONE').getOctoplusPoints('A-ONE'), /budget/i);
   assert.equal(pointsFetches, 0, 'the best-effort query never reaches the network');
 });
+
+test('getDevices normalises the smart-flex device list', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse({
+      data: {
+        devices: [
+          { __typename: 'SmartFlexChargePoint', id: 'synthetic-cp', deviceType: 'CHARGE_POINTS', status: { currentState: 'SMART_CONTROL_IN_PROGRESS' } },
+          { __typename: 'SmartFlexBattery', deviceType: 'BATTERIES' },
+        ],
+      },
+    });
+  });
+
+  const devices = await new KrakenClient('api-key', 'A-ONE').getDevices('A-ONE');
+  assert.equal(devices.length, 1, 'a device with no id is dropped');
+  assert.equal(devices[0].category, 'CHARGE_POINT');
+  assert.equal(devices[0].participating, true);
+});
+
+test('getFlexPlannedDispatches parses SMART/BOOST and drops malformed rows', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse({
+      data: {
+        flexPlannedDispatches: [
+          { start: '2026-01-01T14:00:00Z', end: '2026-01-01T14:30:00Z', type: 'SMART' },
+          { start: '2026-01-01T15:00:00Z', end: '2026-01-01T15:30:00Z', type: 'BOOST' },
+          { start: null, end: '2026-01-01T16:00:00Z', type: 'SMART' },
+        ],
+      },
+    });
+  });
+
+  const planned = await new KrakenClient('api-key', 'A-ONE').getFlexPlannedDispatches('synthetic-cp');
+  assert.equal(planned.length, 2);
+  assert.deepEqual(planned.map((p) => p.kind), ['SMART', 'BOOST']);
+  assert.equal(planned[0].deviceId, 'synthetic-cp');
+});
+
+test('getCompletedDispatchWindows parses the optional kWh delta', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse({
+      data: {
+        completedDispatches: [
+          { start: '2026-01-01T10:00:00Z', end: '2026-01-01T10:30:00Z', delta: '3.2' },
+          { start: '2026-01-01T11:00:00Z', end: '2026-01-01T11:30:00Z' },
+        ],
+      },
+    });
+  });
+
+  const windows = await new KrakenClient('api-key', 'A-ONE').getCompletedDispatchWindows('A-ONE');
+  assert.equal(windows.length, 2);
+  assert.equal(windows[0].delta, 3.2);
+  assert.equal(windows[1].delta, null);
+});

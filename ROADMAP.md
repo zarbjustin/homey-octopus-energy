@@ -77,13 +77,16 @@ capability and Flow IDs unless a migration is explicitly documented.
     default 120), and migrated electricity live power off the 30s/device timer (fixing the
     latent throttling bug). Delivered via an Opus 4.8 + GPT-5.5 dual-model design and review.
     F1 freshness is internal only for now. Not yet field-verified or released.
-43. **P0 - Intelligent dispatch truth model** - model linked smart devices, SMART versus
-    BOOST dispatches, multiple devices, overlaps, late changes, DST, and Octopus's
-    midday-to-midday dispatch limit; distinguish dispatch windows from settlement prices.
-    Audit the existing `dispatch_started`, `dispatch_ended`, `dispatch_completed`, and
-    `dispatch_active` contracts so planned windows are not presented as confirmed charging.
-    Preserve their IDs while representing planned, active, completed, cancelled and unknown
-    states honestly, including dispatch type and confidence where the source supports them.
+43. **DELIVERED (unreleased, PR pending) - P0 - Intelligent dispatch truth model** -
+    new pure `lib/dispatch/` core (types + device model + reconcile state machine),
+    device-scoped `flexPlannedDispatches` + `devices` acquisition (via the F0 budget),
+    typed windows (SMART/BOOST/unknown, planned/active/completed/cancelled/unknown +
+    confidence), fail-closed parsing, and a rewritten DispatchPoller that preserves the
+    `dispatch_started/ended/completed/active` Flow IDs + firing edges. A vanished planned
+    window is cancelled only on a *successful* poll; a failed poll retains prior state and
+    never fabricates a cancellation/ended edge. Aggregate identifier-free
+    `dispatch_diagnostics_v2`. Dual-model design (Opus 4.8 + GPT-5.5) + GPT-5.5 review
+    (2 fixes). No price logic (that is Sprint 44). Not field-verified or released.
 44. **P1 - Dispatch and effective-price Flows** - expose current/next dispatch details,
     device and dispatch type tokens, household base rate, estimated current effective rate,
     and the finalised previous half-hour rate while retaining all existing Flow card IDs.

@@ -19,6 +19,16 @@ function fakeApp(accounts) {
     fired,
     errors,
     error(...args) { errors.push(args); },
+    getKrakenClient(apiKey, accountNumber) { return new KrakenClient(apiKey, accountNumber); },
+    async getCachedDevices() { return []; },
+    async getFlexPlanned(apiKey, accountNumber) {
+      const legacy = await new KrakenClient(apiKey, accountNumber).getPlannedDispatches(accountNumber);
+      return legacy.map((d) => ({ deviceId: 'account', start: d.start, end: d.end, kind: 'unknown' }));
+    },
+    async getCachedCompletedWindows(apiKey, accountNumber) {
+      const list = await new KrakenClient(apiKey, accountNumber).getCompletedDispatches(accountNumber);
+      return list.map((d) => ({ start: d.start, end: d.end, delta: null }));
+    },
     homey: {
       drivers: {
         getDriver(id) {
@@ -61,7 +71,7 @@ test('completed dispatches continue firing after more than 50 historical entries
     end: new Date(Date.UTC(2025, 0, 1, i) + 30 * 60_000).toISOString(),
   })));
   const poller = new DispatchPoller(app);
-  await poller.poll();
+  await poller.poll(); // first poll seeds completed history (no fire)
   count = 61;
   await poller.poll();
   assert.equal(app.fired.filter((event) => event.id === 'dispatch_completed').length, 1);
@@ -114,16 +124,21 @@ test('Saving Session diagnostics redact the API key from errors', async (t) => {
   assert.equal(diagnostics['A-ONE'].lastError, 'Request failed for [redacted]');
 });
 
-test('dispatch failures are deduplicated and redacted in diagnostics', async (t) => {
+test('dispatch failures are logged once and redacted', async (t) => {
   const app = fakeApp([{ apiKey: 'secret-key', accountNumber: 'A-ONE' }]);
   t.mock.method(KrakenClient.prototype, 'getPlannedDispatches', async () => {
     throw new Error('Dispatch request failed for secret-key');
   });
+  t.mock.method(KrakenClient.prototype, 'getCompletedDispatches', async () => []);
   const poller = new DispatchPoller(app);
   await poller.poll();
   await poller.poll();
 
-  assert.equal(app.errors.length, 1);
-  const diagnostics = app.homey.settings.get('dispatch_diagnostics_v1');
-  assert.equal(diagnostics['A-ONE'].lastError, 'Dispatch request failed for [redacted]');
+  assert.equal(app.errors.length, 1, 'the same failure is logged once');
+  const logged = app.errors[0].join(' ');
+  assert.match(logged, /\[redacted\]/);
+  assert.doesNotMatch(logged, /secret-key/);
+  const diagnostics = app.homey.settings.get('dispatch_diagnostics_v2');
+  assert.equal(typeof diagnostics.accounts, 'number');
+  assert.equal(JSON.stringify(diagnostics).includes('A-ONE'), false, 'v2 diagnostics carry no account identifiers');
 });

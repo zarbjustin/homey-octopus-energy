@@ -135,6 +135,20 @@ in narrowing this down.
   effective-price Flows. Sprint 41 intentionally does not infer discounts from
   ambiguous account-level dispatch windows.
 
+## Sprint 43 device-aware dispatch truth model (DELIVERED, unreleased)
+
+On branch `feat/sprint-43-dispatch-truth` (PR pending). New pure `lib/dispatch/`
+core (types, deviceModel, reconcile state machine), device-scoped
+`getDevices`/`getFlexPlannedDispatches` + `getCompletedDispatchWindows` (all via the
+F0 budget), and a rewritten `DispatchPoller` that drives the existing
+`dispatch_started/ended/completed/active` Flow cards from honest reconciled state.
+A vanished planned window is cancelled only on a successful poll; a failed poll
+retains prior state (never fabricates a cancellation/ended edge). Completed dedup
+uses a high-water mark. Aggregate identifier-free `dispatch_diagnostics_v2`. No
+price/effective-rate logic (Sprint 44). Dual-model design (Opus 4.8 + GPT-5.5) +
+GPT-5.5 review; 167 tests pass; lint + build clean; no version bump. Next per the
+spec is Sprint 45 (billing-period summary).
+
 ## Sprint 42 shared Kraken budget and live-data poller (DELIVERED, unreleased)
 
 On branch `feat/sprint-42-shared-kraken-poller` (PR pending). Implements Foundation

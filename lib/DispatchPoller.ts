@@ -2,154 +2,149 @@
 
 import Homey from 'homey';
 import { AccountPoller } from './AccountPoller';
-import { Dispatch } from './KrakenClient';
+import {
+  reconcile, ReconcileState, PlannedInput, CompletedInput,
+} from './dispatch/reconcile';
 
-interface DispatchDiagnostics {
-  lastAttempt: string;
-  lastSuccess?: string;
-  lastError?: string;
-  completedLastError?: string;
-  plannedCount?: number;
-  completedCount?: number;
-  active?: boolean;
+interface DispatchApp extends Homey.App {
+  getFlexPlanned(apiKey: string, accountNumber: string): Promise<PlannedInput[]>;
+  getCachedCompletedWindows(apiKey: string, accountNumber: string): Promise<CompletedInput[]>;
 }
 
 /**
- * Polls Intelligent Octopus Go planned dispatches and fires app-level Flow
- * triggers when a smart-charge dispatch starts/ends. Exposes `isActive()` for a
- * Flow condition. Best-effort: errors / non-IOG accounts yield no triggers.
+ * Sprint 43 dispatch "truth model" poller. Builds a device-aware, reconciled
+ * view of Intelligent Octopus Go dispatches and drives the existing Flow cards
+ * from honest state transitions:
+ *  - dispatch_started/ended fire on the account-aggregate active edge (a window
+ *    that is genuinely active NOW, never mere future intent, never from stale data);
+ *  - dispatch_completed fires once per newly-seen completed control window;
+ *  - dispatch_active reflects whether any device is active now.
+ * Planned intent is never presented as settlement, and a failed poll never
+ * fabricates a cancellation or an "ended" event.
  */
 export class DispatchPoller extends AccountPoller {
 
   protected readonly intervalMs = 5 * 60_000;
 
-  private activeAccounts = new Set<string>();
+  private states = new Map<string, ReconcileState>();
 
-  private currentEnds = new Map<string, string>();
+  private seeded = new Set<string>();
 
-  private completed = new Map<string, Set<string>>();
+  private lastError = new Map<string, string>();
 
-  private seededCompleted = new Set<string>();
-
-  /** Whether a smart-charge dispatch is currently in progress. */
+  /** Whether a smart-charge dispatch is currently active on any account. */
   isActive(): boolean {
-    return this.activeAccounts.size > 0;
+    for (const state of this.states.values()) {
+      if (state.anyActive) return true;
+    }
+    return false;
   }
 
   protected async poll(): Promise<void> {
     const accounts = this.accounts();
-    const configured = new Set(accounts.map((account) => account.accountNumber));
-    for (const account of this.activeAccounts) {
-      if (!configured.has(account)) this.activeAccounts.delete(account);
+    const configured = new Set(accounts.map((a) => a.accountNumber));
+    for (const account of [...this.states.keys()]) {
+      if (!configured.has(account)) {
+        this.states.delete(account);
+        this.seeded.delete(account);
+        this.lastError.delete(account);
+      }
     }
     await Promise.all(accounts.map((creds) => this.pollAccount(creds)));
+    this.writeDiagnostics();
+  }
+
+  private state(accountNumber: string): ReconcileState {
+    let state = this.states.get(accountNumber);
+    if (!state) {
+      state = { windows: [], anyActive: false, lastCompletedEnd: 0 };
+      this.states.set(accountNumber, state);
+    }
+    return state;
   }
 
   private async pollAccount(creds: { apiKey: string; accountNumber: string }): Promise<void> {
-    const attemptedAt = new Date().toISOString();
-    const knownEnd = this.currentEnds.get(creds.accountNumber);
-    if (knownEnd && new Date(knownEnd).getTime() <= Date.now()) {
-      this.activeAccounts.delete(creds.accountNumber);
-      this.currentEnds.delete(creds.accountNumber);
-      this.fire('dispatch_ended', {});
-    }
-    let dispatches: Dispatch[] = [];
+    const app = this.app as DispatchApp;
+    let planned: PlannedInput[] = [];
+    let ok = false;
     try {
-      const app = this.app as Homey.App & {
-        getCachedPlannedDispatches?(apiKey: string, accountNumber: string): Promise<Dispatch[]>;
-      };
-      dispatches = app.getCachedPlannedDispatches
-        ? await app.getCachedPlannedDispatches(creds.apiKey, creds.accountNumber)
-        : await this.kraken(creds).getPlannedDispatches(creds.accountNumber);
+      planned = await app.getFlexPlanned(creds.apiKey, creds.accountNumber);
+      ok = true;
     } catch (err) {
-      const message = this.errorMessage(err, creds.apiKey);
-      const previous = this.diagnostics()[creds.accountNumber];
-      if (previous?.lastError !== message) {
-        this.app.error(`Dispatch poll failed for ${this.maskAccount(creds.accountNumber)}:`, err);
-      }
-      this.updateDiagnostics(creds.accountNumber, {
-        ...previous,
-        lastAttempt: attemptedAt,
-        lastError: message,
-      });
-      return;
+      ok = false;
+      this.logErrorOnce(creds, err);
     }
 
-    const now = Date.now();
-    const current = dispatches.find((d) => {
-      const start = new Date(d.start).getTime();
-      const end = new Date(d.end).getTime();
-      return now >= start && now < end;
-    });
-    const nowActive = Boolean(current);
-    const wasActive = this.activeAccounts.has(creds.accountNumber);
+    let completed: CompletedInput[] | null = null;
+    try {
+      completed = await app.getCachedCompletedWindows(creds.apiKey, creds.accountNumber);
+    } catch (err) {
+      completed = null; // best-effort: reconcile simply skips completed this cycle
+    }
 
-    if (nowActive && !wasActive) {
-      if (current) this.currentEnds.set(creds.accountNumber, current.end);
-      this.activeAccounts.add(creds.accountNumber);
-      this.fire('dispatch_started', { end: current ? this.fmt(current.end) : '' });
+    const prev = this.state(creds.accountNumber);
+    const result = reconcile(prev, planned, ok, completed, Date.now());
+
+    if (result.started) {
+      const nextEnd = result.activeNow
+        .map((w) => w.end)
+        .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0];
+      this.fire('dispatch_started', { end: nextEnd ? this.fmt(nextEnd) : '' });
       if (this.notifyEnabled('notify_dispatch', false)) {
         await this.notify('🚗 Intelligent Octopus Go smart-charge dispatch has started.');
       }
-    } else if (!nowActive && wasActive) {
+    }
+    if (result.ended) {
       this.fire('dispatch_ended', {});
-      this.activeAccounts.delete(creds.accountNumber);
-      this.currentEnds.delete(creds.accountNumber);
     }
-
-    // Completed dispatches → fire once per newly-seen completed window.
-    let completedCount = 0;
-    let completedLastError: string | undefined;
-    try {
-      const app = this.app as Homey.App & {
-        getCachedCompletedDispatches?(apiKey: string, accountNumber: string): Promise<Dispatch[]>;
-      };
-      const done = app.getCachedCompletedDispatches
-        ? await app.getCachedCompletedDispatches(creds.apiKey, creds.accountNumber)
-        : await this.kraken(creds).getCompletedDispatches(creds.accountNumber);
-      completedCount = done.length;
-      const completed = this.completed.get(creds.accountNumber) ?? new Set<string>();
-      const seeded = this.seededCompleted.has(creds.accountNumber);
-      for (const d of done) {
-        const key = `${d.start}|${d.end}`;
-        if (!completed.has(key)) {
-          completed.add(key);
-          if (seeded) this.fire('dispatch_completed', { end: this.fmt(d.end) });
-        }
+    // Suppress the first completed batch after (re)start to avoid a backfill storm.
+    if (this.seeded.has(creds.accountNumber)) {
+      for (const c of result.newlyCompleted) {
+        this.fire('dispatch_completed', { end: this.fmt(c.end) });
       }
-      this.seededCompleted.add(creds.accountNumber);
-      this.completed.set(creds.accountNumber, new Set(Array.from(completed).slice(-100)));
-    } catch (err) {
-      completedLastError = this.errorMessage(err, creds.apiKey);
     }
+    this.seeded.add(creds.accountNumber);
 
-    this.updateDiagnostics(creds.accountNumber, {
-      lastAttempt: attemptedAt,
-      lastSuccess: new Date().toISOString(),
-      plannedCount: dispatches.length,
-      completedCount,
-      completedLastError,
-      active: nowActive,
+    this.states.set(creds.accountNumber, {
+      windows: result.windows,
+      anyActive: result.anyActive,
+      lastCompletedEnd: result.lastCompletedEnd,
     });
+    if (ok) this.lastError.delete(creds.accountNumber);
   }
 
-  private diagnostics(): Record<string, DispatchDiagnostics> {
-    return (this.app.homey.settings.get('dispatch_diagnostics_v1') || {}) as Record<string, DispatchDiagnostics>;
+  private logErrorOnce(creds: { apiKey: string; accountNumber: string }, err: unknown): void {
+    const message = this.redact(err, creds.apiKey);
+    if (this.lastError.get(creds.accountNumber) !== message) {
+      this.lastError.set(creds.accountNumber, message);
+      this.app.error('Dispatch poll failed:', message);
+    }
   }
 
-  private updateDiagnostics(accountNumber: string, value: DispatchDiagnostics): void {
-    const all = this.diagnostics();
-    all[accountNumber] = value;
-    this.app.homey.settings.set('dispatch_diagnostics_v1', all);
-  }
-
-  private errorMessage(err: unknown, secret: string): string {
+  private redact(err: unknown, secret: string): string {
     const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
     return message.replaceAll(secret, '[redacted]').replace(/\s+/g, ' ').slice(0, 240);
   }
 
-  private maskAccount(accountNumber: string): string {
-    if (accountNumber.length <= 4) return accountNumber;
-    return `${accountNumber.slice(0, 2)}***${accountNumber.slice(-2)}`;
+  /** Aggregate, identifier-free diagnostics (no account numbers or device ids). */
+  private writeDiagnostics(): void {
+    let activeAccounts = 0;
+    let plannedWindows = 0;
+    for (const state of this.states.values()) {
+      if (state.anyActive) activeAccounts += 1;
+      plannedWindows += state.windows.filter((w) => w.state === 'planned' || w.state === 'active').length;
+    }
+    const diagnostics = {
+      accounts: this.states.size,
+      activeAccounts,
+      plannedWindows,
+      errors: this.lastError.size,
+      lastAttempt: new Date().toISOString(),
+    };
+    try {
+      this.app.homey.settings.set('dispatch_diagnostics_v2', diagnostics);
+    } catch (err) {
+      this.app.error('Could not persist dispatch diagnostics:', err);
+    }
   }
 }
