@@ -6,7 +6,10 @@ Last updated: 20 July 2026
 
 - Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current source version: `1.0.17`; release tag: `v1.0.17` (GitHub release published).
+- Current source version: `1.0.19`; release tag: `v1.0.19` (GitHub release published). Homey
+  **Build ID 19 / version 1.0.19** uploaded to the developer account on 20 July 2026 (S50 stability
+  bug-bash + S51 token single-flight). **Manual step remaining:** promote Build 19 to Test/Live in the
+  Homey Developer dashboard (https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/19).
 - Homey App Store: Build 13 / version `1.0.13` remains live. Build 17 / version
   `1.0.17` is in Test and under certification review.
 - Build 16 / version `1.0.16` was retracted from certification on 20 July 2026 and
