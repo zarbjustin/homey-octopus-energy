@@ -5,6 +5,7 @@ import { AccountPoller } from './AccountPoller';
 import {
   reconcile, ReconcileState, PlannedInput, CompletedInput,
 } from './dispatch/reconcile';
+import { DispatchView, DispatchFinalised } from './dispatch/types';
 
 interface DispatchApp extends Homey.App {
   getFlexPlanned(apiKey: string, accountNumber: string): Promise<PlannedInput[]>;
@@ -32,12 +33,38 @@ export class DispatchPoller extends AccountPoller {
 
   private lastError = new Map<string, string>();
 
+  private recentCompleted = new Map<string, DispatchFinalised[]>();
+
   /** Whether a smart-charge dispatch is currently active on any account. */
   isActive(): boolean {
     for (const state of this.states.values()) {
       if (state.anyActive) return true;
     }
     return false;
+  }
+
+  /**
+   * A sanitised, deviceId-free presentation snapshot for widgets: planned/active
+   * intent and recent finalised control windows. Never a settlement claim.
+   */
+  getAccountView(accountNumber: string): DispatchView {
+    const state = this.states.get(accountNumber);
+    const windows = (state?.windows ?? []).map((w) => ({
+      kind: w.kind, start: w.start, end: w.end, state: w.state, confidence: w.confidence,
+    }));
+    const active = windows.filter((w) => w.state === 'active');
+    const planned = windows
+      .filter((w) => w.state === 'planned')
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    const finalised = [...(this.recentCompleted.get(accountNumber) ?? [])]
+      .sort((a, b) => new Date(b.end).getTime() - new Date(a.end).getTime())
+      .slice(0, 5);
+    return {
+      activeNow: Boolean(state?.anyActive),
+      active,
+      next: planned[0] ?? null,
+      recentFinalised: finalised,
+    };
   }
 
   protected async poll(): Promise<void> {
@@ -48,6 +75,7 @@ export class DispatchPoller extends AccountPoller {
         this.states.delete(account);
         this.seeded.delete(account);
         this.lastError.delete(account);
+        this.recentCompleted.delete(account);
       }
     }
     await Promise.all(accounts.map((creds) => this.pollAccount(creds)));
@@ -104,6 +132,11 @@ export class DispatchPoller extends AccountPoller {
       }
     }
     this.seeded.add(creds.accountNumber);
+    if (result.newlyCompleted.length) {
+      const list = this.recentCompleted.get(creds.accountNumber) ?? [];
+      for (const c of result.newlyCompleted) list.push({ start: c.start, end: c.end, delta: c.delta });
+      this.recentCompleted.set(creds.accountNumber, list.slice(-20));
+    }
 
     this.states.set(creds.accountNumber, {
       windows: result.windows,

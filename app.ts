@@ -4,7 +4,7 @@ import Homey from 'homey';
 import { SavingSessionsPoller } from './lib/SavingSessionsPoller';
 import { DispatchPoller } from './lib/DispatchPoller';
 import { Dispatch, KrakenClient } from './lib/KrakenClient';
-import { SmartFlexDevice } from './lib/dispatch/types';
+import { SmartFlexDevice, DispatchView } from './lib/dispatch/types';
 import { PlannedInput, CompletedInput } from './lib/dispatch/reconcile';
 import { LiveDemandSource, LiveDemandCreds } from './lib/LiveDemandSource';
 import { resetBudget, budgetDiagnostics } from './lib/KrakenBudget';
@@ -102,6 +102,11 @@ module.exports = class OctopusEnergyApp extends Homey.App {
   /** Latest shared live-demand reading for an account, if any. */
   getLiveDemand(accountNumber: string): Reading<number> | null {
     return this.liveDemand?.getLiveDemand(accountNumber) ?? null;
+  }
+
+  /** Sanitised dispatch presentation snapshot for widgets (deviceId-free). */
+  getDispatchView(accountNumber: string): DispatchView | null {
+    return this.dispatches?.getAccountView(accountNumber) ?? null;
   }
 
   /** Account-wide balance with a short TTL cache (dedupes per-device calls). */

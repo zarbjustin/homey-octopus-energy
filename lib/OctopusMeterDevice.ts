@@ -301,6 +301,45 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   /**
+   * Widget-safe live demand view derived from the shared Home Mini net reading.
+   * The Mini reports a single signed net figure, so import/export are DERIVED
+   * (only one is ever non-zero at an instant) and are null (never 0) when the
+   * reading is unavailable. Populated only while a device has live power on.
+   */
+  getLiveDemandView(): {
+    netW: number | null; importW: number | null; exportW: number | null;
+    state: string; readAt: string | null; source: string | null;
+    } {
+    const app = this.homey.app as Homey.App & { getLiveDemand?(a: string): { value: number | null; readAt: string | null; source: string; state: string } | null };
+    const reading = app.getLiveDemand?.(this.store().accountNumber) ?? null;
+    if (!reading || reading.value === null) {
+      return {
+        netW: null,
+        importW: null,
+        exportW: null,
+        state: reading?.state ?? 'unknown',
+        readAt: reading?.readAt ?? null,
+        source: reading?.source ?? null,
+      };
+    }
+    const net = reading.value;
+    return {
+      netW: Math.round(net),
+      importW: Math.round(Math.max(net, 0)),
+      exportW: Math.round(Math.max(-net, 0)),
+      state: reading.state,
+      readAt: reading.readAt,
+      source: reading.source,
+    };
+  }
+
+  /** Widget-safe, deviceId-free dispatch snapshot for this device's account. */
+  getDispatchView(): unknown {
+    const app = this.homey.app as Homey.App & { getDispatchView?(a: string): unknown };
+    return app.getDispatchView?.(this.store().accountNumber) ?? null;
+  }
+
+  /**
    * Structured half-hourly Agile data for today and tomorrow, used by the Agile
    * prices widget. Slots are timezone-aware and flagged for the current slot and
    * the cheapest `cheapestCount` slots of each day ("best times to use power").

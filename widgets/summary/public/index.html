@@ -13,6 +13,15 @@
     .cell .v { font-size: 18px; font-weight: 700; }
     .err { font-size: 13px; color: var(--homey-text-color-light, #888); }
     .freshness { color: #b45309; font-size: 10px; margin: -3px 0 7px; }
+    .badge { font-size: 10px; padding: 1px 5px; border-radius: 6px; margin-left: 4px; }
+    .b-current { background: #dcfce7; color: #166534; }
+    .b-stale { background: #fef3c7; color: #b45309; }
+    .b-unknown { background: #e5e7eb; color: #6b7280; }
+    .b-planned { background: #dbeafe; color: #1e40af; }
+    .b-finalised { background: #e5e7eb; color: #374151; }
+    .live, .disp { font-size: 12px; margin-top: 8px; }
+    .live .v, .disp .v { font-weight: 700; }
+    .muted { font-size: 10px; color: var(--homey-text-color-light, #888); }
   </style>
 </head>
 <body>
@@ -30,6 +39,41 @@
       const message = f.problem ? 'Connection issue; showing the last available data.' : 'Data may be out of date.';
       return '<div class="freshness" role="status">' + esc(message) + '</div>';
     }
+    function badge(label, cls) { return '<span class="badge ' + cls + '">' + esc(label) + '</span>'; }
+    function ageText(readAt) {
+      if (!readAt) return '';
+      const t = Date.parse(readAt); if (isNaN(t)) return '';
+      const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+      return s < 90 ? (s + 's ago') : (Math.round(s / 60) + 'm ago');
+    }
+    function shortTime(iso) { try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+    function liveHtml(d) {
+      const l = d && d.live;
+      if (!l) return '';
+      if (l.state === 'unknown' || l.netW === null || l.netW === undefined) {
+        return '<div class="live" role="status"><span class="k">Live power</span> <span class="v">–</span>' + badge('No data', 'b-unknown') + '</div>';
+      }
+      const b = l.state === 'current' ? badge('Live · ' + ageText(l.readAt), 'b-current') : badge('Stale', 'b-stale');
+      const dir = l.exportW > 0 ? ('Export ' + n(l.exportW, 0) + ' W') : ('Import ' + n(l.importW, 0) + ' W');
+      return '<div class="live" role="status"><span class="k">Live power</span> <span class="v">' + esc(dir) + '</span>' + b
+        + '<div class="muted">Net-derived from Home Mini</div></div>';
+    }
+    function dispatchHtml(d) {
+      const disp = d && d.dispatch;
+      if (!disp) return '';
+      let html = '';
+      if (disp.activeNow) {
+        html += '<div class="disp">' + esc('Smart charging now') + badge('Planned', 'b-planned') + '</div>';
+      } else if (disp.next) {
+        html += '<div class="disp">' + esc('Next planned: ' + shortTime(disp.next.start) + '–' + shortTime(disp.next.end)) + badge('Planned', 'b-planned') + '</div>';
+      }
+      if (disp.recentFinalised && disp.recentFinalised.length) {
+        const f = disp.recentFinalised[0];
+        html += '<div class="disp">' + esc('Last dispatch ended ' + shortTime(f.end)) + badge('Finalised', 'b-finalised')
+          + '<div class="muted">A completed control window — not a billed rate or settlement.</div></div>';
+      }
+      return html;
+    }
     function render(d) {
       const el = document.getElementById('content');
       if (!d || d.error) { el.innerHTML = '<div class="err">' + esc((d && d.error) || 'No data') + '</div>'; return; }
@@ -42,7 +86,8 @@
         cells += '<div class="cell"><div class="k">Octoplus</div><div class="v">' + n(d.points, 0) + ' pts</div></div>';
       }
       el.innerHTML = '<div class="name">' + esc(d.name || 'Octopus') + '</div>'
-        + freshnessHtml(d) + '<div class="grid">' + cells + '</div>';
+        + freshnessHtml(d) + '<div class="grid">' + cells + '</div>'
+        + liveHtml(d) + dispatchHtml(d);
     }
     function onHomeyReady(Homey) {
       let deviceId = '';
