@@ -58,7 +58,35 @@ widgets, and Flow tokens. Full spec: `docs/handover/sprints-42-48-spec.md`.
 Priorities reflect dependencies and user impact. Each sprint should preserve existing
 capability and Flow IDs unless a migration is explicitly documented.
 
-40. **COMPLETE - Security PR #1 reconciliation** - selectively ported manual redirect
+## Sprints 50–58 — post-v1.0.18 evaluation roadmap
+
+Derived from a tri-model (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) read-only evaluation of the
+whole app plus Octopus product/API research at `v1.0.18`. Full evidence, per-bug
+verification, and the "do NOT do" list are in the session plan (`plan.md §15`). Same
+workflow as S42–49: tri-model design → dual review → PR → CI/CodeQL green → merge.
+Invariants: preserve all IDs; REST authoritative for settled/billing; GraphQL fails
+closed; never present estimated/planned/relative as settled; privacy-safe; keep the F0
+Kraken budget + F1 provenance; `.homeycompose`↔`app.json` parity.
+
+| Sprint | Type | Priority | Summary | Deps |
+|---|---|---|---|---|
+| **S50 Stability bug-bash** | bug bash | P0 | Octoplus no-TTL promise cache (froze Saving Sessions/Free Electricity); settings dispatch `v1`→`v2`; unify `octopus_dispatching` onto the reconciled `DispatchPoller` view; cache-TTL audit; + regression tests. **DELIVERED (unreleased)**. | none |
+| **S51 Kraken budget hardening** | optimisation | P0/P1 | Token single-flight; bounded/reserved core admission; startup jitter; per-feature identifier-free counters; coalesce duplicate REST reads; account-level points cache; account-wide repair credential propagation; system-level ≤~90/hr test. | S50 |
+| **S52 Decompose `OctopusMeterDevice`** | refactor | P1 | Extract Price/Consumption/Reporting/Health/Scheduler/Tariff services + typed `OctopusApp`; consolidate tz + `maskAccount`; characterization tests. Zero behaviour/ID/version change. | S50–51 |
+| **S53 Per-source provenance + a11y** | improvement/widgets | P1 | Per-domain freshness (price/consumption/balance/carbon/live/dispatch/billing); widget source badges; stale-aware Flow conditions/tokens; settings save/error feedback; accessible chart summaries; "today" vs "rolling 24h" audit. | S52 |
+| **S54 Settled-consumption insights + budget Flows** | feature/widget/flows | P1 | REST `group_by` day/week/month usage & cost history; peak share; settlement indicator; monthly budget + over-budget/run-rate trigger; insights widget. REST-authoritative. | S53 |
+| **S55 Tariff comparison 2.0** | feature/optimisation | P2 | One cached product catalogue; Agile/Go/Tracker(+gas)/Cosy + export pairing; actual-shape simulation incl. standing charges; eligibility + confidence; output an ESTIMATE never "best"; no auto-switch. | S52, S54 |
+| **S56 Saving Sessions / Power-ups automation** | flows/notifications/widget | P2 | Announced/soon/active conditions for Power Down AND Power Up; reminders + quiet hours; event widget; pending/finalised wording; consent-gated auto-join ONLY if a documented mutation exists. | S50, S51 |
+| **S57 Planned-dispatch + IOG-preference research** | GraphQL feature | P2 | plan-starts-within condition; plan-token round-trip; standalone estimated-effective-rate condition; READ-ONLY target-SoC/ready-by ONLY if live schema confirms it; writes deferred behind consent. No REST-unbacked `price_finalised`. | S50–53 |
+| **S58 Cosy/E7 + export/Flux + carbon optimiser** | feature/widget/flows | P2/P3 | Economy-7/Cosy schedule from PUBLISHED REST rows (never hard-coded); paired import/export plan; carbon-price weighting; greenest-window widget. Recommendations only; live Flux eligibility check. | S54–55 |
+
+**Explicitly rejected (unanimous):** shippable "estimated live gas"; silent auto-join/auto-charge;
+presenting any estimate/telemetry as settled/billed; net-metering off one signed Home Mini figure;
+sub-60s live cadence; building on Greener Nights (ends 31 Jul 2026); hard-coding Cosy/Flux/Go
+schedules when dated REST rows exist; `price_finalised` from a completed dispatch; automatic tariff
+switching; calling a 3-product comparison "best tariff".
+
+
     handling, HTTPS/origin enforcement, redacted API errors, standards-compliant
     `Retry-After` backoff, pagination validation, and pair-session isolation onto current
     `main`. The current identity-safe repair lifecycle and valid Octopus account-format

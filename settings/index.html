@@ -203,22 +203,23 @@
       });
 
       const dispatchStatus = document.getElementById('dispatch-status');
-      Homey.get('dispatch_diagnostics_v1', (err, diagnostics) => {
-        if (err || !diagnostics || !Object.keys(diagnostics).length) return;
+      Homey.get('dispatch_diagnostics_v2', (err, d) => {
+        if (err || !d || !d.lastAttempt) return;
         dispatchStatus.textContent = '';
-        Object.entries(diagnostics).forEach(([account, value]) => {
-          const item = document.createElement('li');
-          const title = document.createElement('strong');
-          title.textContent = `${maskIdentifier(account)} - Intelligent dispatches`;
-          const detail = document.createElement('span');
-          const checked = value.lastAttempt ? new Date(value.lastAttempt).toLocaleString() : 'not yet';
-          const error = value.lastError || value.completedLastError;
-          detail.textContent = error
-            ? `Last checked ${checked} - ${error}`
-            : `Last checked ${checked} - ${value.plannedCount || 0} planned; ${value.active ? 'active now' : 'not active'}`;
-          item.append(title, detail);
-          dispatchStatus.appendChild(item);
-        });
+        const item = document.createElement('li');
+        const title = document.createElement('strong');
+        title.textContent = 'Intelligent dispatches';
+        const detail = document.createElement('span');
+        const checked = new Date(d.lastAttempt).toLocaleString();
+        const accounts = d.accounts || 0;
+        const active = d.activeAccounts || 0;
+        const planned = d.plannedWindows || 0;
+        const errors = d.errors || 0;
+        detail.textContent = `Last checked ${checked} - ${accounts} account(s), `
+          + `${active} active now, ${planned} planned/active window(s)`
+          + (errors ? `, ${errors} with errors` : '');
+        item.append(title, detail);
+        dispatchStatus.appendChild(item);
       });
 
       const integrationStatus = document.getElementById('integration-status');

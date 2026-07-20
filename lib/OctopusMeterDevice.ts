@@ -644,6 +644,9 @@ export class OctopusMeterDevice extends Homey.Device {
         }
       }
       all[deviceId] = { ...existing, ...this.diagnosticUpdates };
+      // The `dispatches` area is now owned by DispatchPoller (dispatch_diagnostics_v2);
+      // prune any legacy per-device entry so a stale error can't linger in settings.
+      delete all[deviceId].dispatches;
       const entries = Object.entries(all);
       if (entries.length > 30) {
         entries

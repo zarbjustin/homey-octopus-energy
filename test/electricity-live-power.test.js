@@ -84,3 +84,37 @@ test('repair re-points the live subscription to a new account', async () => {
   assert.equal(h.device.liveSubscribedAccount, 'A-TWO');
   assert.equal(h.app.subscriptions[h.app.subscriptions.length - 1].creds.accountNumber, 'A-TWO');
 });
+
+test('octopus_dispatching mirrors the reconciled dispatch view and spends no legacy Kraken call', async () => {
+  const h = makeDevice();
+  h.caps.add('octopus_dispatching');
+  let dispatchViewCalls = 0;
+  let activeNow = true;
+  let legacyCalls = 0;
+  h.app.getDispatchView = (account) => {
+    dispatchViewCalls += 1;
+    assert.equal(account, 'A-ONE');
+    return { activeNow, active: [], next: null, recentFinalised: [] };
+  };
+  // The legacy per-device dispatch path must no longer be used.
+  h.app.getCachedPlannedDispatches = async () => { legacyCalls += 1; return []; };
+  h.device.kraken = { getPlannedDispatches: async () => { legacyCalls += 1; return []; } };
+
+  await h.device.refreshDispatching();
+  assert.deepEqual(h.setValues.at(-1), ['octopus_dispatching', true], 'active view → capability true');
+
+  activeNow = false;
+  await h.device.refreshDispatching();
+  assert.deepEqual(h.setValues.at(-1), ['octopus_dispatching', false], 'inactive view → capability false');
+
+  assert.equal(legacyCalls, 0, 'the legacy account-scoped dispatch query is never called');
+  assert.equal(dispatchViewCalls, 2, 'the capability reads the reconciled dispatch view');
+});
+
+test('octopus_dispatching fails closed to false when no reconciled view exists yet', async () => {
+  const h = makeDevice();
+  h.caps.add('octopus_dispatching');
+  h.app.getDispatchView = () => null;
+  await h.device.refreshDispatching();
+  assert.deepEqual(h.setValues.at(-1), ['octopus_dispatching', false]);
+});
