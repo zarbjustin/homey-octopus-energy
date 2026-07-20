@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "uk.co.zarb.octopusenergy",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -227,19 +227,19 @@
       {
         "id": "free_electricity_ended",
         "title": {
-          "en": "A Power Up session ended"
+          "en": "A Free Electricity (Power Up) session ended"
         },
         "hint": {
-          "en": "Triggers when an Octopus Power Up session finishes."
+          "en": "Triggers when an Octopus Power Up free-electricity session finishes."
         }
       },
       {
         "id": "free_electricity_started",
         "title": {
-          "en": "A Power Up session started"
+          "en": "A Free Electricity (Power Up) session started"
         },
         "hint": {
-          "en": "Triggers when an Octopus Power Up session begins — electricity is free now."
+          "en": "Triggers when an Octopus Power Up free-electricity session begins."
         },
         "tokens": [
           {
