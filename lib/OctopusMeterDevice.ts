@@ -1670,12 +1670,28 @@ export class OctopusMeterDevice extends Homey.Device {
         : Promise.resolve([] as Rate[]),
       this.client.standingCharges(s.fuel, s.productCode, s.tariffCode, window),
     ]);
-    if (!records.length) return;
+    if (!records.length) {
+      // No settled data for the current period yet — persist a current-period
+      // placeholder so the settings surface never shows the previous period.
+      this.lastBillingRefresh = Date.now();
+      this.persistBillingSummary(computeBillingSummary({
+        period,
+        settledThrough: period.start,
+        now: now.toISOString(),
+        timeZone: tz,
+        incVat: this.vatInc(),
+        import: {
+          records: [], dayRates, nightRates, standing, isNight: (iso: string) => this.isNightTime(iso),
+        },
+      }));
+      return;
+    }
 
     const settledThrough = records.reduce(
       (max, r) => (r.interval_end > max ? r.interval_end : max),
       records[0].interval_end,
     );
+    const exportInput = await this.exportBillingInput(window).catch(() => undefined);
     const summary = computeBillingSummary({
       period,
       settledThrough,
@@ -1689,9 +1705,31 @@ export class OctopusMeterDevice extends Homey.Device {
         standing,
         isNight: (iso: string) => this.isNightTime(iso),
       },
+      export: exportInput,
     });
     this.lastBillingRefresh = Date.now();
     this.persistBillingSummary(summary);
+  }
+
+  /**
+   * Load the account's export meter consumption + export rates for the same
+   * window, so net position can deduct export value. Returns undefined when the
+   * account has no export meter with an export tariff (the common case), leaving
+   * export value as unavailable rather than £0.
+   */
+  private async exportBillingInput(
+    window: { period_from: string; period_to: string },
+  ): Promise<{ records: ConsumptionRecord[]; rates: Rate[] } | undefined> {
+    const s = this.store();
+    const meters = await this.client.discoverMeters(s.accountNumber);
+    const exp = meters.find((m) => m.isExport && m.fuel === 'electricity' && m.productCode && m.tariffCode);
+    if (!exp || !exp.productCode || !exp.tariffCode) return undefined;
+    const [records, rates] = await Promise.all([
+      this.client.consumption('electricity', exp.mpxn, exp.serial, { ...window, order_by: 'period' }),
+      this.client.standardUnitRates('electricity', exp.productCode, exp.tariffCode, window),
+    ]);
+    if (!records.length) return undefined;
+    return { records, rates };
   }
 
   /** Persist a masked, identifier-safe billing summary for the settings page. */

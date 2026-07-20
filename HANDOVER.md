@@ -135,6 +135,19 @@ in narrowing this down.
   effective-price Flows. Sprint 41 intentionally does not infer discounts from
   ambiguous account-level dispatch windows.
 
+## Sprint 45 billing-period summary (DELIVERED, unreleased)
+
+On branch `feat/sprint-45-billing-summary` (PR pending). New pure `lib/billing/`
+engine (tz, period, aggregate, project) computing "this billing period so far":
+import cost + standing + export value + net, with a run-rate projection and
+confidence bands always labelled estimated (F1). Period from a user `billing_day`
+app setting (else calendar-month fallback, low confidence), DST-safe.
+`OctopusMeterDevice.refreshBillingSummary` (import electricity, incl. export meter
+lookup) persists a masked, identifier-safe `billing_summary_v1`; a settings-page
+section shows it. No new capabilities/Flow IDs; no version bump; REST-authoritative,
+restart-safe. Tri-model design (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) + review; 182 tests
+pass. Next per the spec is Sprint 46 (live-energy presentation & widgets).
+
 ## Sprint 43 device-aware dispatch truth model (DELIVERED, unreleased)
 
 On branch `feat/sprint-43-dispatch-truth` (PR pending). New pure `lib/dispatch/`

@@ -11,23 +11,26 @@ function round(value: number, dp: number): number {
 }
 
 /**
- * Sum the standing charge across each local calendar day in [startIso, endIso).
- * Sampled at local noon to avoid DST edges — one charge per local day.
+ * Sum the standing charge across each local calendar day that has started within
+ * [startIso, endIso). A day counts as soon as its local midnight is before the
+ * settled cutoff (Octopus charges a full daily standing charge), and the rate is
+ * sampled at that day's local noon to avoid DST edges.
  */
 function sumStandingChargePence(standing: Parameters<typeof rateAt>[0], startIso: string, endIso: string, timeZone: string, incVat: boolean): number {
   if (!standing.length) return 0;
   const endMs = Date.parse(endIso);
   const startParts = localDateParts(new Date(startIso), timeZone);
-  let cursor = zonedTime(startParts.year, startParts.month, startParts.day, timeZone, 12);
+  let dayMidnight = zonedTime(startParts.year, startParts.month, startParts.day, timeZone, 0);
   let pence = 0;
   let guard = 0;
-  while (cursor.getTime() < endMs && guard < 400) {
-    const sc = rateAt(standing, cursor);
+  while (dayMidnight.getTime() < endMs && guard < 400) {
+    const p = localDateParts(dayMidnight, timeZone);
+    const noon = zonedTime(p.year, p.month, p.day, timeZone, 12);
+    const sc = rateAt(standing, noon);
     if (sc) pence += valueOf(sc, incVat);
-    const p = localDateParts(cursor, timeZone);
     const nextUtc = new Date(Date.UTC(p.year, p.month - 1, p.day));
     nextUtc.setUTCDate(nextUtc.getUTCDate() + 1);
-    cursor = zonedTime(nextUtc.getUTCFullYear(), nextUtc.getUTCMonth() + 1, nextUtc.getUTCDate(), timeZone, 12);
+    dayMidnight = zonedTime(nextUtc.getUTCFullYear(), nextUtc.getUTCMonth() + 1, nextUtc.getUTCDate(), timeZone, 0);
     guard += 1;
   }
   return pence;

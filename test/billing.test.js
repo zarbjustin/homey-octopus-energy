@@ -200,3 +200,22 @@ test('the summary is a pure recomputation — identical inputs give identical ou
   };
   assert.deepEqual(computeBillingSummary(input), computeBillingSummary(input));
 });
+
+test('a partial settled day still incurs its full standing charge', () => {
+  const summary = computeBillingSummary({
+    period: { start: '2026-01-01T00:00:00.000Z', end: '2026-02-01T00:00:00.000Z', source: 'user' },
+    settledThrough: '2026-01-02T00:30:00.000Z', // early in day 2
+    now: '2026-01-02T02:00:00.000Z',
+    timeZone: TZ,
+    incVat: true,
+    import: {
+      records: [rec('2026-01-01T00:00:00Z', 5), rec('2026-01-02T00:00:00Z', 5)],
+      dayRates: [rate('2025-01-01T00:00:00Z', null, 20)],
+      nightRates: [],
+      standing: [rate('2025-01-01T00:00:00Z', null, 40)],
+      isNight: () => false,
+    },
+  });
+  // Both Jan 1 and Jan 2 have started before the cutoff -> 2 * 40p = £0.80.
+  assert.equal(summary.standingCharge, 0.8);
+});

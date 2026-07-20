@@ -131,7 +131,7 @@
       });
       billingDay.addEventListener('change', () => {
         const n = Number(billingDay.value);
-        Homey.set('billing_day', (n >= 1 && n <= 31) ? n : '', () => {});
+        Homey.set('billing_day', (Number.isInteger(n) && n >= 1 && n <= 31) ? n : '', () => {});
       });
 
       const billingList = document.getElementById('billing-summary');
@@ -143,7 +143,8 @@
           const li = document.createElement('li');
           const netProj = s.projectedNet === null || s.projectedNet === undefined
             ? 'not enough data yet' : money(s.projectedNet) + ' (estimated)';
-          li.innerHTML = '<span><strong>' + account + '</strong><br/>'
+          const period = s.period ? (String(s.period.start).slice(0, 10) + ' → ' + String(s.period.end).slice(0, 10)) : '';
+          li.innerHTML = '<span><strong>' + account + '</strong> ' + period + '<br/>'
             + 'Import: ' + money(s.importCost) + ' (incl. ' + money(s.standingCharge) + ' standing)<br/>'
             + 'Export value: ' + money(s.exportValue) + '<br/>'
             + 'Net so far: ' + money(s.netPosition) + '<br/>'
