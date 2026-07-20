@@ -49,5 +49,8 @@
   },
   "1.0.16": {
     "en": "Adds guarded current-price recovery for Intelligent Octopus Go accounts using legacy or newer four-rate tariff contracts, while keeping household and EV-specific prices distinct."
+  },
+  "1.0.17": {
+    "en": "Reduces Kraken API pressure with shared, budgeted live-power polling; improves Intelligent Octopus Go dispatch handling with device-aware SMART, BOOST and cancellation states; and clarifies Power Up Flow names as Free Electricity (Power Up)."
   }
 }
