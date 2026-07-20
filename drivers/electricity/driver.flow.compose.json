@@ -1128,7 +1128,7 @@
         "en": "Find the cheapest slot (advanced)"
       },
       "titleFormatted": {
-        "en": "Find the cheapest [[duration]] h slot in the next [[within]] h, ties [[tie_strategy]]"
+        "en": "Find the cheapest [[duration]] h slot in the next [[within]] h, ties [[tie_strategy]] (seed [[random_seed]])"
       },
       "hint": {
         "en": "Cheapest contiguous block with an explicit tie strategy. Prices are tariff estimates, never a settled bill; negative prices are preserved."
@@ -1285,7 +1285,7 @@
         "en": "Plan a charge (advanced)"
       },
       "titleFormatted": {
-        "en": "Plan [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]], ties [[tie_strategy]]"
+        "en": "Plan [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]], ties [[tie_strategy]] (seed [[random_seed]])"
       },
       "hint": {
         "en": "Cheapest half-hours to deliver the energy, with estimated saving vs a uniform-window baseline. Estimate only, not a bill."

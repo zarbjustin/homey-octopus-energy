@@ -132,7 +132,7 @@
         "en": "Find the best export slot (advanced)"
       },
       "titleFormatted": {
-        "en": "Find the best [[duration]] h export slot in the next [[within]] h, ties [[tie_strategy]]"
+        "en": "Find the best [[duration]] h export slot in the next [[within]] h, ties [[tie_strategy]] (seed [[random_seed]])"
       },
       "hint": {
         "en": "Highest-value contiguous export block with an explicit tie strategy. Export values are estimates and may be negative; never a settled payment."
@@ -289,7 +289,7 @@
         "en": "Plan an export (advanced)"
       },
       "titleFormatted": {
-        "en": "Plan exporting [[export_kwh]] kWh at [[discharge_rate]] kW before [[by]], ties [[tie_strategy]]"
+        "en": "Plan exporting [[export_kwh]] kWh at [[discharge_rate]] kW before [[by]], ties [[tie_strategy]] (seed [[random_seed]])"
       },
       "hint": {
         "en": "Highest-value half-hours to export the energy, with estimated uplift vs a uniform-window baseline. Estimate only; values may be negative."
