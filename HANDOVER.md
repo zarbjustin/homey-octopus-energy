@@ -80,8 +80,9 @@ confirms on the Test build. The drafted community reply to Darren is in
 
 A tri-model (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) read-only evaluation of the whole app
 plus fresh Octopus research produced a 9-sprint roadmap (S50–S58) — now recorded in
-`ROADMAP.md` ("Sprints 50–58"), with full per-bug evidence and the "do NOT do" list in
-the session `plan.md §15`.
+`ROADMAP.md` ("Sprints 50–58"), with the **full task-level spec (requirements, per-sprint
+tasks, concerns, risks, dependencies, files, tests) in `docs/handover/sprints-50-58-spec.md`**
+and the raw per-bug evidence + "do NOT do" list in the session `plan.md §15`.
 
 **Sprint 50 — Stability bug-bash: DELIVERED (unreleased), branch `fix/s50-stability-bugbash`.**
 Three verified P0/P1 stability bugs fixed, all ID/manifest/version-neutral:

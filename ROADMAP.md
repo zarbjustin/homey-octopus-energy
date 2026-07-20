@@ -61,8 +61,10 @@ capability and Flow IDs unless a migration is explicitly documented.
 ## Sprints 50–58 — post-v1.0.18 evaluation roadmap
 
 Derived from a tri-model (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) read-only evaluation of the
-whole app plus Octopus product/API research at `v1.0.18`. Full evidence, per-bug
-verification, and the "do NOT do" list are in the session plan (`plan.md §15`). Same
+whole app plus Octopus product/API research at `v1.0.18`. **Full task-level spec —
+requirements, per-sprint tasks, concerns, risks, dependencies, files and tests:
+`docs/handover/sprints-50-58-spec.md`.** Full evidence, per-bug verification, and the
+"do NOT do" list are in the session plan (`plan.md §15`). Same
 workflow as S42–49: tri-model design → dual review → PR → CI/CodeQL green → merge.
 Invariants: preserve all IDs; REST authoritative for settled/billing; GraphQL fails
 closed; never present estimated/planned/relative as settled; privacy-safe; keep the F0
