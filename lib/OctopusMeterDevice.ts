@@ -9,6 +9,8 @@ import {
   regionFromTariff, isTwoRegister, expensiveWindow, ConsumptionRecord,
 } from './rates';
 import { daysSpanned, estimateAnnualCost } from './compare';
+import { resolveBillingPeriod } from './billing/period';
+import { computeBillingSummary } from './billing/aggregate';
 
 export interface MeterStore {
   apiKey: string;
@@ -156,6 +158,8 @@ export class OctopusMeterDevice extends Homey.Device {
   protected currentPrice: number | null = null;
 
   protected currentBalance: number | null = null;
+
+  private lastBillingRefresh = 0;
 
   private previousUsage: number | null = null;
 
@@ -499,6 +503,7 @@ export class OctopusMeterDevice extends Homey.Device {
     // Non-critical reporting: failures here do not affect device health.
     await this.runReporting('Price-stats refresh', 'price_stats', () => this.refreshPriceStats());
     await this.runReporting('Monthly-cost refresh', 'monthly_cost', () => this.refreshMonthlyCost());
+    await this.runReporting('Billing-summary refresh', 'billing_summary', () => this.refreshBillingSummary());
     await this.runReporting('Points refresh', 'points', () => this.refreshPoints());
     await this.runReporting('Tariff-change check', 'tariff', () => this.checkTariffChange());
 
@@ -1633,6 +1638,81 @@ export class OctopusMeterDevice extends Homey.Device {
 
     await this.refreshDayBreakdown(records, dayRates, nightRates, standingHistory);
     this.lastMonthlyRefresh = Date.now();
+  }
+
+  /**
+   * Compute a billing-period summary (import cost, standing charge, net, and a
+   * clearly-labelled projection + confidence) for the import electricity meter,
+   * and persist a masked, privacy-safe mirror for the settings surface. REST is
+   * authoritative; the value is a pure recomputation (restart-safe), not an
+   * accumulator. No new capabilities or Flow IDs; no version bump.
+   */
+  protected async refreshBillingSummary(): Promise<void> {
+    const s = this.store();
+    if (s.fuel !== 'electricity' || s.isExport) return; // import electricity only
+    if (!s.mpxn || !s.serial || !s.productCode || !s.tariffCode) return;
+    if (Date.now() - this.lastBillingRefresh < 2 * 3600_000) return;
+
+    const tz = this.homey.clock.getTimezone();
+    const rawDay = Number(this.homey.settings.get('billing_day'));
+    const billingDay = Number.isInteger(rawDay) && rawDay >= 1 && rawDay <= 31 ? rawDay : undefined;
+    const now = new Date();
+    const period = resolveBillingPeriod(now, tz, billingDay);
+    const window = { period_from: period.start, period_to: now.toISOString() };
+    const twoRegister = this.isTwoRegisterTariff();
+    const [records, dayRates, nightRates, standing] = await Promise.all([
+      this.client.consumption(s.fuel, s.mpxn, s.serial, { ...window, order_by: 'period' }),
+      twoRegister
+        ? this.client.registerUnitRates('day', s.productCode, s.tariffCode, window)
+        : this.client.standardUnitRates(s.fuel, s.productCode, s.tariffCode, window),
+      twoRegister
+        ? this.client.registerUnitRates('night', s.productCode, s.tariffCode, window)
+        : Promise.resolve([] as Rate[]),
+      this.client.standingCharges(s.fuel, s.productCode, s.tariffCode, window),
+    ]);
+    if (!records.length) return;
+
+    const settledThrough = records.reduce(
+      (max, r) => (r.interval_end > max ? r.interval_end : max),
+      records[0].interval_end,
+    );
+    const summary = computeBillingSummary({
+      period,
+      settledThrough,
+      now: now.toISOString(),
+      timeZone: tz,
+      incVat: this.vatInc(),
+      import: {
+        records,
+        dayRates,
+        nightRates,
+        standing,
+        isNight: (iso: string) => this.isNightTime(iso),
+      },
+    });
+    this.lastBillingRefresh = Date.now();
+    this.persistBillingSummary(summary);
+  }
+
+  /** Persist a masked, identifier-safe billing summary for the settings page. */
+  private persistBillingSummary(summary: unknown): void {
+    try {
+      const key = 'billing_summary_v1';
+      const all = (this.homey.settings.get(key) || {}) as Record<string, unknown>;
+      all[this.maskAccount(this.store().accountNumber)] = { ...(summary as object), updatedAt: new Date().toISOString() };
+      const entries = Object.entries(all);
+      if (entries.length > 10) {
+        for (const [id] of entries.slice(0, entries.length - 10)) delete all[id];
+      }
+      this.homey.settings.set(key, all);
+    } catch (err) {
+      this.error('Could not persist billing summary:', err);
+    }
+  }
+
+  private maskAccount(accountNumber: string): string {
+    if (!accountNumber || accountNumber.length <= 4) return 'account';
+    return `${accountNumber.slice(0, 2)}***${accountNumber.slice(-2)}`;
   }
 
   /** True when the local hour of an instant is in the typical peak window (16:00–19:00). */
