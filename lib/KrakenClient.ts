@@ -14,6 +14,9 @@
 import {
   KrakenPriority, BudgetError, isBudgetError, getBucket,
 } from './KrakenBudget';
+import { SmartFlexDevice, classifyKind } from './dispatch/types';
+import { normaliseDevices } from './dispatch/deviceModel';
+import { PlannedInput, CompletedInput } from './dispatch/reconcile';
 
 const GRAPHQL_URL = 'https://api.octopus.energy/v1/graphql/';
 
@@ -538,6 +541,74 @@ export class KrakenClient {
     return list
       .map((d) => ({ start: String(d.start ?? d.startDt ?? ''), end: String(d.end ?? d.endDt ?? '') }))
       .filter((d) => d.start && d.end);
+  }
+
+  // --- Sprint 43: device-aware dispatch truth model -----------------------
+
+  /** Linked smart-flex devices for an account (EVs, chargers, batteries, ...). */
+  async getDevices(accountNumber: string): Promise<SmartFlexDevice[]> {
+    const query = `
+      query Devices($accountNumber: String!) {
+        devices(accountNumber: $accountNumber) {
+          __typename
+          id
+          deviceType
+          status { currentState }
+        }
+      }`;
+    const data = await this.query<{ devices?: unknown }>(query, { accountNumber }, true, this.url, 'live');
+    return normaliseDevices(data);
+  }
+
+  /** Device-scoped planned dispatches with SMART/BOOST type (fails closed). */
+  async getFlexPlannedDispatches(deviceId: string): Promise<PlannedInput[]> {
+    const query = `
+      query FlexPlanned($deviceId: String!) {
+        flexPlannedDispatches(deviceId: $deviceId) {
+          start
+          end
+          type
+        }
+      }`;
+    interface Row { start?: string; end?: string; type?: string }
+    const data = await this.query<{ flexPlannedDispatches?: Row[] }>(query, { deviceId }, true, this.url, 'live');
+    const list = data?.flexPlannedDispatches ?? [];
+    return list
+      .filter((r) => r.start && r.end)
+      .map((r) => ({
+        deviceId,
+        start: String(r.start),
+        end: String(r.end),
+        kind: classifyKind(r.type),
+      }));
+  }
+
+  /**
+   * Completed dispatch windows with the optional kWh `delta`. The delta is a
+   * control-window measurement, NOT proof of the billed rate.
+   */
+  async getCompletedDispatchWindows(accountNumber: string): Promise<CompletedInput[]> {
+    const query = `
+      query CompletedDelta($accountNumber: String!) {
+        completedDispatches(accountNumber: $accountNumber) {
+          start
+          end
+          delta
+        }
+      }`;
+    interface Row { start?: string; end?: string; delta?: string | number }
+    const data = await this.query<{ completedDispatches?: Row[] }>(query, { accountNumber }, true, this.url, 'best');
+    const list = data?.completedDispatches ?? [];
+    return list
+      .filter((r) => r.start && r.end)
+      .map((r) => {
+        const delta = Number(r.delta);
+        return {
+          start: String(r.start),
+          end: String(r.end),
+          delta: Number.isFinite(delta) ? delta : null,
+        };
+      });
   }
 
   /**

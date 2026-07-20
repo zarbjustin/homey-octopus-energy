@@ -62,3 +62,22 @@ test('account value caches remain bounded', async (t) => {
   assert.equal(app.balanceCache.size, 20);
   assert.equal(app.krakenClients.size, 20);
 });
+
+test('device list is cached, single-flighted, and cleared on credential change', async (t) => {
+  let deviceCalls = 0;
+  t.mock.method(KrakenClient.prototype, 'getDevices', async () => {
+    deviceCalls += 1;
+    return [{ deviceId: 'd1', typename: 'SmartFlexVehicle', category: 'EV', controlState: null, participating: false }];
+  });
+  const app = new OctopusEnergyApp();
+
+  await Promise.all([
+    app.getCachedDevices('key', 'A-ONE'),
+    app.getCachedDevices('key', 'A-ONE'),
+  ]);
+  assert.equal(deviceCalls, 1, 'concurrent device lookups collapse to one call');
+
+  app.invalidateAccountCaches('A-ONE');
+  assert.equal(app.deviceCache.has('A-ONE'), false);
+  assert.equal(app.flexPlannedCache.has('A-ONE'), false);
+});

@@ -4,6 +4,8 @@ import Homey from 'homey';
 import { SavingSessionsPoller } from './lib/SavingSessionsPoller';
 import { DispatchPoller } from './lib/DispatchPoller';
 import { Dispatch, KrakenClient } from './lib/KrakenClient';
+import { SmartFlexDevice } from './lib/dispatch/types';
+import { PlannedInput, CompletedInput } from './lib/dispatch/reconcile';
 import { LiveDemandSource, LiveDemandCreds } from './lib/LiveDemandSource';
 import { resetBudget, budgetDiagnostics } from './lib/KrakenBudget';
 import { Reading } from './lib/freshness';
@@ -35,6 +37,18 @@ module.exports = class OctopusEnergyApp extends Homey.App {
 
   private completedDispatchInflight = new Map<string, Promise<Dispatch[]>>();
 
+  private deviceCache = new Map<string, { value: SmartFlexDevice[]; ts: number }>();
+
+  private deviceInflight = new Map<string, Promise<SmartFlexDevice[]>>();
+
+  private flexPlannedCache = new Map<string, { value: PlannedInput[]; ts: number }>();
+
+  private flexPlannedInflight = new Map<string, Promise<PlannedInput[]>>();
+
+  private completedWindowCache = new Map<string, { value: CompletedInput[]; ts: number }>();
+
+  private completedWindowInflight = new Map<string, Promise<CompletedInput[]>>();
+
   private trimMap<T>(map: Map<string, T>, max = 20): void {
     while (map.size > max) {
       const oldest = map.keys().next().value as string | undefined;
@@ -63,6 +77,12 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     this.plannedDispatchInflight.delete(accountNumber);
     this.completedDispatchCache.delete(accountNumber);
     this.completedDispatchInflight.delete(accountNumber);
+    this.deviceCache.delete(accountNumber);
+    this.deviceInflight.delete(accountNumber);
+    this.flexPlannedCache.delete(accountNumber);
+    this.flexPlannedInflight.delete(accountNumber);
+    this.completedWindowCache.delete(accountNumber);
+    this.completedWindowInflight.delete(accountNumber);
     resetBudget(accountNumber);
     this.liveDemand?.invalidate(accountNumber);
   }
@@ -135,9 +155,78 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     return request;
   }
 
+  // --- Sprint 43: device-aware dispatch acquisition -----------------------
+
+  /** Linked smart-flex devices for an account (long TTL — the list is stable). */
+  async getCachedDevices(apiKey: string, accountNumber: string): Promise<SmartFlexDevice[]> {
+    const cached = this.deviceCache.get(accountNumber);
+    if (cached && Date.now() - cached.ts < 30 * 60_000) return cached.value;
+    const inflight = this.deviceInflight.get(accountNumber);
+    if (inflight) return inflight;
+    const request = this.getKrakenClient(apiKey, accountNumber).getDevices(accountNumber)
+      .then((value) => {
+        this.deviceCache.set(accountNumber, { value, ts: Date.now() });
+        this.trimMap(this.deviceCache);
+        return value;
+      })
+      .finally(() => this.deviceInflight.delete(accountNumber));
+    this.deviceInflight.set(accountNumber, request);
+    return request;
+  }
+
   /**
-   * onInit is called when the app is initialized.
+   * Aggregated planned dispatches for an account. Uses device-scoped
+   * flexPlannedDispatches for each participating smart-flex device; falls back
+   * to the legacy account-scoped planned dispatches when no such device exists.
+   * Throws on failure so the caller can retain prior state (never falsely cancel)
+   * and surface the error once.
    */
+  async getFlexPlanned(apiKey: string, accountNumber: string): Promise<PlannedInput[]> {
+    const cached = this.flexPlannedCache.get(accountNumber);
+    if (cached && Date.now() - cached.ts < 60_000) return cached.value;
+    if (!this.flexPlannedInflight.has(accountNumber)) {
+      const request = (async () => {
+        const devices = await this.getCachedDevices(apiKey, accountNumber);
+        const participating = devices.filter((d) => d.participating);
+        const client = this.getKrakenClient(apiKey, accountNumber);
+        if (!participating.length) {
+          // No smart-flex device: preserve legacy account-scoped behaviour.
+          const legacy = await client.getPlannedDispatches(accountNumber);
+          return legacy.map((d) => ({
+            deviceId: 'account', start: d.start, end: d.end, kind: 'unknown' as const,
+          }));
+        }
+        const perDevice = await Promise.all(participating.map((d) => client.getFlexPlannedDispatches(d.deviceId)));
+        return perDevice.flat();
+      })()
+        .then((value) => {
+          this.flexPlannedCache.set(accountNumber, { value, ts: Date.now() });
+          this.trimMap(this.flexPlannedCache);
+          return value;
+        })
+        .finally(() => this.flexPlannedInflight.delete(accountNumber));
+      this.flexPlannedInflight.set(accountNumber, request);
+    }
+    return this.flexPlannedInflight.get(accountNumber)!;
+  }
+
+  /** Completed dispatch windows (with kWh delta) shared for four minutes. */
+  async getCachedCompletedWindows(apiKey: string, accountNumber: string): Promise<CompletedInput[]> {
+    const cached = this.completedWindowCache.get(accountNumber);
+    if (cached && Date.now() - cached.ts < 4 * 60_000) return cached.value;
+    const inflight = this.completedWindowInflight.get(accountNumber);
+    if (inflight) return inflight;
+    const request = this.getKrakenClient(apiKey, accountNumber).getCompletedDispatchWindows(accountNumber)
+      .then((value) => {
+        this.completedWindowCache.set(accountNumber, { value, ts: Date.now() });
+        this.trimMap(this.completedWindowCache);
+        return value;
+      })
+      .finally(() => this.completedWindowInflight.delete(accountNumber));
+    this.completedWindowInflight.set(accountNumber, request);
+    return request;
+  }
+
   async onInit(): Promise<void> {
     this.registerBalanceFlowCards();
     this.registerBudgetFlowCards();
