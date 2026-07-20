@@ -102,3 +102,86 @@ test('guarded recovery still prefers a genuine tariff change from account discov
   assert.equal(store.tariffCode, 'E-1R-NEW-C');
   assert.equal(variantLookupCalled, false, 'variant lookup should not run when discovery already fixed the tariff');
 });
+
+// --- IOG price gap + budget fix ---------------------------------------------
+
+test('forced price-gap recovery is throttled to once per 6h (budget/log churn)', async () => {
+  const store = { fuel: 'electricity', isExport: false, productCode: 'VAR-22-11-01', tariffCode: 'E-1R-VAR-22-11-01-C' };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  let checks = 0;
+  device.store = () => store;
+  device.setStoreValue = async () => {};
+  device.isTwoRegisterTariff = () => false;
+  device.isIntelligentGoTariff = () => false;
+  device.checkTariffChange = async () => { checks += 1; return false; };
+  device.tryProductVariantRecovery = async () => false;
+  device.log = () => {};
+  device.error = () => {};
+  device.refreshPrices = async () => { throw new Error('Octopus returned no rate covering the current time.'); };
+
+  await assert.rejects(device.refreshPricesWithTariffRecovery());
+  assert.equal(checks, 1, 'first gap attempts forced recovery');
+  await assert.rejects(device.refreshPricesWithTariffRecovery());
+  assert.equal(checks, 1, 'a second gap within 6h does NOT re-run forced recovery');
+});
+
+test('an IOG import meter never runs product-variant recovery', async () => {
+  const store = { fuel: 'electricity', isExport: false, productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C' };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  let variantTried = 0;
+  device.store = () => store;
+  device.setStoreValue = async () => {};
+  device.isTwoRegisterTariff = () => false;
+  device.isIntelligentGoTariff = () => true;
+  device.checkTariffChange = async () => false;
+  device.tryProductVariantRecovery = async () => { variantTried += 1; return false; };
+  device.log = () => {};
+  device.error = () => {};
+  device.refreshPrices = async () => { throw new Error('Octopus returned no rate covering the current time.'); };
+
+  await assert.rejects(device.refreshPricesWithTariffRecovery());
+  assert.equal(variantTried, 0, 'IOG must not guess a product-derived variant');
+});
+
+test('checkTariffChange never lets REST clobber an IOG import tariff code (anti ping-pong)', async () => {
+  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', mpxn: '1234', productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C' };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  let discovered = 0;
+  device.store = () => store;
+  device.isIntelligentGoTariff = () => true;
+  device.client = { discoverMeters: async () => { discovered += 1; return []; } };
+
+  const changed = await device.checkTariffChange(true);
+  assert.equal(changed, false);
+  assert.equal(discovered, 0, 'REST discovery is not even consulted for an IOG import meter');
+});
+
+test('intelligentGoBaseRates adopts the resolved household code when the stored one is stale', async () => {
+  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'IOG-STALE-26-01-01', tariffCode: 'E-1R-IOG-STALE-26-01-01-C' };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  let invalidated = 0;
+  device.store = () => store;
+  device.setStoreValue = async (k, v) => { store[k] = v; };
+  device.isIntelligentGoTariff = () => true;
+  device.ensureRegisterCapabilities = async () => {};
+  device.log = () => {};
+  device.error = () => {};
+  device.homey = { clock: { getTimezone: () => 'Europe/London' }, app: { invalidateIogTariff: () => { invalidated += 1; } } };
+  device.vatInc = () => true;
+  device.localMidnight = (d) => new Date(Date.UTC(2026, 0, 1 + d));
+  device.kraken = {
+    getActiveIogTariff: async () => ({
+      tariffType: 'DayNightTariff', resolvedVia: 'fallback', validTo: null,
+      tariffCode: 'E-1R-IOG-REAL-26-01-01-C', productCode: 'IOG-REAL-26-01-01',
+      dayRate: 31.5, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7.619,
+      evDevicePeakRate: null, evDeviceOffPeakRate: null,
+      preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 49,
+    }),
+  };
+
+  const rates = await device.intelligentGoBaseRates();
+  assert.ok(rates && rates.length > 0, 'the household schedule is synthesized');
+  assert.equal(store.tariffCode, 'E-1R-IOG-REAL-26-01-01-C', 'adopted the real code');
+  assert.equal(store.productCode, 'IOG-REAL-26-01-01');
+  assert.equal(invalidated, 1, 'the IOG tariff cache is invalidated (not the whole account/budget)');
+});

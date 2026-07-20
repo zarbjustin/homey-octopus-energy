@@ -2,6 +2,7 @@
 
 import Homey from 'homey';
 import { KrakenClient } from './KrakenClient';
+import { isBudgetError } from './KrakenBudget';
 
 /**
  * Shared base for app-level account pollers (saving sessions, dispatches).
@@ -51,7 +52,9 @@ export abstract class AccountPoller {
     if (this.polling) return;
     this.polling = true;
     this.poll()
-      .catch((err) => this.app.error('Poll failed:', err))
+      .catch((err) => {
+        if (!isBudgetError(err)) this.app.error('Poll failed:', err);
+      })
       .finally(() => {
         this.polling = false;
       });

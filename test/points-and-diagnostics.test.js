@@ -266,3 +266,19 @@ test('effective-rate view never derives a finalised price from the IOG GraphQL f
   const view = await device.getEffectiveRateView();
   assert.equal(view.finalisedPrevHalfHour, null, 'iog-fallback is intent, not settlement');
 });
+
+test('a budget skip is recorded as a soft skip, never as an error or fault', () => {
+  const { BudgetError } = require('../.homeybuild/lib/KrakenBudget.js');
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.diagnosticUpdates = {};
+  device.store = () => ({ apiKey: 'api-key-xyz', accountNumber: 'A-1001', mpxn: '9900001', serial: 'SN-77' });
+
+  device.recordIntegrationDiagnostic('points', new BudgetError());
+  const entry = device.diagnosticUpdates.points;
+  assert.ok(entry.lastSkip, 'a budget skip is recorded as lastSkip');
+  assert.equal(entry.lastError, undefined, 'a budget skip is never recorded as an error');
+
+  // A real error still records lastError.
+  device.recordIntegrationDiagnostic('points', new Error('boom'));
+  assert.match(device.diagnosticUpdates.points.lastError, /boom/);
+});

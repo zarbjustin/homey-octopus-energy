@@ -154,8 +154,10 @@ test('active IOG tariff uses the matching day/night account agreement', async (t
 
   assert.deepEqual(tariff, {
     tariffType: 'DayNightTariff',
+    resolvedVia: 'exact',
     tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
     productCode: 'IOG-SYNTHETIC-26-01-01',
+    validTo: null,
     displayName: 'Synthetic Intelligent Go',
     dayRate: 31.5,
     nightRate: 8,
@@ -190,8 +192,10 @@ test('active IOG tariff accepts the matching four-rate EV agreement', async (t) 
 
   assert.deepEqual(tariff, {
     tariffType: 'FourRateEvTariff',
+    resolvedVia: 'exact',
     tariffCode: 'E-1R-IOG-FOUR-SYNTHETIC-26-01-01-C',
     productCode: 'IOG-FOUR-SYNTHETIC-26-01-01',
+    validTo: null,
     displayName: 'Synthetic Four Rate Intelligent Go',
     dayRate: 31.5,
     nightRate: 8,
@@ -205,7 +209,7 @@ test('active IOG tariff accepts the matching four-rate EV agreement', async (t) 
   });
 });
 
-test('active IOG tariff fails closed for a different agreement', async (t) => {
+test('active IOG tariff recovers via fallback when the stored code is stale (the fix)', async (t) => {
   const response = fixture('active-day-night-tariff');
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
     const request = JSON.parse(init.body);
@@ -215,13 +219,87 @@ test('active IOG tariff fails closed for a different agreement', async (t) => {
     return jsonResponse(response);
   });
 
+  // The stored code is stale (the very reason REST returns no rows), but the
+  // account has one active DayNight IOG agreement — it must resolve via fallback.
+  const diags = [];
   const tariff = await new KrakenClient('api-key').getActiveIogTariff(
     'A-ONE',
     'E-1R-IOG-DIFFERENT-26-01-01-C',
     'IOG-SYNTHETIC-26-01-01',
+    (d) => diags.push(d),
   );
 
-  assert.equal(tariff, null);
+  assert.ok(tariff, 'a stale stored code still resolves the household schedule');
+  assert.equal(tariff.resolvedVia, 'fallback');
+  assert.equal(tariff.tariffCode, 'E-1R-IOG-SYNTHETIC-26-01-01-C'); // the real code
+  assert.equal(tariff.dayRate, 31.5);
+  assert.deepEqual(diags[0], {
+    activeAgreementCount: 1, dayNightCount: 1, fourRateCount: 0,
+    exactMatchFound: false, fallbackUsed: true,
+  });
+});
+
+test('active IOG tariff never selects an export/outgoing agreement', async (t) => {
+  const response = {
+    data: {
+      account: {
+        electricityAgreements: [
+          {
+            validFrom: '2026-01-01T00:00:00Z',
+            validTo: null,
+            tariff: {
+              __typename: 'DayNightTariff',
+              tariffCode: 'E-1R-OUTGOING-FIX-26-01-01-C',
+              productCode: 'OUTGOING-FIX-26-01-01',
+              displayName: 'Outgoing Export',
+              dayRate: 15, nightRate: 15, preVatDayRate: 14, preVatNightRate: 14,
+              standingCharge: 0,
+            },
+          },
+          {
+            validFrom: '2026-01-01T00:00:00Z',
+            validTo: null,
+            tariff: {
+              __typename: 'DayNightTariff',
+              tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
+              productCode: 'IOG-SYNTHETIC-26-01-01',
+              displayName: 'Import IOG',
+              dayRate: 31.5, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7.619,
+              standingCharge: 49.2,
+            },
+          },
+        ],
+      },
+    },
+  };
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff(
+    'A-ONE', 'E-1R-IOG-STALE-26-01-01-C', 'IOG-STALE-26-01-01',
+  );
+  assert.ok(tariff);
+  assert.equal(tariff.tariffCode, 'E-1R-IOG-SYNTHETIC-26-01-01-C'); // the import one, never the export
+});
+
+test('active IOG tariff fails closed when there is no active agreement', async (t) => {
+  const response = { data: { account: { electricityAgreements: [] } } };
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  assert.equal(await new KrakenClient('api-key').getActiveIogTariff(
+    'A-ONE', 'E-1R-IOG-ANY-26-01-01-C', 'IOG-ANY-26-01-01',
+  ), null);
 });
 
 test('active IOG tariff fails closed for a product mismatch or null rate', async (t) => {
@@ -446,4 +524,64 @@ test('getCompletedDispatchWindows parses the optional kWh delta', async (t) => {
   assert.equal(windows.length, 2);
   assert.equal(windows[0].delta, 3.2);
   assert.equal(windows[1].delta, null);
+});
+
+test('active IOG tariff excludes a co-existing non-IOG (Economy 7) DayNight agreement', async (t) => {
+  const response = { data: { account: { electricityAgreements: [
+    { validFrom: '2026-01-01T00:00:00Z', validTo: null, tariff: {
+      __typename: 'DayNightTariff', tariffCode: 'E-1R-E7-FIX-26-01-01-C', productCode: 'E-7-FIX-26-01-01',
+      displayName: 'Economy 7', dayRate: 40, nightRate: 20, preVatDayRate: 38, preVatNightRate: 19, standingCharge: 50 } },
+    { validFrom: '2026-01-01T00:00:00Z', validTo: null, tariff: {
+      __typename: 'DayNightTariff', tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C', productCode: 'IOG-SYNTHETIC-26-01-01',
+      displayName: 'IOG', dayRate: 31.5, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7.619, standingCharge: 49.2 } },
+  ] } } };
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    return jsonResponse(response);
+  });
+
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff('A-ONE', 'E-1R-IOG-STALE-26-01-01-C', 'IOG-STALE-26-01-01');
+  assert.ok(tariff);
+  assert.equal(tariff.tariffCode, 'E-1R-IOG-SYNTHETIC-26-01-01-C', 'the IOG agreement, never the Economy 7 one');
+});
+
+test('active IOG tariff fails closed when two distinct IOG agreements are ambiguous', async (t) => {
+  const response = { data: { account: { electricityAgreements: [
+    { validFrom: '2026-02-01T00:00:00Z', validTo: null, tariff: {
+      __typename: 'DayNightTariff', tariffCode: 'E-1R-IOG-A-26-01-01-C', productCode: 'IOG-A-26-01-01',
+      displayName: 'IOG A', dayRate: 31, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7, standingCharge: 49 } },
+    { validFrom: '2026-01-01T00:00:00Z', validTo: null, tariff: {
+      __typename: 'DayNightTariff', tariffCode: 'E-1R-IOG-B-26-01-01-C', productCode: 'IOG-B-26-01-01',
+      displayName: 'IOG B', dayRate: 32, nightRate: 9, preVatDayRate: 31, preVatNightRate: 8, standingCharge: 49 } },
+  ] } } };
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    return jsonResponse(response);
+  });
+
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff('A-ONE', 'E-1R-IOG-STALE-26-01-01-C', 'IOG-STALE-26-01-01');
+  assert.equal(tariff, null, 'two distinct IOG agreements are ambiguous → fail closed, never guess');
+});
+
+test('active IOG tariff fails closed for a malformed EXACT agreement (no fallback substitution)', async (t) => {
+  const response = { data: { account: { electricityAgreements: [
+    { validFrom: '2026-01-01T00:00:00Z', validTo: null, tariff: {
+      __typename: 'DayNightTariff', tariffCode: 'E-1R-IOG-EXACT-26-01-01-C', productCode: 'IOG-EXACT-26-01-01',
+      displayName: 'IOG exact (broken)', dayRate: null, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7, standingCharge: 49 } },
+    { validFrom: '2026-01-01T00:00:00Z', validTo: null, tariff: {
+      __typename: 'DayNightTariff', tariffCode: 'E-1R-IOG-OTHER-26-01-01-C', productCode: 'IOG-OTHER-26-01-01',
+      displayName: 'IOG other', dayRate: 31, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7, standingCharge: 49 } },
+  ] } } };
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    return jsonResponse(response);
+  });
+
+  // The stored code matches an agreement exactly, but that agreement is malformed
+  // (null dayRate). We must NOT mask it with a different agreement's rates.
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff('A-ONE', 'E-1R-IOG-EXACT-26-01-01-C', 'IOG-EXACT-26-01-01');
+  assert.equal(tariff, null);
 });

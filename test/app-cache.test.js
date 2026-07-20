@@ -100,3 +100,36 @@ test('getFlexPlanned queries an idle-but-linked EV for its future dispatches', a
   assert.equal(legacyCalled, false, 'legacy fallback is not used when a device exists');
   assert.equal(planned.length, 1);
 });
+
+test('IOG tariff cache: 6h reuse for a resolved value, exponential backoff for null', async (t) => {
+  let calls = 0;
+  const real = { tariffType: 'DayNightTariff', resolvedVia: 'exact', validTo: null, tariffCode: 'E-1R-IOG-X-C', productCode: 'IOG-X', dayRate: 30, nightRate: 8, preVatDayRate: 29, preVatNightRate: 7, evDevicePeakRate: null, evDeviceOffPeakRate: null, preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 40 };
+  t.mock.method(KrakenClient.prototype, 'getActiveIogTariff', async () => { calls += 1; return real; });
+  const app = new OctopusEnergyApp();
+
+  await app.getCachedIogTariff('key', 'A-ONE', 'E-1R-IOG-X-C', 'IOG-X');
+  await app.getCachedIogTariff('key', 'A-ONE', 'E-1R-IOG-X-C', 'IOG-X');
+  assert.equal(calls, 1, 'a resolved tariff is reused (6h TTL), not re-fetched every call');
+});
+
+test('IOG tariff cache backs off a persistent null (does not re-fetch every 30 min)', async (t) => {
+  let calls = 0;
+  t.mock.method(KrakenClient.prototype, 'getActiveIogTariff', async () => { calls += 1; return null; });
+  const app = new OctopusEnergyApp();
+
+  await app.getCachedIogTariff('key', 'A-TWO', 'E-1R-IOG-Y-C', 'IOG-Y'); // miss → 1 call, nullStreak 1
+  await app.getCachedIogTariff('key', 'A-TWO', 'E-1R-IOG-Y-C', 'IOG-Y'); // within 30m backoff → cached null
+  assert.equal(calls, 1, 'a persistent null is cached (backoff), not re-fetched immediately');
+});
+
+test('invalidateIogTariff drops only the IOG cache, not the whole account/budget', async (t) => {
+  let calls = 0;
+  const real = { tariffType: 'DayNightTariff', resolvedVia: 'exact', validTo: null, tariffCode: 'E-1R-IOG-Z-C', productCode: 'IOG-Z', dayRate: 30, nightRate: 8, preVatDayRate: 29, preVatNightRate: 7, evDevicePeakRate: null, evDeviceOffPeakRate: null, preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 40 };
+  t.mock.method(KrakenClient.prototype, 'getActiveIogTariff', async () => { calls += 1; return real; });
+  const app = new OctopusEnergyApp();
+
+  await app.getCachedIogTariff('key', 'A-3', 'E-1R-IOG-Z-C', 'IOG-Z');
+  app.invalidateIogTariff('A-3');
+  await app.getCachedIogTariff('key', 'A-3', 'E-1R-IOG-Z-C', 'IOG-Z');
+  assert.equal(calls, 2, 'the entry is re-fetched after targeted invalidation');
+});

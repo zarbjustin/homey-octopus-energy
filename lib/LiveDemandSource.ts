@@ -1,6 +1,7 @@
 'use strict';
 
 import { KrakenClient } from './KrakenClient';
+import { isBudgetError } from './KrakenBudget';
 import {
   Reading, unknownReading, currentReading, staleFrom, isStale,
 } from './freshness';
@@ -164,7 +165,7 @@ export class LiveDemandSource {
         state.deviceId = await client.getElectricityDeviceId(state.creds.accountNumber);
         state.deviceIdResolved = true;
       } catch (err) {
-        this.deps.onError('Live demand device discovery failed', err);
+        if (!isBudgetError(err)) this.deps.onError('Live demand device discovery failed', err);
         this.markStale(state);
         return;
       }
@@ -192,7 +193,9 @@ export class LiveDemandSource {
       state.reading = reading;
       this.emit(state);
     } catch (err) {
-      this.deps.onError('Live demand refresh failed', err);
+      // A budget skip just means "keep the last reading, marked stale" — it is an
+      // expected protection of the shared account budget, not a fault to surface.
+      if (!isBudgetError(err)) this.deps.onError('Live demand refresh failed', err);
       this.markStale(state);
     }
   }
