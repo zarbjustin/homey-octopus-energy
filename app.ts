@@ -187,16 +187,16 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     if (!this.flexPlannedInflight.has(accountNumber)) {
       const request = (async () => {
         const devices = await this.getCachedDevices(apiKey, accountNumber);
-        const participating = devices.filter((d) => d.participating);
+        const candidates = devices.filter((d) => d.participating || d.category === 'EV' || d.category === 'CHARGE_POINT');
         const client = this.getKrakenClient(apiKey, accountNumber);
-        if (!participating.length) {
-          // No smart-flex device: preserve legacy account-scoped behaviour.
+        if (!devices.length) {
+          // No smart-flex device at all: preserve legacy account-scoped behaviour.
           const legacy = await client.getPlannedDispatches(accountNumber);
           return legacy.map((d) => ({
             deviceId: 'account', start: d.start, end: d.end, kind: 'unknown' as const,
           }));
         }
-        const perDevice = await Promise.all(participating.map((d) => client.getFlexPlannedDispatches(d.deviceId)));
+        const perDevice = await Promise.all(candidates.map((d) => client.getFlexPlannedDispatches(d.deviceId)));
         return perDevice.flat();
       })()
         .then((value) => {

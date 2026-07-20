@@ -57,7 +57,7 @@ export class DispatchPoller extends AccountPoller {
   private state(accountNumber: string): ReconcileState {
     let state = this.states.get(accountNumber);
     if (!state) {
-      state = { windows: [], anyActive: false, completedKeys: [] };
+      state = { windows: [], anyActive: false, lastCompletedEnd: 0 };
       this.states.set(accountNumber, state);
     }
     return state;
@@ -108,7 +108,7 @@ export class DispatchPoller extends AccountPoller {
     this.states.set(creds.accountNumber, {
       windows: result.windows,
       anyActive: result.anyActive,
-      completedKeys: result.completedKeys,
+      lastCompletedEnd: result.lastCompletedEnd,
     });
     if (ok) this.lastError.delete(creds.accountNumber);
   }

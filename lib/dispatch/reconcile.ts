@@ -28,14 +28,15 @@ export interface CompletedInput {
 export interface ReconcileState {
   windows: DispatchWindow[];
   anyActive: boolean;
-  completedKeys: string[];
+  /** Max completed-window end (ms) already seen — the completed high-water mark. */
+  lastCompletedEnd: number;
 }
 
 export interface ReconcileResult {
   windows: DispatchWindow[];
   activeNow: DispatchWindow[];
   anyActive: boolean;
-  completedKeys: string[];
+  lastCompletedEnd: number;
   /** Aggregate rising edge (0 -> >=1 active). Never true on a stale/failed poll. */
   started: boolean;
   /** Aggregate falling edge (>=1 -> 0 active). Never true on a stale/failed poll. */
@@ -50,10 +51,6 @@ function windowKey(deviceId: string | null, start: string): string {
   return `${deviceId ?? '-'}|${start}`;
 }
 
-function completedKey(c: CompletedInput): string {
-  return `c|${c.start}|${c.end}`;
-}
-
 function ms(iso: string): number {
   const t = new Date(iso).getTime();
   return Number.isFinite(t) ? t : NaN;
@@ -65,7 +62,6 @@ export function reconcile(
   plannedOk: boolean,
   completed: CompletedInput[] | null,
   now: number,
-  maxCompletedKeys = 100,
 ): ReconcileResult {
   let windows: DispatchWindow[];
   const cancelled: DispatchWindow[] = [];
@@ -111,18 +107,18 @@ export function reconcile(
   const started = !stale && anyActive && !prev.anyActive;
   const ended = !stale && !anyActive && prev.anyActive;
 
-  const completedKeys = [...prev.completedKeys];
-  const seen = new Set(prev.completedKeys);
+  // Completed dispatches: fire only for windows newer than the high-water mark.
+  // O(1) state — never re-fires an old completion regardless of history size.
+  let { lastCompletedEnd } = prev;
   const newlyCompleted: CompletedInput[] = [];
   if (completed) {
-    for (const c of completed) {
+    const ordered = [...completed].sort((a, b) => new Date(a.end).getTime() - new Date(b.end).getTime());
+    for (const c of ordered) {
       if (!c.start || !c.end) continue;
-      const key = completedKey(c);
-      if (!seen.has(key)) {
-        seen.add(key);
-        completedKeys.push(key);
-        newlyCompleted.push(c);
-      }
+      const e = ms(c.end);
+      if (!Number.isFinite(e)) continue;
+      if (e > prev.lastCompletedEnd) newlyCompleted.push(c);
+      if (e > lastCompletedEnd) lastCompletedEnd = e;
     }
   }
 
@@ -130,7 +126,7 @@ export function reconcile(
     windows,
     activeNow,
     anyActive,
-    completedKeys: completedKeys.slice(-maxCompletedKeys),
+    lastCompletedEnd,
     started,
     ended,
     cancelled,

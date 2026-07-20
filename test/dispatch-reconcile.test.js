@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 
 const { reconcile } = require('../.homeybuild/lib/dispatch/reconcile.js');
 
-const EMPTY = { windows: [], anyActive: false, completedKeys: [] };
+const EMPTY = { windows: [], anyActive: false, lastCompletedEnd: 0 };
 const NOW = Date.UTC(2026, 0, 1, 12, 0, 0);
 
 function planned(deviceId, startOffsetMin, endOffsetMin, kind = 'SMART') {
@@ -53,7 +53,7 @@ test('a vanished future planned window is cancelled — only on a successful pol
       end: new Date(NOW + 90 * 60_000).toISOString(), state: 'planned', provenance: 'planned', confidence: 'medium', delta: null,
     }],
     anyActive: false,
-    completedKeys: [],
+    lastCompletedEnd: 0,
   };
   const r = reconcile(prev, [], true, [], NOW);
   assert.equal(r.cancelled.length, 1);
@@ -68,7 +68,7 @@ test('a failed planned poll retains prior windows and never cancels or ends', ()
       end: new Date(NOW + 25 * 60_000).toISOString(), state: 'active', provenance: 'planned', confidence: 'medium', delta: null,
     }],
     anyActive: true,
-    completedKeys: [],
+    lastCompletedEnd: 0,
   };
   const r = reconcile(prev, [], false, null, NOW);
   assert.equal(r.stale, true);
@@ -85,7 +85,7 @@ test('the ended edge fires when an active window genuinely disappears on a good 
       end: new Date(NOW + 25 * 60_000).toISOString(), state: 'active', provenance: 'planned', confidence: 'medium', delta: null,
     }],
     anyActive: true,
-    completedKeys: [],
+    lastCompletedEnd: 0,
   };
   const r = reconcile(prev, [], true, [], NOW);
   assert.equal(r.ended, true);
@@ -106,18 +106,15 @@ test('malformed planned rows are dropped', () => {
   assert.equal(r.windows.length, 0);
 });
 
-test('completed windows are reported once and the key ring is bounded', () => {
+test('completed windows are reported once via a high-water mark', () => {
   const c = (h) => ({ start: new Date(NOW + h * 3600_000).toISOString(), end: new Date(NOW + h * 3600_000 + 1800_000).toISOString(), delta: null });
   const first = reconcile(EMPTY, [], true, [c(1), c(2)], NOW);
   assert.equal(first.newlyCompleted.length, 2);
   const second = reconcile(
-    { windows: [], anyActive: false, completedKeys: first.completedKeys },
+    { windows: [], anyActive: false, lastCompletedEnd: first.lastCompletedEnd },
     [], true, [c(1), c(2), c(3)], NOW,
   );
-  assert.equal(second.newlyCompleted.length, 1, 'only the new window is reported');
-
-  const bounded = reconcile(EMPTY, [], true, [c(1), c(2), c(3)], NOW, 2);
-  assert.equal(bounded.completedKeys.length, 2, 'ring buffer bounded to max');
+  assert.equal(second.newlyCompleted.length, 1, 'only the newer window is reported');
 });
 
 test('interval membership is instant-based (DST-safe by construction)', () => {
@@ -127,4 +124,19 @@ test('interval membership is instant-based (DST-safe by construction)', () => {
   const now = Date.parse('2026-03-29T01:30:00Z');
   const r = reconcile(EMPTY, [{ deviceId: 'd1', start, end, kind: 'SMART' }], true, [], now);
   assert.equal(r.activeNow.length, 1);
+});
+
+test('a large stable completed history never re-fires an already-seen window', () => {
+  // Newest-first API order, a big history.
+  const rows = Array.from({ length: 200 }, (_, i) => ({
+    start: new Date(NOW - i * 3600_000).toISOString(),
+    end: new Date(NOW - i * 3600_000 + 1800_000).toISOString(),
+    delta: null,
+  }));
+  const first = reconcile(EMPTY, [], true, rows, NOW);
+  const second = reconcile(
+    { windows: [], anyActive: false, lastCompletedEnd: first.lastCompletedEnd },
+    [], true, rows, NOW,
+  );
+  assert.equal(second.newlyCompleted.length, 0, 'no window is re-fired regardless of history size');
 });

@@ -81,3 +81,22 @@ test('device list is cached, single-flighted, and cleared on credential change',
   assert.equal(app.deviceCache.has('A-ONE'), false);
   assert.equal(app.flexPlannedCache.has('A-ONE'), false);
 });
+
+test('getFlexPlanned queries an idle-but-linked EV for its future dispatches', async (t) => {
+  const queried = [];
+  t.mock.method(KrakenClient.prototype, 'getDevices', async () => ([
+    { deviceId: 'ev-1', typename: 'SmartFlexVehicle', category: 'EV', controlState: 'IDLE', participating: false },
+  ]));
+  t.mock.method(KrakenClient.prototype, 'getFlexPlannedDispatches', async (deviceId) => {
+    queried.push(deviceId);
+    return [{ deviceId, start: '2026-01-01T23:30:00Z', end: '2026-01-02T05:30:00Z', kind: 'SMART' }];
+  });
+  let legacyCalled = false;
+  t.mock.method(KrakenClient.prototype, 'getPlannedDispatches', async () => { legacyCalled = true; return []; });
+  const app = new OctopusEnergyApp();
+
+  const planned = await app.getFlexPlanned('key', 'A-ONE');
+  assert.deepEqual(queried, ['ev-1'], 'the idle EV is still queried');
+  assert.equal(legacyCalled, false, 'legacy fallback is not used when a device exists');
+  assert.equal(planned.length, 1);
+});
