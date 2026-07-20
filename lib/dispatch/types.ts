@@ -59,3 +59,26 @@ export function classifyKind(type: unknown): DispatchKind {
   if (type === 'BOOST') return 'BOOST';
   return 'unknown';
 }
+
+// --- Sprint 46: sanitised, deviceId-stripped presentation snapshot -----------
+
+export interface DispatchViewWindow {
+  kind: DispatchKind;
+  start: string;
+  end: string;
+  state: DispatchState;
+  confidence: DispatchConfidence;
+}
+
+export interface DispatchFinalised {
+  start: string;
+  end: string;
+  delta: number | null;
+}
+
+export interface DispatchView {
+  activeNow: boolean;
+  active: DispatchViewWindow[];
+  next: DispatchViewWindow | null;
+  recentFinalised: DispatchFinalised[];
+}

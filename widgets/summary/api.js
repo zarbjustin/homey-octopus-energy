@@ -22,6 +22,10 @@ module.exports = {
     return {
       name: device.getName(),
       freshness: typeof device.getDataFreshness === 'function' ? device.getDataFreshness() : null,
+      live: typeof device.getLiveDemandView === 'function' ? device.getLiveDemandView() : null,
+      dispatch: typeof device.getDispatchView === 'function' ? device.getDispatchView() : null,
+      // S44 hook: opt-in estimated effective rate (confidence-tagged). Not populated in S46.
+      effectivePrice: null,
       balance: cap('measure_octopus_balance'),
       usage: cap('octopus_usage_today'),
       cost: cap('octopus_cost_today'),
