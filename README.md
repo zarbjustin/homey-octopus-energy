@@ -12,11 +12,13 @@
 - **Usage** and **cost** over the last 24 hours, plus a cumulative meter shown in **Homey Energy**.
 - **Account balance**, Octoplus points, Saving Sessions, Free Electricity (Power Up), and Intelligent dispatches.
 - Regional **carbon intensity**, renewable generation percentage, and price/carbon-aware charging plans.
-- Agile, price, carbon, export, account summary, and upcoming-price timeline widgets.
+- Agile, price, carbon, export, account summary, and upcoming-price timeline widgets, each showing a **provenance badge** (Current / Stale / Unknown) and clearly labelling app-derived recommendations and forecasts as **estimates**, never settled figures.
+- Opt-in **estimated effective rate** for Intelligent Octopus Go on the summary widget — off by default, clearly labelled an estimate (never a bill or settlement), equal to your household unit rate with EV-device rates shown separately (enable it under Settings).
 - **Flow cards**
-  - Triggers cover prices, thresholds, charge windows, carbon, tariffs, dispatches, account balance, and Saving Sessions.
-  - Conditions cover cheapest/peak periods, price and carbon levels, renewables, dispatch state, and account balance.
+  - Triggers cover prices, thresholds, charge windows, carbon, tariffs, dispatches (including `dispatch_cancelled` and `dispatch_changed`), account balance, and Saving Sessions.
+  - Conditions cover cheapest/peak periods, price and carbon levels, renewables, dispatch state, account balance, and the `relative_price_band_is` relative price band.
   - Actions refresh data, plan price/carbon-aware charging, find export peaks, and compare tariffs.
+  - **Advanced (opt-in) planner & analytics** with explicit earliest/latest/random tie strategies — `find_cheapest_slot_advanced`, `plan_charge_advanced`, `analyse_price_day` (electricity) and `find_peak_export_slot_advanced`, `plan_export_advanced` (export). Every output is an explicitly-labelled estimate.
 
 ## Setup
 
@@ -45,11 +47,17 @@ homey app run        # run on a connected Homey
 
 ## Current release
 
-Version `1.0.14` improves meter Repair and manual pairing, adds privacy-safe
-integration diagnostics and widget data-freshness indicators, shares and bounds
-account API caches, discovers real regional tariff codes for comparisons, and
-strengthens widget accessibility. The quality baseline is 83 passing tests,
-clean lint and dependency audit, and successful Homey publish validation.
+Source version `1.0.17` (Homey Build 17, in Test/certification). Sprints 42–47
+are merged but unreleased under this unchanged version: a shared Kraken request
+budget and live-data poller, a device-aware dispatch truth model, a billing-period
+summary, live-energy presentation and provenance badges, an opt-in estimated
+Intelligent Octopus Go effective rate (never settlement), and an opt-in advanced
+planner & tariff-analytics engine with earliest/latest/random tie strategies,
+relative price bands, and negative-price/spike handling. Every estimated, planned,
+or relative figure is labelled as such and is never presented as a settled bill.
+The quality baseline is a clean lint and dependency audit, a full passing test
+suite, and successful Homey publish validation. The Intelligent Octopus Go
+price-gap recovery from Sprint 41 remains in Test and is **not yet field-confirmed**.
 
 ## API reference
 

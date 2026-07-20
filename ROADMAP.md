@@ -47,7 +47,7 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
 | 4 | 46 Live-energy presentation + widgets | P1 | Reuses S42 source; applies F1 badges. |
 | 5 | 44 Dispatch/effective-price Flows | P1 | **DELIVERED (unreleased)** — opt-in estimated effective rate (== household base; EV rates separate) + `dispatch_cancelled`/`dispatch_changed` triggers; no capabilities, no version bump. |
 | 6 | 47 Planner + tariff analytics | P2 | **DELIVERED (unreleased)** — pure tie/analytics engine + 6 opt-in advanced Flow cards; declared relative-metric windows; no capabilities/version bump. |
-| 7 | 49 Trust & Polish | P2 | **New**, replaces dropped S48; applies F1 everywhere + docs/maintenance. |
+| 7 | 49 Trust & Polish | P2 | **DELIVERED (unreleased)** — shared provenance badge across all widgets, settings consistency + DOM-safe billing, docs refreshed, F1 vocabulary clarified, CI Node-runtime maintenance tracked; no capabilities/version bump. |
 | — | 48 Estimated live gas | — | **Dropped** as shippable; optional research spike only. |
 
 Foundations: **F0** shared Kraken request budget (~≤90/hr/account, hard 429 backoff,
@@ -145,9 +145,26 @@ capability and Flow IDs unless a migration is explicitly documented.
     capabilities, NO version bump. Tri-model design (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) + dual
     review. Deferred: a plan-token round-trip condition and Economy-7 schedule materialisation
     (speculative/higher-risk). Not field-verified or released.
-48. **P3 - Estimated live-gas pilot** - investigate an opt-in GraphQL estimate, label it
-    clearly as estimated or stale, and reconcile it against official REST consumption
-    before considering general release.
+48. **P3 - Estimated live-gas pilot (DROPPED as shippable)** - not delivered as a
+    feature; retained only as an optional research spike. Gas is not half-hourly settled
+    and an "estimated" live-gas number risks the misleading-data problem this arc avoids.
+    Its slot in the plan is replaced by Sprint 49 (Trust & Polish).
+49. **DELIVERED (unreleased, PR pending) - P2 - Trust & Polish** - consistency, docs, and
+    confidence pass across the Sprint 42-47 arc, with NO new data features, NO new
+    capabilities, NO Flow-ID changes, and NO version bump. Rolled one shared, namespaced
+    provenance badge (Current/Stale/Unknown, plus explicit Estimated labels on app-derived
+    recommendations and the carbon forecast; published forward tariff rows are NOT labelled
+    estimates) across all six widgets via a single `freshnessHtml(d, sourceLabel)` helper
+    that never shows a connection problem as Current. Settings consistency (added the
+    Intelligent-dispatch heading, relabelled the S44 estimate toggle) and a DOM-safe billing
+    summary (textContent instead of innerHTML). Clarified the F1 vocabulary in docs
+    (`Reading.state` is only current/stale/unknown; estimated/planned/finalised are
+    presentation labels). README refreshed to 1.0.17 with the S44 toggle and S47 advanced
+    cards; a community feedback-loop note and a tracked (separate-PR) CI Node-runtime SHA
+    maintenance item added to the handover; the IOG price-gap field-confirmation gate
+    re-verified as still "not field-confirmed". Machine-checked by new
+    `test/ui-consistency.test.js` and `test/docs-currency.test.js`. Tri-model design
+    (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) + dual review.
 
 ### Backlog gates
 - Sprint 41 is merged to `main` and included in `v1.0.17` / Homey Build 17 under

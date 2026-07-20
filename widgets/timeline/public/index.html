@@ -19,6 +19,13 @@
     .axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--homey-text-color-light, #888); margin-top: 4px; }
     .err { font-size: 13px; color: var(--homey-text-color-light, #888); }
     .freshness { color: #b45309; font-size: 10px; margin-bottom: 5px; }
+    .prov-badge { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 6px; margin-left: 4px; }
+    .prov-row { margin: 4px 0 6px; }
+    .prov-msg { color: #b45309; font-size: 10px; margin-left: 4px; }
+    .b-current { background: #dcfce7; color: #166534; }
+    .b-stale { background: #fef3c7; color: #b45309; }
+    .b-unknown { background: #e5e7eb; color: #6b7280; }
+    .b-estimated { background: #ede9fe; color: #5b21b6; }
   </style>
 </head>
 <body>
@@ -30,11 +37,27 @@
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
       });
     }
-    function freshnessHtml(d) {
-      const f = d && d.freshness;
-      if (!f || (!f.problem && !f.stale)) return '';
-      const message = f.problem ? 'Connection issue; showing the last available data.' : 'Data may be out of date.';
-      return '<div class="freshness" role="status">' + esc(message) + '</div>';
+    function provenanceBadge(label, cls) { return '<span class="prov-badge ' + cls + '">' + esc(label) + '</span>'; }
+    function estimatedBadge(label) { return provenanceBadge(label || 'Estimated', 'b-estimated'); }
+    function freshnessHtml(d, sourceLabel) {
+      var f = d && d.freshness;
+      var state = 'Unknown';
+      var cls = 'b-unknown';
+      var message = 'Freshness is not yet known.';
+      if (f && f.updatedAt && !f.stale && !f.problem) { state = 'Current'; cls = 'b-current'; message = ''; }
+      else if (f && f.updatedAt) { state = 'Stale'; cls = 'b-stale'; message = f.problem ? 'Connection issue; showing the last available data.' : 'Data may be out of date.'; }
+      else if (f && f.problem) { message = 'Connection issue; current data is unavailable.'; }
+      var age = (typeof ageText === 'function' && f) ? ageText(f.updatedAt) : '';
+      var label = (sourceLabel || 'Device refresh') + ' \u00b7 ' + state + (age ? ' \u00b7 ' + age : '');
+      return '<div class="prov-row" role="status">' + provenanceBadge(label, cls)
+        + (message ? '<span class="prov-msg">' + esc(message) + '</span>' : '') + '</div>';
+    }
+    function ageText(readAt) {
+      if (!readAt) return '';
+      var t = Date.parse(readAt);
+      if (isNaN(t)) return '';
+      var s = Math.max(0, Math.round((Date.now() - t) / 1000));
+      return s < 90 ? (s + 's ago') : (Math.round(s / 60) + 'm ago');
     }
     function render(d) {
       const el = document.getElementById('content');
@@ -61,7 +84,7 @@
       });
       function hh(iso) { const dt = new Date(iso); return ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2); }
       el.innerHTML = '<div class="name">' + esc(d.name || 'Electricity') + ' — next ' + (prices.length / 2) + 'h</div>'
-        + freshnessHtml(d)
+        + freshnessHtml(d, 'Device refresh')
         + '<div class="bars"><div class="zero-line" style="top:' + zeroTop + '%"></div>' + bars + '</div>'
         + '<div class="axis"><span>' + hh(prices[0].start) + '</span><span>' + hh(prices[prices.length - 1].start) + '</span></div>';
     }
