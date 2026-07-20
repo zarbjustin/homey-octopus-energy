@@ -52,5 +52,8 @@
   },
   "1.0.17": {
     "en": "Reduces Kraken API pressure with shared, budgeted live-power polling; improves Intelligent Octopus Go dispatch handling with device-aware SMART, BOOST and cancellation states; and clarifies Power Up Flow names as Free Electricity (Power Up)."
+  },
+  "1.0.18": {
+    "en": "Fixes Intelligent Octopus Go electricity meters that could show a blank price and a connection warning: the household day/night rate now recovers from your Octopus account even after a tariff-code change, and expected API rate-limit skips no longer appear as errors."
   }
 }
