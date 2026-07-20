@@ -55,5 +55,8 @@
   },
   "1.0.18": {
     "en": "Fixes Intelligent Octopus Go electricity meters that could show a blank price and a connection warning: the household day/night rate now recovers from your Octopus account even after a tariff-code change, and expected API rate-limit skips no longer appear as errors."
+  },
+  "1.0.19": {
+    "en": "Reliability & efficiency fixes: Saving Sessions and Free Electricity now keep refreshing after the first check; the Intelligent dispatch status in Settings shows correctly again; the 'dispatching now' indicator is more accurate and no longer sticks after a failed check; and startup makes fewer redundant Octopus API calls to stay well within the account rate limit."
   }
 }
