@@ -1,10 +1,11 @@
 # Future Sprints: Next-Model Handover
 
-Last updated: 19 July 2026
+Last updated: 20 July 2026
 
 ## Objective
 
-This is the starting point for an engineer or AI model taking on Sprints 42-48.
+This is the starting point for an engineer or AI model taking on the remaining
+Sprints 45-49 after Sprints 42-43 shipped to Test.
 It supplements `HANDOVER.md` and `ROADMAP.md`; it does not replace either file.
 
 Work on one explicitly selected sprint at a time. Confirm its contracts and
@@ -14,14 +15,15 @@ silently pull later-sprint scope forward.
 ## Current baseline
 
 - Default branch: `main` in `zarbjustin/homey-octopus-energy`.
-- Source and GitHub release: `1.0.16`, tag `v1.0.16`.
-- Homey Build 16 / `1.0.16` is in Test and is not in certification. Build 13 /
-  `1.0.13` remains live pending affected-account verification.
-- Builds 14 and 15 were retracted from certification; Build 16 supersedes them.
-- `1.0.16` has been installed successfully on the local Homey Pro.
-- Sprint 41 was completed through PRs #10-#11 on `main` with 121 tests. Lint,
-  dependency audit and publish validation retain exactly the two
-  documented cumulative-direction warnings.
+- Source and GitHub release: `1.0.17`, tag `v1.0.17`, merge `d7b1bac`.
+- Homey Build 17 / `1.0.17` is in Test and under certification review. Build 13 /
+  `1.0.13` remains live until Homey approves and publishes a replacement.
+- Build 16 was retracted on 20 July 2026 and is marked superseded by Build 17;
+  Builds 14 and 15 were retracted earlier.
+- `1.0.17` has been installed successfully on the local Homey Pro.
+- Sprints 42-43 were merged through PRs #20-#21. The combined release passes 167
+  tests, lint, dependency audit, protected CI and CodeQL. Publish validation retains
+  exactly the two documented cumulative-direction warnings.
 - The import current-price incident has a complete IOG household-base recovery
   for legacy and four-rate account contracts. It is released to Test but is not
   field-confirmed or production-released. Do not remove its diagnostics or relax safeguards.
@@ -54,12 +56,10 @@ references are stale merged history, not pending work.
 > original roadmap order; prefer the spec's order (`42 → 43 → 45 → 46 → 44 → 47 →
 > 49`) unless you deliberately choose otherwise.
 
-1. **Sprint 42: shared Home Mini poller.** Establish one account-scoped live-data
-   source with deduplication, freshness, cadence, and backoff.
-2. **Sprint 43: dispatch truth model.** Define linked devices and SMART/BOOST
-   dispatch semantics before exposing additional automation. Audit the current
-   `dispatch_started`, `dispatch_ended`, `dispatch_completed`, and `dispatch_active`
-   behavior so planned intent is not surfaced as confirmed charging or settlement.
+1. **Sprint 42: complete, in Build 17.** Shared account-scoped live-data source,
+   request budget, deduplication, freshness, cadence, and backoff.
+2. **Sprint 43: complete, in Build 17.** Device-aware SMART/BOOST dispatch truth
+   model while preserving existing Flow IDs.
 3. **Sprint 44: dispatch/effective-price Flows.** Build on the Sprint 43 model;
    preserve all existing Flow card and capability IDs. Separate household base,
    EV-specific, estimated effective, and finalised previous-half-hour prices; add
@@ -132,11 +132,11 @@ For a selected sprint:
 
 ## Current community follow-up
 
-Community post 14 promised Darren a Test-build link. Build 16 is now available at:
+Community post 14 promised Darren a Test-build link. Build 17 is now available at:
 
 https://homey.app/a/uk.co.zarb.octopusenergy/test/
 
-The follow-up should say that `1.0.16` adds guarded legacy/four-rate IOG household
+The follow-up should say that the Test build includes guarded legacy/four-rate IOG household
 price recovery on top of the health wording, points backoff, and privacy-safe
 diagnostics. A reply has been drafted in `HANDOVER.md`, but it is not confirmed as
 posted. It must not claim the underlying missing-rate cause is proven fixed. If
@@ -147,7 +147,7 @@ and single-rate versus Economy 7 status. Ask the user to keep the existing devic
 ## Non-blocking maintenance warning
 
 GitHub Actions currently warns that pinned checkout/setup-node actions target the
-deprecated Node 20 action runtime and are being forced to Node 24. Build 16 and
+deprecated Node 20 action runtime and are being forced to Node 24. Build 17 and
 the protected checks passed. Handle action updates in a separate maintenance PR,
 retain immutable SHA pins, and rerun the release-policy tests.
 
@@ -182,8 +182,9 @@ only when green, remove the branch, and update the handover and roadmap.
 Do not bump versions, publish a Homey build, retract a submission, post to the
 community, or expose user diagnostics unless I explicitly ask.
 
-Build 16 / v1.0.16 is already in Homey Test and is not in certification. Do not
-submit it for certification until Darren confirms the household current price or
-a fresh privacy-safe diagnostic is reviewed. Do not delete/re-pair his existing
-meter device as part of the test.
+Build 17 / v1.0.17 is in Homey Test and under certification review. Field-verify
+the combined Sprint 41 IOG recovery, Sprint 42 shared polling/budget, and Sprint 43
+dispatch truth model. Do not claim Darren's price incident fixed until he confirms
+the household current price or a fresh privacy-safe diagnostic is reviewed. Do not
+delete/re-pair his existing meter device as part of the test.
 ```

@@ -1,33 +1,34 @@
 # Project Handover
 
-Last updated: 19 July 2026
+Last updated: 20 July 2026
 
 ## Current state
 
 - Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current source version: `1.0.16`; release tag: `v1.0.16` (GitHub release published).
-- Homey App Store: Build 13 / version `1.0.13` remains live. Build 16 / version
-  `1.0.16` is in Test for affected-account verification and is not in certification.
-- Build 15 / version `1.0.15` was retracted from certification on 19 July 2026 so
-  Build 16 could replace it in Test.
+- Current source version: `1.0.17`; release tag: `v1.0.17` (GitHub release published).
+- Homey App Store: Build 13 / version `1.0.13` remains live. Build 17 / version
+  `1.0.17` is in Test and under certification review.
+- Build 16 / version `1.0.16` was retracted from certification on 20 July 2026 and
+  is now marked superseded by Build 17. Builds 14 and 15 were retracted earlier.
 - Test channel: https://homey.app/a/uk.co.zarb.octopusenergy/test/
-- Build 14 / version `1.0.14` was also previously retracted from certification.
-- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/16
+- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/17
 - Community support topic: https://community.homey.app/t/156860
-- `main` contains the `1.0.16` release (tag `v1.0.16`, merge `1075391`).
-- Version `1.0.16` was built, validated, packed, and installed successfully on
-  `Justin's Homey Pro` on 19 July 2026.
-- Sprint 41 was completed through PRs #10-#11 on `main` with 121 passing tests;
-  lint, dependency audit and Homey publish validation pass as recorded below.
+- `main` contains the `1.0.17` release (tag `v1.0.17`, merge `d7b1bac`).
+- Version `1.0.17` was built, validated, packed, and installed successfully on
+  `Justin's Homey Pro` on 20 July 2026.
+- Sprints 42 and 43 were merged through PRs #20 and #21. The `1.0.17` release
+  passed 167 tests, lint, dependency audit, `git diff --check`, protected CI and
+  CodeQL. Homey publish validation retains only the two documented cumulative
+  import/export direction warnings.
 - GitHub has no open pull requests and the remote contains only `main`. Any local
   remote-tracking references for earlier `release/*` or `agent/*` branches are
   stale, fully merged history and can be removed with `git fetch --prune`.
 
 ## Next-model entry point
 
-- Sprint 41 implementation is complete on `main`; future feature work starts
-  with Sprint 42.
+- Sprints 41-43 are complete on `main`; future feature work starts with Sprint 45
+  in the researched execution order.
 - Read `docs/handover/future-sprints.md` before selecting or implementing a
   future sprint. It contains the dependency order, acceptance gates, current
   release boundaries, and a copyable prompt for another AI model.
@@ -39,7 +40,7 @@ Last updated: 19 July 2026
   not combine an unrelated incident fix, release bump, or App Store action with
   a feature sprint.
 
-## Active investigation — import current-price gap (`1.0.16` Test candidate)
+## Active investigation — import current-price gap (`1.0.17` Test candidate)
 
 - A user (Darren) on community topic 156860 reported an import electricity meter
   still showing a connection problem and blank price on `1.0.13`, while the Mini
@@ -69,15 +70,15 @@ Last updated: 19 July 2026
   for mismatches, malformed rates, unsupported unions or GraphQL failure. Dispatches
   are not overlaid because the legacy account response does not prove device,
   SMART/BOOST type or settlement price.
-- This candidate is released to Homey Test as Build 16 but is not confirmed on
-  Darren's account. Do not claim the incident fixed or submit it for production
-  certification until the affected account verifies it.
+- This candidate is included in Homey Build 17 and is not confirmed on Darren's
+  account. Build 17 is under certification review, but do not claim the incident
+  fixed until the affected account verifies it.
 - A model-neutral review prompt is in
   `docs/reviews/import-price-gap-analysis-prompt.md` for independent analysis.
-- Community post 14 promises a Test-build follow-up. Build 16 is now available at
+- Community post 14 promises a Test-build follow-up. Build 17 is now available at
   https://homey.app/a/uk.co.zarb.octopusenergy/test/ but the follow-up reply has
   been drafted but is not confirmed as posted. The approved draft tells Darren
-  that `1.0.16` adds guarded legacy/four-rate IOG recovery, asks him to keep the
+  that the Test build adds guarded legacy/four-rate IOG recovery, asks him to keep the
   existing device, and requests confirmation or a fresh diagnostic while blank.
   Do not report the post as published unless the user confirms it or the forum
   visibly shows it.
@@ -89,7 +90,7 @@ Hi Darren,
 
 Thank you again for the diagnostics and for helping test this.
 
-I've now published version 1.0.16 to the Homey Test channel. It adds guarded
+I've now published version 1.0.17 to the Homey Test channel. It adds guarded
 support for the newer Intelligent Octopus Go four-rate tariff contract identified
 during the investigation, while keeping household and EV-specific rates separate.
 
@@ -135,9 +136,9 @@ in narrowing this down.
   effective-price Flows. Sprint 41 intentionally does not infer discounts from
   ambiguous account-level dispatch windows.
 
-## Sprint 43 device-aware dispatch truth model (DELIVERED, unreleased)
+## Sprint 43 device-aware dispatch truth model (RELEASED TO TEST)
 
-On branch `feat/sprint-43-dispatch-truth` (PR pending). New pure `lib/dispatch/`
+Merged through PR #21 and included in `v1.0.17` / Homey Build 17. New pure `lib/dispatch/`
 core (types, deviceModel, reconcile state machine), device-scoped
 `getDevices`/`getFlexPlannedDispatches` + `getCompletedDispatchWindows` (all via the
 F0 budget), and a rewritten `DispatchPoller` that drives the existing
@@ -149,18 +150,19 @@ price/effective-rate logic (Sprint 44). Dual-model design (Opus 4.8 + GPT-5.5) +
 GPT-5.5 review; 167 tests pass; lint + build clean; no version bump. Next per the
 spec is Sprint 45 (billing-period summary).
 
-## Sprint 42 shared Kraken budget and live-data poller (DELIVERED, unreleased)
+## Sprint 42 shared Kraken budget and live-data poller (RELEASED TO TEST)
 
-On branch `feat/sprint-42-shared-kraken-poller` (PR pending). Implements Foundation
+Merged through PR #20 and included in `v1.0.17` / Homey Build 17. Implements Foundation
 F0 — one account-scoped Kraken request budget (`lib/KrakenBudget.ts`) enforced inside
 `KrakenClient.post()`, with core/live/best-effort priorities and a 429 backoff gate —
 plus a shared, subscription-based live-demand source (`lib/LiveDemandSource.ts`) with
 an internal freshness struct (`lib/freshness.ts`, F1). Electricity live power now uses
 the shared source instead of a 30s-per-device timer, fixing a latent throttling bug.
 New app setting `live_demand_cadence_s` (60/120/300s, default 120). No version bump;
-145 tests pass. Designed and reviewed with Claude Opus 4.8 + GPT-5.5. Spec:
-`docs/handover/sprints-42-48-spec.md`; the next sprint per that spec is 43 (dispatch
-truth model). Do not release without field verification.
+145 tests passed at sprint merge; the combined release passes 167. Designed and
+reviewed with Claude Opus 4.8 + GPT-5.5. Spec:
+`docs/handover/sprints-42-48-spec.md`. Field-verify the shared polling and request
+budget behavior in Build 17 before treating it as proven in production.
 
 ## What v1.0.15 contains
 
@@ -329,7 +331,7 @@ validation error should be investigated.
   which is configured).
 - GitHub currently warns that the pinned checkout/setup-node actions target the
   deprecated Node 20 action runtime and are being forced onto Node 24. The
-  warning did not affect Build 16, but the pinned actions should be reviewed in
+  warning did not affect Build 17, but the pinned actions should be reviewed in
   a separate maintenance change when upstream releases compatible revisions.
 - CAVEAT observed on 19 July 2026: merging a release PR via the `gh` CLI did NOT
   emit the `push` event that triggers `Create GitHub Release` (merging via the
@@ -341,15 +343,16 @@ validation error should be investigated.
 
 ## Next actions
 
-1. Ask Darren to install Build 16 / `1.0.16` from the Test link without replacing
+1. Ask Darren to install Build 17 / `1.0.17` from the Test link without replacing
    the existing device.
 2. Ask for one fresh diagnostic while the price is blank, or confirmation that the
    current household price now appears, plus the exact tariff/register type.
-3. Read the `price-gap diagnostic (no identifiers)` and IOG recovery output;
-   submit Build 16 for certification only after affected-account confirmation.
+3. Read the `price-gap diagnostic (no identifiers)` and IOG recovery output while
+   Build 17 proceeds through certification; do not claim the incident fixed before
+   affected-account confirmation.
 4. If the price remains blank, inspect the newly observed sanitised contract shape
    and extend fixtures before changing matching or fallback safeguards.
-5. After production approval, announce `1.0.16` in the community support topic.
+5. After production approval, announce `1.0.17` in the community support topic.
 6. Continue monitoring the advisory/health behaviour and community feedback.
 7. Smoke-test Repair for one electricity meter plus gas/export where available;
    confirm invalid credentials leave the existing device unchanged.
@@ -366,3 +369,5 @@ validation error should be investigated.
 - `16e5143` - `v1.0.15` release: version bump, changelog, version-workflow fix (PR #6).
 - `1075391` - `v1.0.16` release and Homey Build 16 source (PR #14).
 - `69e2fdc` - Build 16 Test deployment and field-verification handover (PR #15).
+- `d7b1bac` - `v1.0.17` release and Homey Build 17 source (PR #22), including
+  Sprints 42-43 and the Free Electricity (Power Up) Flow wording.
