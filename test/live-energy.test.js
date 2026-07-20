@@ -42,12 +42,14 @@ test('getLiveDemandView returns nulls (never zero) when the reading is unavailab
   assert.equal(view.state, 'unknown');
 });
 
-test('dispatch account view is deviceId-free and never leaks identifiers', () => {
+test('dispatch account view is deviceId-free and clock-accurate', () => {
   const poller = new DispatchPoller({});
+  const now = Date.now();
   poller.states.set('A-ONE', {
     windows: [{
-      deviceId: 'secret-device-id', kind: 'SMART', start: '2026-07-20T23:30:00Z',
-      end: '2026-07-21T05:30:00Z', state: 'active', provenance: 'planned', confidence: 'medium', delta: null,
+      deviceId: 'secret-device-id', kind: 'SMART',
+      start: new Date(now - 60_000).toISOString(), end: new Date(now + 1_800_000).toISOString(),
+      state: 'active', provenance: 'planned', confidence: 'medium', delta: null,
     }],
     anyActive: true,
     lastCompletedEnd: 0,
@@ -61,4 +63,21 @@ test('dispatch account view is deviceId-free and never leaks identifiers', () =>
   assert.equal(view.recentFinalised.length, 1);
   assert.equal(JSON.stringify(view).includes('secret-device-id'), false, 'no device id leaks into the view');
   assert.equal(JSON.stringify(view).includes('deviceId'), false);
+});
+
+test('a window retained across a failed poll is not shown as active once it has ended', () => {
+  const poller = new DispatchPoller({});
+  const now = Date.now();
+  poller.states.set('A-ONE', {
+    windows: [{
+      deviceId: 'd', kind: 'SMART',
+      start: new Date(now - 7_200_000).toISOString(), end: new Date(now - 3_600_000).toISOString(),
+      state: 'active', provenance: 'planned', confidence: 'medium', delta: null,
+    }],
+    anyActive: true, // stale retained flag from a failed poll
+    lastCompletedEnd: 0,
+  });
+  const view = poller.getAccountView('A-ONE');
+  assert.equal(view.activeNow, false, 'an ended window is never presented as active');
+  assert.equal(view.next, null);
 });

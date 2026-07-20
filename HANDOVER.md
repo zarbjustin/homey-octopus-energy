@@ -136,6 +136,21 @@ in narrowing this down.
   effective-price Flows. Sprint 41 intentionally does not infer discounts from
   ambiguous account-level dispatch windows.
 
+## Sprint 46 live-energy presentation and widgets (DELIVERED, unreleased)
+
+On branch `feat/sprint-46-live-energy` (PR pending). Plumbing:
+`DispatchPoller.getAccountView` (deviceId-free, clock-accurate snapshot + recent
+finalised), `app.getDispatchView`, `OctopusMeterDevice.getLiveDemandView` (import/
+export derived from the single signed Home Mini net reading; null-not-zero when
+unavailable) and `getDispatchView`. The summary widget shows a live-power block,
+planned-vs-finalised dispatch (finalised = "not a billed rate or settlement"), and
+F1 provenance badges — all routed through `esc()`. `measure_power`/Homey Energy
+unchanged; EV/household effective pricing deferred to Sprint 44 (inert `effectivePrice`
+hook). Tri-model design + dual review (consensus P1: a stale window is never shown as
+active). 189 tests pass; no new capabilities/IDs; no version bump. The per-widget badge
+rollout (price/agile/carbon/export/timeline) continues on this plumbing. Next per the
+spec is Sprint 44 (dispatch/effective-price Flows, scoped down).
+
 ## Sprint 45 billing-period summary (DELIVERED, unreleased)
 
 On branch `feat/sprint-45-billing-summary` (PR pending). New pure `lib/billing/`

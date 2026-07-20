@@ -103,11 +103,16 @@ capability and Flow IDs unless a migration is explicitly documented.
     capabilities/Flow IDs and NO version bump. REST-authoritative, restart-safe pure
     recomputation. Tri-model design (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) + dual review
     (5 fixes). Not field-verified or released.
-46. **P1 - Live-energy presentation and widgets** - expose import, export, and net demand
-    with source timestamp and freshness while preserving `measure_power` and Homey Energy
-    behaviour. Update widgets to separate household and EV pricing, planned and finalised
-    dispatch outcomes, and current, stale, estimated and unknown values without implying
-    that a plan is confirmed settlement data.
+46. **DELIVERED (unreleased, PR pending) - P1 - Live-energy presentation and widgets** -
+    plumbing (DispatchPoller.getAccountView deviceId-free + clock-accurate; app.getDispatchView;
+    device.getLiveDemandView deriving import/export from the single signed Home Mini net
+    reading, null-not-zero when unavailable) + a summary-widget surface with a live-power
+    block, planned-vs-finalised dispatch (finalised explicitly "not settlement"), and F1
+    provenance badges (current/stale/unknown), all escaped. `measure_power`/Homey Energy
+    unchanged. EV/household effective pricing deferred to Sprint 44 (inert hook). Tri-model
+    design (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) + dual review (consensus P1 fix: stale window
+    never shown active). No new capabilities/IDs, no version bump. Per-widget badge rollout
+    to price/agile/carbon/export/timeline continues on the same plumbing.
 47. **P2 - Planner and tariff analytics** - add earliest/latest/random tie strategies,
     richer import/export plan tokens, relative daily price bands, negative-price and spike
     handling, weighted averages, off-peak share, and estimated savings. Keep tariff-specific

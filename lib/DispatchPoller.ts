@@ -48,19 +48,30 @@ export class DispatchPoller extends AccountPoller {
    * intent and recent finalised control windows. Never a settlement claim.
    */
   getAccountView(accountNumber: string): DispatchView {
+    const now = Date.now();
     const state = this.states.get(accountNumber);
     const windows = (state?.windows ?? []).map((w) => ({
       kind: w.kind, start: w.start, end: w.end, state: w.state, confidence: w.confidence,
     }));
-    const active = windows.filter((w) => w.state === 'active');
+    // Re-verify against the clock so a window retained across a FAILED poll (which
+    // fail-closed keeps to avoid a false "ended") is never presented as active or
+    // next once it has actually ended (F1: never show stale as current).
+    const active = windows.filter((w) => {
+      const s = Date.parse(w.start);
+      const e = Date.parse(w.end);
+      return Number.isFinite(s) && Number.isFinite(e) && now >= s && now < e;
+    });
     const planned = windows
-      .filter((w) => w.state === 'planned')
+      .filter((w) => {
+        const s = Date.parse(w.start);
+        return Number.isFinite(s) && s > now;
+      })
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
     const finalised = [...(this.recentCompleted.get(accountNumber) ?? [])]
       .sort((a, b) => new Date(b.end).getTime() - new Date(a.end).getTime())
       .slice(0, 5);
     return {
-      activeNow: Boolean(state?.anyActive),
+      activeNow: active.length > 0,
       active,
       next: planned[0] ?? null,
       recentFinalised: finalised,
