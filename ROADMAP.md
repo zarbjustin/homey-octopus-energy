@@ -95,9 +95,14 @@ capability and Flow IDs unless a migration is explicitly documented.
     Add changed/cancelled and price-finalised triggers only after Sprint 43 defines their
     event truth; expose EV peak/off-peak rates and the midday-to-midday allowance separately
     from household pricing rather than folding them into one ambiguous current-price value.
-45. **P1 - Billing-period summary** - discover the billing-period start with a user
-    override and report import, export, cost/value, standing charge, net position,
-    projection, and confidence; rebuild official REST history after restart.
+45. **DELIVERED (unreleased, PR pending) - P1 - Billing-period summary** - new pure
+    `lib/billing/` engine (period resolution with a user billing-day override else a
+    low-confidence calendar-month fallback; DST-safe; import cost + standing + export
+    value + net; run-rate projection + confidence, always labelled estimated) exposed
+    via a settings-page surface (billing-day editor + summary) with NO new
+    capabilities/Flow IDs and NO version bump. REST-authoritative, restart-safe pure
+    recomputation. Tri-model design (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) + dual review
+    (5 fixes). Not field-verified or released.
 46. **P1 - Live-energy presentation and widgets** - expose import, export, and net demand
     with source timestamp and freshness while preserving `measure_power` and Homey Energy
     behaviour. Update widgets to separate household and EV pricing, planned and finalised

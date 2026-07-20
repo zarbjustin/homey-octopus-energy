@@ -72,6 +72,18 @@
     </select>
   </div>
 
+  <h2>Billing period</h2>
+  <p>Set your Octopus billing day for an accurate "this billing period" summary.
+     Leave blank to use the calendar month (lower confidence). Figures are from
+     Octopus's settled data and update a few times a day; projections are estimates.</p>
+  <div class="field">
+    <label for="billing_day">Billing day of month (1–31)</label>
+    <input class="homey-form-input" id="billing_day" type="number" min="1" max="31" step="1" />
+  </div>
+  <ul id="billing-summary" class="status-list">
+    <li><span>No billing summary recorded yet.</span></li>
+  </ul>
+
   <h2>Saving Sessions status</h2>
   <ul id="saving-session-status" class="status-list">
     <li><span>No poll status recorded yet.</span></li>
@@ -112,6 +124,35 @@
         cadence.value = String(value === undefined || value === null ? 120 : value);
       });
       cadence.addEventListener('change', () => Homey.set('live_demand_cadence_s', Number(cadence.value), () => {}));
+
+      const billingDay = document.getElementById('billing_day');
+      Homey.get('billing_day', (err, value) => {
+        if (value !== undefined && value !== null) billingDay.value = value;
+      });
+      billingDay.addEventListener('change', () => {
+        const n = Number(billingDay.value);
+        Homey.set('billing_day', (Number.isInteger(n) && n >= 1 && n <= 31) ? n : '', () => {});
+      });
+
+      const billingList = document.getElementById('billing-summary');
+      const money = (v) => (v === null || v === undefined ? '—' : '£' + Number(v).toFixed(2));
+      Homey.get('billing_summary_v1', (err, summaries) => {
+        if (err || !summaries || !Object.keys(summaries).length) return;
+        billingList.innerHTML = '';
+        Object.entries(summaries).forEach(([account, s]) => {
+          const li = document.createElement('li');
+          const netProj = s.projectedNet === null || s.projectedNet === undefined
+            ? 'not enough data yet' : money(s.projectedNet) + ' (estimated)';
+          const period = s.period ? (String(s.period.start).slice(0, 10) + ' → ' + String(s.period.end).slice(0, 10)) : '';
+          li.innerHTML = '<span><strong>' + account + '</strong> ' + period + '<br/>'
+            + 'Import: ' + money(s.importCost) + ' (incl. ' + money(s.standingCharge) + ' standing)<br/>'
+            + 'Export value: ' + money(s.exportValue) + '<br/>'
+            + 'Net so far: ' + money(s.netPosition) + '<br/>'
+            + 'Projected period-end net: ' + netProj + '<br/>'
+            + 'Confidence: ' + (s.actualConfidence || 'unknown') + '</span>';
+          billingList.appendChild(li);
+        });
+      });
 
       const status = document.getElementById('saving-session-status');
       const maskIdentifier = (value) => {
