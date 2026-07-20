@@ -15,6 +15,13 @@ import { DispatchView } from './dispatch/types';
 import {
   computeEffectiveRate, EffectiveDispatchKind, EffectiveRateResult,
 } from './effectiveRate';
+import {
+  TieStrategy, createSeededRandom, seedToUint32, selectCheapestWindow,
+  selectExpensiveWindow, planEnergy,
+} from './planner/tie';
+import {
+  analysePriceWindow, classifyBand, estimatePlanSavings, RelativeBand,
+} from './analytics/priceAnalytics';
 
 export interface MeterStore {
   apiKey: string;
@@ -1510,6 +1517,162 @@ export class OctopusMeterDevice extends Homey.Device {
       price: Number(avg.toFixed(2)),
       cost: Number((costPence / 100).toFixed(2)),
     };
+  }
+
+  // --- Sprint 47: opt-in planner & tariff analytics ------------------------
+
+  /** Privacy-safe planning seed: a NON-reversible hash of the device id (never
+   *  the raw id) plus any user seed. Contains no wall-clock or window timestamps,
+   *  so `random` is reproducible for a given device + user seed. Never logged. */
+  private plannerSeed(userSeed: string): string {
+    let id = '';
+    try {
+      id = String(this.getData()?.id ?? '');
+    } catch (err) {
+      id = '';
+    }
+    return `${seedToUint32(id)}|${userSeed ?? ''}`;
+  }
+
+  private priceBasisLabel(): 'vat-inclusive' | 'vat-exclusive' {
+    return this.vatInc() ? 'vat-inclusive' : 'vat-exclusive';
+  }
+
+  /**
+   * Tie-aware extreme contiguous slot (cheapest for import, dearest for export)
+   * with a declared window and tie rule. Never clamps negatives.
+   */
+  findExtremeSlotAdvanced(
+    kind: 'import' | 'export', withinHours: number, durationHours: number,
+    tie: TieStrategy, userSeed: string,
+  ): {
+    start_time: string; end_time: string; price: number;
+    window_start: string; window_end: string; tie_rule: string;
+    price_basis: string; estimate_label: string;
+  } | null {
+    const slots = Math.max(1, Math.round(Number(durationHours) * 2));
+    const now = new Date();
+    const from = this.planningWindowStart(now);
+    const to = withinHours > 0 ? new Date(now.getTime() + withinHours * 3600_000) : this.nextLocalTime('00:00');
+    const rng = createSeededRandom(this.plannerSeed(userSeed));
+    const opts = {
+      from, to, incVat: this.vatInc(), tie, rng,
+    };
+    const win = kind === 'export'
+      ? selectExpensiveWindow(this.rates, slots, opts)
+      : selectCheapestWindow(this.rates, slots, opts);
+    if (!win || !win.length) return null;
+    const avg = win.reduce((a, r) => a + valueOf(r, this.vatInc()), 0) / win.length;
+    const last = win[win.length - 1];
+    const lastEnd = last.valid_to ?? new Date(new Date(last.valid_from).getTime() + 30 * 60_000).toISOString();
+    return {
+      start_time: this.formatLocal(new Date(win[0].valid_from)),
+      end_time: this.formatLocal(new Date(lastEnd)),
+      price: Number(avg.toFixed(2)),
+      window_start: this.formatLocal(from),
+      window_end: this.formatLocal(to),
+      tie_rule: tie,
+      price_basis: this.priceBasisLabel(),
+      estimate_label: 'Estimated plan — not a settled bill',
+    };
+  }
+
+  /**
+   * Tie-aware complete plan for `kind` with estimated saving/uplift vs a uniform
+   * window baseline. Returns null on insufficient window (never a partial plan).
+   */
+  planAdvanced(
+    kind: 'import' | 'export', neededKwh: number, rateKw: number, byTime: string,
+    tie: TieStrategy, userSeed: string,
+  ): {
+    count: number; first_start: string; last_end: string;
+    weighted_average_price: number; estimated_amount: number;
+    baseline_amount: number; estimated_saving: number;
+    window_start: string; window_end: string; tie_rule: string; estimate_label: string;
+  } | null {
+    const now = new Date();
+    const from = this.planningWindowStart(now);
+    const to = this.nextLocalTime(byTime);
+    const rng = createSeededRandom(this.plannerSeed(userSeed));
+    const plan = planEnergy(this.rates, Number(neededKwh), Number(rateKw), {
+      from, to, incVat: this.vatInc(), tie, rng, kind,
+    });
+    if (!plan) return null;
+    // Baseline over the SAME eligible slots the planner can use (whole slots that
+    // finish by the deadline) — so the estimate never compares the plan against an
+    // infeasible/overrun population. Eligible slots are full 30-min rows, so the
+    // simple mean equals the duration-weighted mean.
+    const eligible = this.rates
+      .filter((r) => {
+        const s = new Date(r.valid_from).getTime();
+        const e = r.valid_to ? new Date(r.valid_to).getTime() : s + 30 * 60_000;
+        return s >= from.getTime() && e <= to.getTime();
+      })
+      .map((r) => valueOf(r, this.vatInc()));
+    const windowAvg = eligible.length
+      ? eligible.reduce((a, b) => a + b, 0) / eligible.length
+      : plan.weightedAveragePrice;
+    const savings = estimatePlanSavings(plan.neededKwh, plan.weightedAveragePrice, windowAvg);
+    // estimatePlanSavings is import-oriented (baseline - plan). For export the
+    // favourable direction is reversed, so the uplift is plan - baseline.
+    const signedSaving = kind === 'export' ? -savings.estimatedSaving : savings.estimatedSaving;
+    const last = plan.allocations[plan.allocations.length - 1];
+    return {
+      count: plan.count,
+      first_start: this.formatLocal(new Date(plan.allocations[0].from)),
+      last_end: this.formatLocal(new Date(last.to)),
+      weighted_average_price: Number(plan.weightedAveragePrice.toFixed(2)),
+      estimated_amount: Number((plan.estimatedAmount / 100).toFixed(2)),
+      baseline_amount: Number((savings.baselineAmount / 100).toFixed(2)),
+      estimated_saving: Number((signedSaving / 100).toFixed(2)),
+      window_start: this.formatLocal(from),
+      window_end: this.formatLocal(to),
+      tie_rule: tie,
+      estimate_label: savings.label,
+    };
+  }
+
+  /** Relative price-band analysis of a whole local tariff day (today/tomorrow). */
+  analysePriceDay(which: 'today' | 'tomorrow'): {
+    window_start: string; window_end: string; current_band: string;
+    time_weighted_average: number; median: number; q1: number; q3: number;
+    relative_offpeak_share: number; negative_slots: number; spike_slots: number;
+    price_basis: string; tie_rule: string; estimate_label: string;
+  } | null {
+    const from = which === 'tomorrow' ? this.localMidnight(1) : this.localMidnight(0);
+    const to = which === 'tomorrow' ? this.localMidnight(2) : this.localMidnight(1);
+    const a = analysePriceWindow(this.rates, from, to, { incVat: this.vatInc() });
+    if (!a) return null;
+    const current = which === 'today' ? rateAt(this.rates, new Date()) : null;
+    const currentBand = current
+      ? classifyBand(valueOf(current, this.vatInc()), a.points, a.spikeThreshold)
+      : '';
+    return {
+      window_start: this.formatLocal(from),
+      window_end: this.formatLocal(to),
+      current_band: currentBand,
+      time_weighted_average: Number(a.timeWeightedAverage.toFixed(2)),
+      median: Number(a.median.toFixed(2)),
+      q1: Number(a.q1.toFixed(2)),
+      q3: Number(a.q3.toFixed(2)),
+      relative_offpeak_share: Number((a.relativeOffPeakShare * 100).toFixed(0)),
+      negative_slots: a.negativeSlots,
+      spike_slots: a.spikeSlots,
+      price_basis: a.priceBasis,
+      tie_rule: a.tieRule,
+      estimate_label: 'Relative to the stated local-day window — tariff prices, not settled',
+    };
+  }
+
+  /** The current price's relative band over today's complete local day, or null
+   *  when the day is not fully published or there is no current price. */
+  currentPriceBand(): RelativeBand | null {
+    const from = this.localMidnight(0);
+    const to = this.localMidnight(1);
+    const a = analysePriceWindow(this.rates, from, to, { incVat: this.vatInc() });
+    const current = rateAt(this.rates, new Date());
+    if (!a || !current) return null;
+    return classifyBand(valueOf(current, this.vatInc()), a.points, a.spikeThreshold);
   }
 
   // --- Reporting -----------------------------------------------------------

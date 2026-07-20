@@ -125,6 +125,352 @@
           "example": 15
         }
       ]
+    },
+    {
+      "id": "find_peak_export_slot_advanced",
+      "title": {
+        "en": "Find the best export slot (advanced)"
+      },
+      "titleFormatted": {
+        "en": "Find the best [[duration]] h export slot in the next [[within]] h, ties [[tie_strategy]] (seed [[random_seed]])"
+      },
+      "hint": {
+        "en": "Highest-value contiguous export block with an explicit tie strategy. Export values are estimates and may be negative; never a settled payment."
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "duration",
+          "min": 0.5,
+          "max": 12,
+          "step": 0.5,
+          "placeholder": {
+            "en": "3"
+          },
+          "title": {
+            "en": "Duration (hours)"
+          }
+        },
+        {
+          "type": "number",
+          "name": "within",
+          "min": 1,
+          "max": 48,
+          "step": 1,
+          "placeholder": {
+            "en": "12"
+          },
+          "title": {
+            "en": "Within the next (hours)"
+          }
+        },
+        {
+          "type": "dropdown",
+          "name": "tie_strategy",
+          "values": [
+            {
+              "id": "earliest",
+              "label": {
+                "en": "Earliest"
+              }
+            },
+            {
+              "id": "latest",
+              "label": {
+                "en": "Latest"
+              }
+            },
+            {
+              "id": "random",
+              "label": {
+                "en": "Random"
+              }
+            }
+          ],
+          "title": {
+            "en": "Tie strategy (equal prices)"
+          }
+        },
+        {
+          "type": "text",
+          "name": "random_seed",
+          "placeholder": {
+            "en": "night"
+          },
+          "title": {
+            "en": "Random seed (optional)"
+          }
+        }
+      ],
+      "tokens": [
+        {
+          "name": "start_time",
+          "type": "string",
+          "title": {
+            "en": "Start time"
+          },
+          "example": {
+            "en": "Mon 01:30"
+          }
+        },
+        {
+          "name": "end_time",
+          "type": "string",
+          "title": {
+            "en": "End time"
+          },
+          "example": {
+            "en": "Mon 04:30"
+          }
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Average export rate (p/kWh)"
+          },
+          "example": 8.4
+        },
+        {
+          "name": "window_start",
+          "type": "string",
+          "title": {
+            "en": "Window start"
+          },
+          "example": {
+            "en": "Mon 00:00"
+          }
+        },
+        {
+          "name": "window_end",
+          "type": "string",
+          "title": {
+            "en": "Window end"
+          },
+          "example": {
+            "en": "Tue 00:00"
+          }
+        },
+        {
+          "name": "tie_rule",
+          "type": "string",
+          "title": {
+            "en": "Tie rule"
+          },
+          "example": {
+            "en": "earliest"
+          }
+        },
+        {
+          "name": "price_basis",
+          "type": "string",
+          "title": {
+            "en": "Price basis"
+          },
+          "example": {
+            "en": "vat-inclusive"
+          }
+        },
+        {
+          "name": "estimate_label",
+          "type": "string",
+          "title": {
+            "en": "Estimate label"
+          },
+          "example": {
+            "en": "Estimated plan — not a settled bill"
+          }
+        }
+      ]
+    },
+    {
+      "id": "plan_export_advanced",
+      "title": {
+        "en": "Plan an export (advanced)"
+      },
+      "titleFormatted": {
+        "en": "Plan exporting [[export_kwh]] kWh at [[discharge_rate]] kW before [[by]], ties [[tie_strategy]] (seed [[random_seed]])"
+      },
+      "hint": {
+        "en": "Highest-value half-hours to export the energy, with estimated uplift vs a uniform-window baseline. Estimate only; values may be negative."
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "export_kwh",
+          "min": 0.5,
+          "max": 200,
+          "step": 0.5,
+          "placeholder": {
+            "en": "10"
+          },
+          "title": {
+            "en": "Energy to export (kWh)"
+          }
+        },
+        {
+          "type": "number",
+          "name": "discharge_rate",
+          "min": 0.5,
+          "max": 50,
+          "step": 0.5,
+          "placeholder": {
+            "en": "5"
+          },
+          "title": {
+            "en": "Discharge rate (kW)"
+          }
+        },
+        {
+          "type": "text",
+          "name": "by",
+          "placeholder": {
+            "en": "07:00"
+          },
+          "title": {
+            "en": "By time (HH:MM)"
+          }
+        },
+        {
+          "type": "dropdown",
+          "name": "tie_strategy",
+          "values": [
+            {
+              "id": "earliest",
+              "label": {
+                "en": "Earliest"
+              }
+            },
+            {
+              "id": "latest",
+              "label": {
+                "en": "Latest"
+              }
+            },
+            {
+              "id": "random",
+              "label": {
+                "en": "Random"
+              }
+            }
+          ],
+          "title": {
+            "en": "Tie strategy (equal prices)"
+          }
+        },
+        {
+          "type": "text",
+          "name": "random_seed",
+          "placeholder": {
+            "en": "night"
+          },
+          "title": {
+            "en": "Random seed (optional)"
+          }
+        }
+      ],
+      "tokens": [
+        {
+          "name": "count",
+          "type": "number",
+          "title": {
+            "en": "Number of half-hours"
+          },
+          "example": 9
+        },
+        {
+          "name": "first_start",
+          "type": "string",
+          "title": {
+            "en": "First slot start"
+          },
+          "example": {
+            "en": "Tue 00:30"
+          }
+        },
+        {
+          "name": "last_end",
+          "type": "string",
+          "title": {
+            "en": "Last slot end"
+          },
+          "example": {
+            "en": "Tue 05:00"
+          }
+        },
+        {
+          "name": "weighted_average_rate",
+          "type": "number",
+          "title": {
+            "en": "Average export rate (p/kWh)"
+          },
+          "example": 8.1
+        },
+        {
+          "name": "estimated_value",
+          "type": "number",
+          "title": {
+            "en": "Estimated value (£)"
+          },
+          "example": 2.55
+        },
+        {
+          "name": "baseline_value",
+          "type": "number",
+          "title": {
+            "en": "Baseline value (£)"
+          },
+          "example": 3.1
+        },
+        {
+          "name": "estimated_uplift",
+          "type": "number",
+          "title": {
+            "en": "Estimated uplift (£)"
+          },
+          "example": 0.55
+        },
+        {
+          "name": "window_start",
+          "type": "string",
+          "title": {
+            "en": "Window start"
+          },
+          "example": {
+            "en": "Mon 00:00"
+          }
+        },
+        {
+          "name": "window_end",
+          "type": "string",
+          "title": {
+            "en": "Window end"
+          },
+          "example": {
+            "en": "Tue 00:00"
+          }
+        },
+        {
+          "name": "tie_rule",
+          "type": "string",
+          "title": {
+            "en": "Tie rule"
+          },
+          "example": {
+            "en": "earliest"
+          }
+        },
+        {
+          "name": "estimate_label",
+          "type": "string",
+          "title": {
+            "en": "Estimate label"
+          },
+          "example": {
+            "en": "Estimated vs uniform-window baseline — not a settled bill"
+          }
+        }
+      ]
     }
   ],
   "conditions": [
