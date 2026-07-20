@@ -41,7 +41,7 @@ Last updated: 20 July 2026
   not combine an unrelated incident fix, release bump, or App Store action with
   a feature sprint.
 
-## IOG price-gap root cause FOUND + fixed (branch `fix/iog-price-gap-budget`)
+## IOG price-gap root cause FOUND + fixed — RELEASED as v1.0.18 (PR #29)
 
 The long-standing IOG import price gap (community 156860; logs `3b8df610` etc.)
 was root-caused: for Intelligent Octopus Go there are **no half-hourly REST unit
@@ -58,11 +58,23 @@ stops logging expected `BudgetError` **soft skips** as errors (they retain the l
 value) across the device refresh and all pollers, plus lengthens the IOG-tariff
 cache (6h; exponential backoff on a persistent null) so a broken account stops
 paying a `core` Kraken token every 30 min. Tri-model design (Opus 4.8 + GPT-5.5 +
-GPT-5.6 Sol) + dual review; 354 tests pass, lint+build clean; no capability/Flow-ID/
-manifest/version change. **Still needs live field confirmation** from the affected
-account (the IOG field-verification gate) before the incident is declared fixed —
-the diagnostics now report identifier-free agreement counts + exact/fallback so the
-next report is conclusive.
+GPT-5.6 Sol) + dual review; 354 tests pass, lint+build clean.
+
+**Release status:** shipped as **v1.0.18** — PR #29 (fix) → PR #30 (release-safe
+docs-currency test) → PR #31 ("Prepare release v1.0.18", tag `v1.0.18` + GitHub
+release) → the "Publish Homey App" workflow published it to the Homey developer
+account. **Remaining manual step:** promote the uploaded build to the **Test**
+channel in the Homey Developer dashboard, then share the Test link with Darren.
+
+**Still OPEN — the IOG field-verification gate.** The fix is a strong, reviewed
+hypothesis but is NOT yet field-confirmed by the affected account. If it recurs, the
+new identifier-free price-gap diagnostic (`iogResolve`: activeAgreementCount /
+dayNightCount / fourRateCount / exactMatchFound / fallbackUsed, plus
+`iogFallbackResolved`) will say whether the account even exposes an active agreement
+in GraphQL — if it doesn't, the issue is upstream (no client synthesis is possible)
+and we fail closed with the advisory. Do NOT declare the incident fixed until Darren
+confirms on the Test build. The drafted community reply to Darren is in
+`docs/handover/darren-iog-reply.md`.
 
 ## Active investigation — import current-price gap (`1.0.17` Test candidate)
 
