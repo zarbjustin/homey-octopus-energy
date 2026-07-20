@@ -1,5 +1,5 @@
 {
   "id": "free_electricity_ended",
-  "title": { "en": "A Power Up session ended" },
-  "hint": { "en": "Triggers when an Octopus Power Up session finishes." }
+  "title": { "en": "A Free Electricity (Power Up) session ended" },
+  "hint": { "en": "Triggers when an Octopus Power Up free-electricity session finishes." }
 }

@@ -69,15 +69,16 @@ capability and Flow IDs unless a migration is explicitly documented.
     original, fail-closed IOG recovery supports both `DayNightTariff` and the newer
     `FourRateEvTariff`, requires current exact tariff/product matches, and exposes only
     the household base schedule without treating dispatch intent as settlement price.
-42. **DELIVERED (unreleased, PR pending) - P0 - Shared Kraken budget + live-data poller** -
+42. **RELEASED TO TEST - P0 - Shared Kraken budget + live-data poller** -
     implemented Foundation F0 (one account-scoped Kraken request budget, ~90/hr, enforced
     in `KrakenClient.post()` with core/live/best-effort priorities and a 429 backoff gate),
     a subscription-based shared live-demand source (`lib/LiveDemandSource.ts`, polls only
     while subscribed, single-flight, freshness via `lib/freshness.ts`, 60/120/300s cadence
     default 120), and migrated electricity live power off the 30s/device timer (fixing the
     latent throttling bug). Delivered via an Opus 4.8 + GPT-5.5 dual-model design and review.
-    F1 freshness is internal only for now. Not yet field-verified or released.
-43. **DELIVERED (unreleased, PR pending) - P0 - Intelligent dispatch truth model** -
+    F1 freshness is internal only for now. Merged in PR #20 and released in
+    `v1.0.17` / Homey Build 17; field verification remains outstanding.
+43. **RELEASED TO TEST - P0 - Intelligent dispatch truth model** -
     new pure `lib/dispatch/` core (types + device model + reconcile state machine),
     device-scoped `flexPlannedDispatches` + `devices` acquisition (via the F0 budget),
     typed windows (SMART/BOOST/unknown, planned/active/completed/cancelled/unknown +
@@ -86,7 +87,8 @@ capability and Flow IDs unless a migration is explicitly documented.
     window is cancelled only on a *successful* poll; a failed poll retains prior state and
     never fabricates a cancellation/ended edge. Aggregate identifier-free
     `dispatch_diagnostics_v2`. Dual-model design (Opus 4.8 + GPT-5.5) + GPT-5.5 review
-    (2 fixes). No price logic (that is Sprint 44). Not field-verified or released.
+    (2 fixes). No price logic (that is Sprint 44). Merged in PR #21 and released in
+    `v1.0.17` / Homey Build 17; field verification remains outstanding.
 44. **P1 - Dispatch and effective-price Flows** - expose current/next dispatch details,
     device and dispatch type tokens, household base rate, estimated current effective rate,
     and the finalised previous half-hour rate while retaining all existing Flow card IDs.
@@ -115,11 +117,12 @@ capability and Flow IDs unless a migration is explicitly documented.
     before considering general release.
 
 ### Backlog gates
-- Sprint 41 is merged to `main` and released as `v1.0.16` / Homey Build 16 in Test, but
-  production promotion requires a fresh diagnostic from the affected IOG account showing
-  that current household prices recover through the intended contract. Do not claim the
-  incident fixed or promote solely from synthetic contract tests.
-- Sprints 42-43 require focused unit and integration fixtures before release work begins.
+- Sprint 41 is merged to `main` and included in `v1.0.17` / Homey Build 17 under
+  certification review, but a fresh diagnostic from the affected IOG account must still
+  show that current household prices recover through the intended contract. Do not claim
+  the incident fixed solely from synthetic contract tests.
+- Sprints 42-43 have focused unit and integration fixtures and are included in Build 17.
+  Field-verify the combined Sprint 41-43 behavior before treating it as production-proven.
 - Experimental GraphQL fields must fail closed and must not replace official REST billing
   data without reconciliation.
 - Planned work should continue from public Octopus contracts and original implementations;

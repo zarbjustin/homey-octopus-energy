@@ -1,6 +1,6 @@
 {
   "name": "uk.co.zarb.octopusenergy",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "engines": {
     "node": ">=22"
   },
