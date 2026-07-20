@@ -3,7 +3,9 @@
 import Homey from 'homey';
 import { SavingSessionsPoller } from './lib/SavingSessionsPoller';
 import { DispatchPoller } from './lib/DispatchPoller';
-import { Dispatch, KrakenClient, AccountIogTariff } from './lib/KrakenClient';
+import {
+  Dispatch, KrakenClient, AccountIogTariff, IogResolveDiagnostic,
+} from './lib/KrakenClient';
 import { SmartFlexDevice, DispatchView } from './lib/dispatch/types';
 import { PlannedInput, CompletedInput } from './lib/dispatch/reconcile';
 import { LiveDemandSource, LiveDemandCreds } from './lib/LiveDemandSource';
@@ -49,7 +51,7 @@ module.exports = class OctopusEnergyApp extends Homey.App {
 
   private completedWindowInflight = new Map<string, Promise<CompletedInput[]>>();
 
-  private iogTariffCache = new Map<string, { value: AccountIogTariff | null; ts: number }>();
+  private iogTariffCache = new Map<string, { value: AccountIogTariff | null; ts: number; nullStreak: number }>();
 
   private iogTariffInflight = new Map<string, Promise<AccountIogTariff | null>>();
 
@@ -252,22 +254,52 @@ module.exports = class OctopusEnergyApp extends Homey.App {
    */
   async getCachedIogTariff(
     apiKey: string, accountNumber: string, tariffCode: string, productCode: string,
+    onResolve?: (diagnostic: IogResolveDiagnostic) => void,
   ): Promise<AccountIogTariff | null> {
     const key = `${accountNumber}|${tariffCode}|${productCode}`;
     const cached = this.iogTariffCache.get(key);
-    if (cached && Date.now() - cached.ts < 30 * 60_000) return cached.value;
+    if (cached && Date.now() - cached.ts < this.iogTariffTtl(cached)) return cached.value;
     const inflight = this.iogTariffInflight.get(key);
     if (inflight) return inflight;
     const request = this.getKrakenClient(apiKey, accountNumber)
-      .getActiveIogTariff(accountNumber, tariffCode, productCode)
+      .getActiveIogTariff(accountNumber, tariffCode, productCode, onResolve)
       .then((value) => {
-        this.iogTariffCache.set(key, { value, ts: Date.now() });
+        // A resolved household schedule is effectively fixed (day/night rates
+        // change only at contract/price-cap boundaries), so cache it for 6h — a
+        // persistent null backs off exponentially (30m → 6h) so a broken account
+        // stops paying a `core` Kraken token every 30 min for nothing.
+        const priorNulls = value === null ? (this.iogTariffCache.get(key)?.nullStreak ?? 0) + 1 : 0;
+        this.iogTariffCache.set(key, { value, ts: Date.now(), nullStreak: priorNulls });
         this.trimMap(this.iogTariffCache);
         return value;
       })
       .finally(() => this.iogTariffInflight.delete(key));
     this.iogTariffInflight.set(key, request);
     return request;
+  }
+
+  /** Cache lifetime for an IOG tariff entry: 6h for a resolved value (bounded by
+   *  the agreement's validTo); exponential 30m→6h backoff for a persistent null. */
+  private iogTariffTtl(entry: { value: AccountIogTariff | null; ts: number; nullStreak: number }): number {
+    if (entry.value === null) {
+      return Math.min(30 * 60_000 * 2 ** Math.max(0, entry.nullStreak - 1), 6 * 3600_000);
+    }
+    const sixHours = 6 * 3600_000;
+    const validTo = entry.value.validTo ? Date.parse(entry.value.validTo) : NaN;
+    if (Number.isFinite(validTo)) return Math.max(0, Math.min(sixHours, validTo - entry.ts));
+    return sixHours;
+  }
+
+  /** Drop only the IOG-tariff cache for an account (e.g. after the household code
+   *  is adopted) WITHOUT resetting the budget or other account caches. */
+  invalidateIogTariff(accountNumber: string): void {
+    const prefix = `${accountNumber}|`;
+    for (const key of [...this.iogTariffCache.keys()]) {
+      if (key.startsWith(prefix)) this.iogTariffCache.delete(key);
+    }
+    for (const key of [...this.iogTariffInflight.keys()]) {
+      if (key.startsWith(prefix)) this.iogTariffInflight.delete(key);
+    }
   }
 
   async onInit(): Promise<void> {

@@ -2,7 +2,8 @@
 
 import Homey from 'homey';
 import { OctopusClient, FuelType } from './OctopusClient';
-import { KrakenClient, AccountIogTariff } from './KrakenClient';
+import { KrakenClient, AccountIogTariff, IogResolveDiagnostic } from './KrakenClient';
+import { isBudgetError } from './KrakenBudget';
 import {
   Rate, rateAt, valueOf, sumConsumption, cheapestRate, cheapestWindow,
   isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers, ratesInWindow,
@@ -62,6 +63,9 @@ interface IntegrationDiagnostic {
   lastAttempt: string;
   lastSuccess?: string;
   lastError?: string;
+  /** Last time this area was skipped to protect the shared API budget (a soft
+   *  retained-value skip, not a fault). */
+  lastSkip?: string;
 }
 
 /** Convert refresh results into stable Homey availability behaviour. */
@@ -193,6 +197,13 @@ export class OctopusMeterDevice extends Homey.Device {
   private refreshStartedAt = 0;
 
   private lastTariffCheck = 0;
+
+  /** Epoch ms of the last forced price-gap recovery (rediscovery + variant),
+   *  throttled so a persistent gap does not churn REST every refresh. */
+  private lastForcedRecoveryAt = 0;
+
+  /** Last identifier-free IOG agreement-resolution summary, for diagnostics. */
+  private lastIogResolve: IogResolveDiagnostic | null = null;
 
   private lastStandingRefresh = 0;
 
@@ -469,6 +480,7 @@ export class OctopusMeterDevice extends Homey.Device {
     this.previousCostToday = null;
     this.previousStanding = null;
     this.lastTariffCheck = 0;
+    this.lastForcedRecoveryAt = 0;
     this.lastStandingRefresh = 0;
     this.lastMonthlyRefresh = 0;
     this.lastPointsRefresh = 0;
@@ -543,6 +555,13 @@ export class OctopusMeterDevice extends Homey.Device {
         return true;
       } catch (err) {
         this.recordIntegrationDiagnostic(area, err);
+        // A budget skip is a deliberate freshness-preserving skip (retain the
+        // last value), NOT a fault: don't log it as an error and don't let it
+        // affect device health.
+        if (isBudgetError(err)) {
+          this.log(`${label} skipped to protect the API budget; keeping the last value.`);
+          return false;
+        }
         if (!firstErr) firstErr = err;
         this.error(`${label} failed:`, err);
         return false;
@@ -575,6 +594,10 @@ export class OctopusMeterDevice extends Homey.Device {
       this.recordIntegrationDiagnostic(area);
     } catch (err) {
       this.recordIntegrationDiagnostic(area, err);
+      if (isBudgetError(err)) {
+        this.log(`${label} skipped to protect the API budget; keeping the last value.`);
+        return;
+      }
       this.error(`${label} failed:`, err);
     }
   }
@@ -583,13 +606,20 @@ export class OctopusMeterDevice extends Homey.Device {
   protected recordIntegrationDiagnostic(area: string, err?: unknown): void {
     const now = new Date().toISOString();
     const previous = this.diagnosticUpdates[area];
-    this.diagnosticUpdates[area] = err === undefined
-      ? { lastAttempt: now, lastSuccess: now }
-      : {
+    if (err === undefined) {
+      this.diagnosticUpdates[area] = { lastAttempt: now, lastSuccess: now };
+    } else if (isBudgetError(err)) {
+      // Soft skip: retained the last value to protect the shared budget — not a fault.
+      this.diagnosticUpdates[area] = {
+        lastAttempt: now, lastSuccess: previous?.lastSuccess, lastSkip: now,
+      };
+    } else {
+      this.diagnosticUpdates[area] = {
         lastAttempt: now,
         lastSuccess: previous?.lastSuccess,
         lastError: this.redactedError(err),
       };
+    }
   }
 
   private redactedError(err: unknown): string {
@@ -637,6 +667,10 @@ export class OctopusMeterDevice extends Homey.Device {
   protected async checkTariffChange(force = false): Promise<boolean> {
     const s = this.store();
     if (!s.accountNumber || !s.mpxn) return false;
+    // IOG household tariff truth comes ONLY from the account's active GraphQL
+    // agreement (see maybeAdoptIogAgreement); the REST /accounts view can report
+    // a stale code, so we must never let it clobber the adopted code (ping-pong).
+    if (s.fuel === 'electricity' && !s.isExport && this.isIntelligentGoTariff()) return false;
     const now = Date.now();
     if (!force && now - this.lastTariffCheck < 12 * 3600_000) return false;
     const meters = await this.client.discoverMeters(s.accountNumber);
@@ -667,18 +701,25 @@ export class OctopusMeterDevice extends Homey.Device {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err ?? '');
       if (!/no (?:current )?.*rate|no rate covering|404|not found/i.test(message)) throw err;
+      // Throttle the expensive forced recovery: a persistent gap must not run
+      // REST rediscovery + product-variant probing every refresh (budget/log
+      // churn). The first failure always attempts it; then at most once per 6h.
+      const now = Date.now();
+      if (now - this.lastForcedRecoveryAt < 6 * 3600_000) throw err;
+      this.lastForcedRecoveryAt = now;
       const changed = await this.checkTariffChange(true);
       if (changed) {
         this.log('Tariff changed during price refresh; retrying with the active tariff.');
         await this.refreshPrices();
         return;
       }
-      // Rediscovery returned the same tariff code. As a guarded last resort, try
-      // a tariff variant resolved from the product's regional metadata (same
-      // product, region and register count) in case the stored code is a wrong
-      // payment-method/register variant. This reverts on failure so an unproven
-      // guess is never persisted.
-      if (await this.tryProductVariantRecovery()) return;
+      // For IOG import meters, zero public product rows are an EXPECTED contract
+      // and the household price is account-authoritative (GraphQL) — a product
+      // metadata guess cannot resolve it and only churns the tariff code, so skip
+      // the product-variant probe entirely.
+      const iogImport = this.store().fuel === 'electricity' && !this.store().isExport
+        && this.isIntelligentGoTariff();
+      if (!iogImport && await this.tryProductVariantRecovery()) return;
       this.log('Price-gap recovery: rediscovery returned the same tariff code and no product-derived variant resolved it.');
       throw err;
     }
@@ -983,6 +1024,7 @@ export class OctopusMeterDevice extends Homey.Device {
     try {
       const tariff = await this.activeIogTariff();
       if (!tariff) return null;
+      await this.maybeAdoptIogAgreement(tariff);
       const from = this.localMidnight(-2).getTime();
       const to = this.localMidnight(3).getTime();
       const rates: Rate[] = [];
@@ -1004,18 +1046,50 @@ export class OctopusMeterDevice extends Homey.Device {
     }
   }
 
+  /**
+   * When the household schedule was resolved from a DIFFERENT active agreement
+   * than the stored code (the stored code was stale — the reason REST is empty),
+   * adopt the real code so future lookups match exactly and the standing charge
+   * uses the correct product. GraphQL is the sole source of IOG tariff truth
+   * (see the IOG guard in checkTariffChange), so REST cannot revert this.
+   */
+  private async maybeAdoptIogAgreement(tariff: AccountIogTariff): Promise<void> {
+    const s = this.store();
+    if (s.fuel !== 'electricity' || s.isExport || !this.isIntelligentGoTariff()) return;
+    if (tariff.resolvedVia !== 'fallback') return;
+    const sameCode = (s.tariffCode ?? '').toUpperCase() === tariff.tariffCode.toUpperCase()
+      && (s.productCode ?? '').toUpperCase() === tariff.productCode.toUpperCase();
+    if (sameCode) return;
+    try {
+      await this.setStoreValue('tariffCode', tariff.tariffCode);
+      await this.setStoreValue('productCode', tariff.productCode);
+      this.lastStandingRefresh = 0;
+      this.lastMonthlyRefresh = 0;
+      await this.ensureRegisterCapabilities().catch((err) => this.error(err));
+      const app = this.homey.app as Homey.App & { invalidateIogTariff?(a: string): void };
+      app.invalidateIogTariff?.(s.accountNumber);
+      this.log('Price-gap recovery: adopted the account IOG household tariff code (stored code was stale).');
+    } catch (err) {
+      this.error('Could not adopt the resolved IOG tariff code:', err);
+    }
+  }
+
   /** Shared, cached active IOG tariff (dedupes the price-recovery and
    *  effective-rate reads to a single account-scoped, budgeted call). */
   private async activeIogTariff(): Promise<AccountIogTariff | null> {
     const s = this.store();
     if (!s.accountNumber || !s.tariffCode || !s.productCode) return null;
+    const onResolve = (d: IogResolveDiagnostic): void => {
+      this.lastIogResolve = d;
+    };
     const app = this.homey.app as (Homey.App & {
-      getCachedIogTariff?(a: string, acc: string, t: string, p: string): Promise<AccountIogTariff | null>;
+      getCachedIogTariff?(a: string, acc: string, t: string, p: string,
+        onResolve?: (d: IogResolveDiagnostic) => void): Promise<AccountIogTariff | null>;
     }) | undefined;
     if (app?.getCachedIogTariff) {
-      return app.getCachedIogTariff(s.apiKey, s.accountNumber, s.tariffCode, s.productCode);
+      return app.getCachedIogTariff(s.apiKey, s.accountNumber, s.tariffCode, s.productCode, onResolve);
     }
-    return this.kraken.getActiveIogTariff(s.accountNumber, s.tariffCode, s.productCode);
+    return this.kraken.getActiveIogTariff(s.accountNumber, s.tariffCode, s.productCode, onResolve);
   }
 
   /**
@@ -1134,6 +1208,12 @@ export class OctopusMeterDevice extends Homey.Device {
         fallbackCurrentFound: fallback ? rateAt(fallback) !== null : false,
         fallbackOpenEnded: fallback ? fallback.filter((r) => !r.valid_to).length : 0,
         fallbackBounds: fallback ? bounds(fallback) : null,
+        // IOG household-agreement resolution (identifier-free): did the GraphQL
+        // fallback find an active agreement, and did the synthesized schedule
+        // resolve the price? Distinguishes a stale-code-recovered gap from a
+        // genuine "account has no active agreement" gap.
+        iogResolve: this.lastIogResolve,
+        iogFallbackResolved: this.rateSource === 'iog-fallback',
       };
       this.log('price-gap diagnostic (no identifiers):', JSON.stringify(shape));
     } catch (err) {

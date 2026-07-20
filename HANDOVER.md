@@ -41,6 +41,29 @@ Last updated: 20 July 2026
   not combine an unrelated incident fix, release bump, or App Store action with
   a feature sprint.
 
+## IOG price-gap root cause FOUND + fixed (branch `fix/iog-price-gap-budget`)
+
+The long-standing IOG import price gap (community 156860; logs `3b8df610` etc.)
+was root-caused: for Intelligent Octopus Go there are **no half-hourly REST unit
+rates**, so the only price source is the account's GraphQL agreement — but
+`KrakenClient.getActiveIogTariff` matched that agreement with a **strict exact
+match on the STORED tariff/product code**, and the stale stored code (the very
+reason REST is empty) discarded the account's real active `DayNight`/`FourRateEv`
+agreement, so no price was ever produced. The fix relaxes matching to prefer an
+exact match, else fall back to the account's single unambiguous active IOG-family
+household agreement (rejecting export/Economy-7/ambiguous cases; fails closed on
+none), adopts the resolved code (with an anti-ping-pong guard so REST can't revert
+it), throttles the forced recovery to once/6h, and — for the "timeout" perception —
+stops logging expected `BudgetError` **soft skips** as errors (they retain the last
+value) across the device refresh and all pollers, plus lengthens the IOG-tariff
+cache (6h; exponential backoff on a persistent null) so a broken account stops
+paying a `core` Kraken token every 30 min. Tri-model design (Opus 4.8 + GPT-5.5 +
+GPT-5.6 Sol) + dual review; 354 tests pass, lint+build clean; no capability/Flow-ID/
+manifest/version change. **Still needs live field confirmation** from the affected
+account (the IOG field-verification gate) before the incident is declared fixed —
+the diagnostics now report identifier-free agreement counts + exact/fallback so the
+next report is conclusive.
+
 ## Active investigation — import current-price gap (`1.0.17` Test candidate)
 
 - A user (Darren) on community topic 156860 reported an import electricity meter

@@ -6,6 +6,7 @@ import {
   reconcile, ReconcileState, PlannedInput, CompletedInput,
 } from './dispatch/reconcile';
 import { DispatchView, DispatchFinalised } from './dispatch/types';
+import { isBudgetError } from './KrakenBudget';
 
 interface DispatchApp extends Homey.App {
   getFlexPlanned(apiKey: string, accountNumber: string): Promise<PlannedInput[]>;
@@ -183,6 +184,9 @@ export class DispatchPoller extends AccountPoller {
   }
 
   private logErrorOnce(creds: { apiKey: string; accountNumber: string }, err: unknown): void {
+    // A budget skip is an expected, freshness-preserving skip (retain prior
+    // dispatch state), not a fault — do not surface it as an error.
+    if (isBudgetError(err)) return;
     const message = this.redact(err, creds.apiKey);
     if (this.lastError.get(creds.accountNumber) !== message) {
       this.lastError.set(creds.accountNumber, message);

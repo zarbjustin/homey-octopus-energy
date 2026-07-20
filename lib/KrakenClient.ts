@@ -43,10 +43,25 @@ export interface Dispatch {
 
 export type AccountIogTariffType = 'DayNightTariff' | 'FourRateEvTariff';
 
+/** Privacy-safe (identifier-free) summary of how the active IOG agreement was
+ *  resolved, for diagnostics only. */
+export interface IogResolveDiagnostic {
+  activeAgreementCount: number;
+  dayNightCount: number;
+  fourRateCount: number;
+  exactMatchFound: boolean;
+  fallbackUsed: boolean;
+}
+
 export interface AccountIogTariff {
   tariffType: AccountIogTariffType;
+  /** Whether the stored code matched exactly, or a valid active IOG agreement
+   *  was used as a fallback (the stored code was stale). */
+  resolvedVia: 'exact' | 'fallback';
   tariffCode: string;
   productCode: string;
+  /** Agreement end instant (ISO), or null for an open-ended agreement. */
+  validTo: string | null;
   displayName: string;
   dayRate: number;
   nightRate: number;
@@ -216,6 +231,7 @@ export class KrakenClient {
     accountNumber: string,
     expectedTariffCode: string,
     expectedProductCode: string,
+    onResolve?: (diagnostic: IogResolveDiagnostic) => void,
   ): Promise<AccountIogTariff | null> {
     const query = `
       query ActiveIogTariff($accountNumber: String!) {
@@ -283,52 +299,120 @@ export class KrakenClient {
     const expectedTariff = expectedTariffCode.toUpperCase();
     const expectedProduct = expectedProductCode.toUpperCase();
     const now = Date.now();
-    const candidates = agreements
-      .filter((agreement) => agreement.tariff?.__typename === 'DayNightTariff'
-        || agreement.tariff?.__typename === 'FourRateEvTariff')
-      .filter((agreement) => agreement.tariff?.tariffCode?.toUpperCase() === expectedTariff
-        && agreement.tariff?.productCode?.toUpperCase() === expectedProduct)
-      .filter((agreement) => {
-        const from = Date.parse(agreement.validFrom ?? '');
-        const to = agreement.validTo ? Date.parse(agreement.validTo) : null;
-        return Number.isFinite(from) && (to === null || Number.isFinite(to))
-          && from <= now && (to === null || now < to);
-      })
-      .sort((a, b) => new Date(b.validFrom ?? 0).getTime() - new Date(a.validFrom ?? 0).getTime());
-    const tariff = candidates[0]?.tariff;
     const finite = (value: unknown): number | null => {
       return typeof value === 'number' && Number.isFinite(value) ? value : null;
     };
-    const dayRate = finite(tariff?.dayRate);
-    const nightRate = finite(tariff?.nightRate);
-    const preVatDayRate = finite(tariff?.preVatDayRate);
-    const preVatNightRate = finite(tariff?.preVatNightRate);
-    if (!tariff?.tariffCode || !tariff.productCode
-      || dayRate === null || nightRate === null
-      || preVatDayRate === null || preVatNightRate === null) return null;
-    const tariffType = tariff.__typename as AccountIogTariffType;
-    const evDevicePeakRate = finite(tariff.evDevicePeakRate);
-    const evDeviceOffPeakRate = finite(tariff.evDeviceOffPeakRate);
-    const preVatEvDevicePeakRate = finite(tariff.preVatEvDevicePeakRate);
-    const preVatEvDeviceOffPeakRate = finite(tariff.preVatEvDeviceOffPeakRate);
-    if (tariffType === 'FourRateEvTariff' && (evDevicePeakRate === null
-      || evDeviceOffPeakRate === null || preVatEvDevicePeakRate === null
-      || preVatEvDeviceOffPeakRate === null)) return null;
-    return {
-      tariffType,
-      tariffCode: tariff.tariffCode,
-      productCode: tariff.productCode,
-      displayName: tariff.displayName ?? '',
-      dayRate,
-      nightRate,
-      preVatDayRate,
-      preVatNightRate,
-      evDevicePeakRate,
-      evDeviceOffPeakRate,
-      preVatEvDevicePeakRate,
-      preVatEvDeviceOffPeakRate,
-      standingCharge: finite(tariff.standingCharge),
+
+    // Build a fully-validated tariff from an agreement, or null if it is not a
+    // usable IOG household agreement (missing codes / non-finite required rates).
+    const build = (agreement: Agreement, resolvedVia: 'exact' | 'fallback'): AccountIogTariff | null => {
+      const { tariff } = agreement;
+      const tariffType = tariff?.__typename as AccountIogTariffType | undefined;
+      if (!tariff || (tariffType !== 'DayNightTariff' && tariffType !== 'FourRateEvTariff')) return null;
+      const dayRate = finite(tariff.dayRate);
+      const nightRate = finite(tariff.nightRate);
+      const preVatDayRate = finite(tariff.preVatDayRate);
+      const preVatNightRate = finite(tariff.preVatNightRate);
+      if (!tariff.tariffCode || !tariff.productCode
+        || dayRate === null || nightRate === null
+        || preVatDayRate === null || preVatNightRate === null) return null;
+      const evDevicePeakRate = finite(tariff.evDevicePeakRate);
+      const evDeviceOffPeakRate = finite(tariff.evDeviceOffPeakRate);
+      const preVatEvDevicePeakRate = finite(tariff.preVatEvDevicePeakRate);
+      const preVatEvDeviceOffPeakRate = finite(tariff.preVatEvDeviceOffPeakRate);
+      if (tariffType === 'FourRateEvTariff' && (evDevicePeakRate === null
+        || evDeviceOffPeakRate === null || preVatEvDevicePeakRate === null
+        || preVatEvDeviceOffPeakRate === null)) return null;
+      return {
+        tariffType,
+        resolvedVia,
+        tariffCode: tariff.tariffCode,
+        productCode: tariff.productCode,
+        validTo: agreement.validTo ?? null,
+        displayName: tariff.displayName ?? '',
+        dayRate,
+        nightRate,
+        preVatDayRate,
+        preVatNightRate,
+        evDevicePeakRate,
+        evDeviceOffPeakRate,
+        preVatEvDevicePeakRate,
+        preVatEvDeviceOffPeakRate,
+        standingCharge: finite(tariff.standingCharge),
+      };
     };
+
+    // Household IOG import agreement typenames only (this inherently excludes
+    // export/outgoing agreements, which surface as other typenames); an explicit
+    // OUTGOING/EXPORT name guard is defence-in-depth since electricityAgreements
+    // spans both import and export meter points.
+    const exportLike = (t: Agreement['tariff']): boolean => {
+      return /OUTGOING|EXPORT/.test(`${t?.tariffCode ?? ''}${t?.productCode ?? ''}`.toUpperCase());
+    };
+    const isHousehold = (a: Agreement): boolean => (
+      (a.tariff?.__typename === 'DayNightTariff' || a.tariff?.__typename === 'FourRateEvTariff')
+      && !exportLike(a.tariff)
+    );
+    const isActive = (a: Agreement): boolean => {
+      const from = Date.parse(a.validFrom ?? '');
+      const to = a.validTo ? Date.parse(a.validTo) : null;
+      return Number.isFinite(from) && (to === null || Number.isFinite(to))
+        && from <= now && (to === null || now < to);
+    };
+    // Most recent first, preferring open-ended agreements (matches the REST
+    // "active tariff" heuristic).
+    const byRecent = (a: Agreement, b: Agreement): number => {
+      const ao = a.validTo === null || a.validTo === undefined ? 1 : 0;
+      const bo = b.validTo === null || b.validTo === undefined ? 1 : 0;
+      if (ao !== bo) return bo - ao;
+      return new Date(b.validFrom ?? 0).getTime() - new Date(a.validFrom ?? 0).getTime();
+    };
+
+    // Is this an IOG-family tariff/product code (the same predicate the device
+    // uses to decide an IOG meter)? The fallback must never pick a co-existing
+    // non-IOG import agreement (e.g. an Economy-7 DayNight meter on the account).
+    const iogFamily = (code: string): boolean => (
+      /(^|-)IOG(-|$)/.test(code) || (/(^|-)INTELLI-/.test(code) && !/INTELLI-FLUX-/.test(code))
+    );
+    const isIogTariff = (t: Agreement['tariff']): boolean => (
+      iogFamily(`${t?.productCode ?? ''}`.toUpperCase()) || iogFamily(`${t?.tariffCode ?? ''}`.toUpperCase())
+    );
+
+    const household = agreements.filter(isHousehold);
+    const active = household.filter(isActive).sort(byRecent);
+
+    let result: AccountIogTariff | null = null;
+    const exactMatches = active.filter((a) => a.tariff?.tariffCode?.toUpperCase() === expectedTariff
+      && a.tariff?.productCode?.toUpperCase() === expectedProduct);
+    if (exactMatches.length) {
+      // An exact stored-code agreement exists → trust it and NEVER substitute
+      // another (a malformed exact match must fail closed, not be masked by a
+      // different meter's rates).
+      for (const a of exactMatches) {
+        result = build(a, 'exact');
+        if (result) break;
+      }
+    } else {
+      // No exact match (the stored code is stale — the reason REST is empty).
+      // Fall back ONLY to a SINGLE, unambiguous, active IOG-family household
+      // agreement. Multiple distinct IOG tariffs (a rare multi-import-meter
+      // account) fail closed rather than risk adopting another meter's price.
+      const candidates = active
+        .filter((a) => isIogTariff(a.tariff))
+        .map((a) => build(a, 'fallback'))
+        .filter((t): t is AccountIogTariff => t !== null);
+      const distinct = new Set(candidates.map((t) => `${t.tariffCode.toUpperCase()}|${t.productCode.toUpperCase()}`));
+      if (distinct.size === 1) [result] = candidates; // most recent (active is sorted)
+    }
+
+    onResolve?.({
+      activeAgreementCount: active.length,
+      dayNightCount: active.filter((a) => a.tariff?.__typename === 'DayNightTariff').length,
+      fourRateCount: active.filter((a) => a.tariff?.__typename === 'FourRateEvTariff').length,
+      exactMatchFound: result?.resolvedVia === 'exact',
+      fallbackUsed: result?.resolvedVia === 'fallback',
+    });
+    return result;
   }
 
   /**

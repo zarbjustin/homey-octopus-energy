@@ -2,6 +2,7 @@
 
 import { AccountPoller } from './AccountPoller';
 import { SavingSession } from './KrakenClient';
+import { isBudgetError } from './KrakenBudget';
 
 interface PollerState {
   known: string[];
@@ -43,6 +44,15 @@ export class SavingSessionsPoller extends AccountPoller {
     try {
       sessions = await client.getSavingSessions(creds.accountNumber);
     } catch (err) {
+      // A budget skip is an expected, freshness-preserving skip — record the
+      // attempt and clear any prior error (it is not currently failing).
+      if (isBudgetError(err)) {
+        const previous = this.diagnostics()[creds.accountNumber];
+        this.updateDiagnostics(creds.accountNumber, {
+          ...previous, lastAttempt: attemptedAt, lastError: undefined,
+        });
+        return;
+      }
       const message = this.errorMessage(err, creds.apiKey);
       const previous = this.diagnostics()[creds.accountNumber];
       if (previous?.lastError !== message) {
