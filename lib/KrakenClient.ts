@@ -86,7 +86,7 @@ export class KrakenClient {
 
   private tokenExpiry = 0;
 
-  private octoplusSessions?: { accountNumber: string; request: Promise<SavingSession[]> };
+  private octoplusSessions?: { accountNumber: string; request: Promise<SavingSession[]>; ts: number };
 
   private readonly accountKey: string;
 
@@ -509,11 +509,20 @@ export class KrakenClient {
     return sessions.filter((session) => session.eventType !== 'TURN_UP');
   }
 
-  /** Fetch and cache the shared Power Down/Power Up event response. */
+  /** Fetch and cache the shared Power Down/Power Up event response. Cached for a
+   *  short TTL (< the 15-min poll cadence) so the two getters share ONE network
+   *  call per cycle, while newly-announced Saving Sessions / Power-ups still
+   *  appear on the next poll. A rejected fetch is never cached. */
   private async getOctoplusSessions(accountNumber: string): Promise<SavingSession[]> {
-    if (this.octoplusSessions?.accountNumber === accountNumber) return this.octoplusSessions.request;
+    const cached = this.octoplusSessions;
+    if (cached && cached.accountNumber === accountNumber && Date.now() - cached.ts < 10 * 60_000) {
+      return cached.request;
+    }
     const request = this.fetchOctoplusSessions(accountNumber);
-    this.octoplusSessions = { accountNumber, request };
+    this.octoplusSessions = { accountNumber, request, ts: Date.now() };
+    request.catch(() => {
+      if (this.octoplusSessions?.request === request) this.octoplusSessions = undefined;
+    });
     return request;
   }
 

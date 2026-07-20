@@ -36,10 +36,13 @@ export class DispatchPoller extends AccountPoller {
 
   private recentCompleted = new Map<string, DispatchFinalised[]>();
 
-  /** Whether a smart-charge dispatch is currently active on any account. */
+  /** Whether a smart-charge dispatch is currently active on any account. Recomputed
+   *  against the clock (via getAccountView) so a window retained across a FAILED poll
+   *  is never reported active after it has actually ended, and so this condition, the
+   *  `octopus_dispatching` capability, and the settings diagnostics always agree. */
   isActive(): boolean {
-    for (const state of this.states.values()) {
-      if (state.anyActive) return true;
+    for (const accountNumber of this.states.keys()) {
+      if (this.getAccountView(accountNumber).activeNow) return true;
     }
     return false;
   }
@@ -203,9 +206,13 @@ export class DispatchPoller extends AccountPoller {
   private writeDiagnostics(): void {
     let activeAccounts = 0;
     let plannedWindows = 0;
-    for (const state of this.states.values()) {
-      if (state.anyActive) activeAccounts += 1;
-      plannedWindows += state.windows.filter((w) => w.state === 'planned' || w.state === 'active').length;
+    for (const accountNumber of this.states.keys()) {
+      // Recompute "active now" against the clock (same basis as the capability and
+      // the dispatch_active condition) rather than the poll-time anyActive flag.
+      if (this.getAccountView(accountNumber).activeNow) activeAccounts += 1;
+      const state = this.states.get(accountNumber);
+      plannedWindows += (state?.windows ?? [])
+        .filter((w) => w.state === 'planned' || w.state === 'active').length;
     }
     const diagnostics = {
       accounts: this.states.size,

@@ -76,6 +76,39 @@ and we fail closed with the advisory. Do NOT declare the incident fixed until Da
 confirms on the Test build. The drafted community reply to Darren is in
 `docs/handover/darren-iog-reply.md`.
 
+## Post-v1.0.18 roadmap (Sprints 50–58) + S50 delivered
+
+A tri-model (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) read-only evaluation of the whole app
+plus fresh Octopus research produced a 9-sprint roadmap (S50–S58) — now recorded in
+`ROADMAP.md` ("Sprints 50–58"), with full per-bug evidence and the "do NOT do" list in
+the session `plan.md §15`.
+
+**Sprint 50 — Stability bug-bash: DELIVERED (unreleased), branch `fix/s50-stability-bugbash`.**
+Three verified P0/P1 stability bugs fixed, all ID/manifest/version-neutral:
+- **A. Octoplus cache freeze** — `KrakenClient.getOctoplusSessions` memoised the fetch
+  promise per-account with NO TTL on a long-lived client, so the 15-min Saving Sessions /
+  Free Electricity poller returned the first cycle's data forever (and could cache a rejected
+  promise). Now a 10-min TTL + clear-on-reject; the two Octoplus getters still share one
+  fetch per cycle.
+- **B. Settings dispatch status blank** — settings read the nonexistent per-account
+  `dispatch_diagnostics_v1`; the poller writes the `v2` aggregate `{accounts, activeAccounts,
+  plannedWindows, errors, lastAttempt}`. Settings now render that aggregate (safe DOM APIs).
+- **C. Two dispatch truth models could disagree** — the `octopus_dispatching` capability used
+  the legacy account-scoped `getCachedPlannedDispatches` (extra F0 budget; could stay `true`
+  after a failed poll) while the `dispatch_active` condition used the reconciled `DispatchPoller`.
+  The capability now reads the reconciled, clock-accurate `app.getDispatchView(account).activeNow`.
+  Review-driven follow-up: `DispatchPoller.isActive()` and the v2 `activeAccounts` count now also
+  recompute active-now against the clock (via `getAccountView`) so capability + condition + settings
+  always agree; the now-orphaned per-device `dispatches` integration diagnostic is pruned on flush.
+
+Cache-TTL audit: all `app.ts` caches already carry `ts`+TTL+inflight guards; octoplus was the
+only gap. Dual-model review (GPT-5.5 + GPT-5.6 Sol) confirmed A/B/C correct; both P2 findings
+fixed. 358 tests pass; lint + build + Homey publish-validate green.
+
+**Deferred to S51** (same credential/budget area): account-wide repair credential propagation;
+F0 core-cap / token single-flight + startup jitter; the CI Node-runtime SHA re-pin (its own
+maintenance PR). **IOG v1.0.18 field-confirmation remains the external gate** (awaiting Darren).
+
 ## Active investigation — import current-price gap (`1.0.17` Test candidate)
 
 - A user (Darren) on community topic 156860 reported an import electricity meter

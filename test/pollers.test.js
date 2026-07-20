@@ -215,3 +215,38 @@ test('a failed first poll does not later fabricate dispatch_started (Sprint 44)'
   const started = app.fired.filter((e) => e.id === 'dispatch_started');
   assert.equal(started.length, 0, 'no started edge from the first successful observation');
 });
+
+test('isActive, getAccountView and v2 diagnostics all recompute active against the clock (S50)', async () => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  const now = Date.now();
+  // A window active now but ending in 60s.
+  let planned = [{
+    deviceId: 'dev-1',
+    start: new Date(now - 5 * 60_000).toISOString(),
+    end: new Date(now + 60_000).toISOString(),
+    kind: 'SMART',
+  }];
+  let fail = false;
+  app.getFlexPlanned = async () => { if (fail) throw new Error('boom'); return planned; };
+  app.getCachedCompletedWindows = async () => [];
+  const poller = new DispatchPoller(app);
+
+  await poller.poll();
+  assert.equal(poller.isActive(), true, 'active window → isActive true');
+  assert.equal(poller.getAccountView('A-ONE').activeNow, true);
+  assert.equal(app.homey.settings.get('dispatch_diagnostics_v2').activeAccounts, 1);
+
+  // The poll now FAILS (state is retained, anyActive stays true), and time advances
+  // past the window end. All three consumers must agree the window is no longer active.
+  fail = true;
+  const realNow = Date.now;
+  Date.now = () => realNow() + 5 * 60_000;
+  try {
+    await poller.poll();
+    assert.equal(poller.isActive(), false, 'a window that has ended is not active even after a failed poll');
+    assert.equal(poller.getAccountView('A-ONE').activeNow, false, 'capability view agrees');
+    assert.equal(app.homey.settings.get('dispatch_diagnostics_v2').activeAccounts, 0, 'settings agrees');
+  } finally {
+    Date.now = realNow;
+  }
+});

@@ -2,7 +2,6 @@
 
 import { Rate, regionFromTariff } from '../../lib/rates';
 import { OctopusMeterDevice } from '../../lib/OctopusMeterDevice';
-import type { Dispatch } from '../../lib/KrakenClient';
 import type { Reading } from '../../lib/freshness';
 import {
   CarbonClient, CarbonPoint, carbonLevelId, isGreenestNow, regionIdFromGsp,
@@ -95,31 +94,19 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     this.previousNight = night;
   }
 
-  /** Reflect whether an Intelligent Octopus Go smart-charge dispatch is active now. */
+  /** Reflect whether an Intelligent Octopus Go smart-charge dispatch is active now.
+   *  Uses the reconciled, clock-accurate dispatch truth model (DispatchPoller) so the
+   *  `octopus_dispatching` capability agrees with the `dispatch_active` condition and
+   *  the widget, spends no extra legacy Kraken call, and never retains `true` after a
+   *  failed poll (the account view re-verifies windows against the clock). */
   private async refreshDispatching(): Promise<void> {
     if (!this.hasCapability('octopus_dispatching')) return;
-    const apiKey = this.getStoreValue('apiKey');
-    const accountNumber = this.getStoreValue('accountNumber');
-    if (!apiKey || !accountNumber) return;
+    const { accountNumber } = this.store();
+    if (!accountNumber) return;
     const app = this.homey.app as typeof this.homey.app & {
-      getCachedPlannedDispatches?(key: string, account: string): Promise<Dispatch[]>;
+      getDispatchView?(account: string): { activeNow?: boolean } | null;
     };
-    let dispatches: Dispatch[];
-    try {
-      dispatches = app.getCachedPlannedDispatches
-        ? await app.getCachedPlannedDispatches(apiKey, accountNumber)
-        : await this.kraken.getPlannedDispatches(accountNumber);
-      this.recordIntegrationDiagnostic('dispatches');
-    } catch (err) {
-      this.recordIntegrationDiagnostic('dispatches', err);
-      throw err;
-    }
-    const now = Date.now();
-    const active = dispatches.some((d) => {
-      const start = new Date(d.start).getTime();
-      const end = new Date(d.end).getTime();
-      return now >= start && now < end;
-    });
+    const active = Boolean(app.getDispatchView?.(accountNumber)?.activeNow);
     this.dispatching = active;
     await this.setCapabilityValue('octopus_dispatching', active).catch(this.error);
   }

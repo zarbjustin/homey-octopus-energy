@@ -106,3 +106,16 @@ test('settings billing summary is built with safe DOM APIs, not innerHTML', () =
   assert.match(src, /createTextNode|textContent/, 'billing rows use textContent/DOM nodes');
   assert.match(src, /<h2>Intelligent dispatch status<\/h2>/, 'dispatch status list has its own heading');
 });
+
+test('settings dispatch status reads the v2 aggregate the poller actually writes', () => {
+  const src = fs.readFileSync(path.join(root, 'settings', 'index.html'), 'utf8');
+  const poller = fs.readFileSync(path.join(root, 'lib', 'DispatchPoller.ts'), 'utf8');
+  // The poller writes the v2 aggregate; the settings page must read the same key.
+  assert.match(poller, /dispatch_diagnostics_v2/, 'poller persists the v2 aggregate');
+  assert.match(src, /dispatch_diagnostics_v2/, 'settings reads the v2 aggregate the poller writes');
+  assert.doesNotMatch(src, /dispatch_diagnostics_v1/, 'the stale v1 per-account key is gone');
+  // Renders the aggregate fields (accounts / activeAccounts / plannedWindows / lastAttempt).
+  assert.match(src, /activeAccounts/, 'renders the active-account count');
+  assert.match(src, /plannedWindows/, 'renders the planned-window count');
+  assert.match(src, /lastAttempt/, 'renders the last-checked timestamp');
+});

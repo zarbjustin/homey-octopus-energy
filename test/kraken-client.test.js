@@ -585,3 +585,45 @@ test('active IOG tariff fails closed for a malformed EXACT agreement (no fallbac
   const tariff = await new KrakenClient('api-key').getActiveIogTariff('A-ONE', 'E-1R-IOG-EXACT-26-01-01-C', 'IOG-EXACT-26-01-01');
   assert.equal(tariff, null);
 });
+
+test('Octoplus event cache dedupes within a cycle, refetches after its TTL, and never caches a rejection', async (t) => {
+  let octoplusFetches = 0;
+  let failNext = false;
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    octoplusFetches += 1;
+    if (failNext) return jsonResponse({ errors: [{ message: 'temporary octoplus error' }] });
+    return jsonResponse({
+      data: {
+        savingSessions: {
+          events: [],
+          account: { signedUpMeterPoint: { regionId: 'A' }, joinedEvents: [] },
+        },
+      },
+    });
+  });
+
+  const client = new KrakenClient('api-key');
+
+  // Within one cycle, the two Octoplus getters share a SINGLE network fetch.
+  await client.getSavingSessions('A-ONE');
+  await client.getFreeElectricitySessions('A-ONE');
+  assert.equal(octoplusFetches, 1, 'within a cycle both getters share ONE octoplus fetch');
+
+  // Once past the 10-minute TTL, a new poll refetches (no permanent freeze).
+  client.octoplusSessions.ts = Date.now() - 11 * 60_000;
+  await client.getSavingSessions('A-ONE');
+  assert.equal(octoplusFetches, 2, 'a stale cache refetches after the TTL');
+
+  // A rejected fetch must never be cached (else the poller freezes on the error).
+  client.octoplusSessions.ts = Date.now() - 11 * 60_000;
+  failNext = true;
+  await assert.rejects(client.getSavingSessions('A-ONE'), /temporary octoplus error/);
+  assert.equal(octoplusFetches, 3);
+  failNext = false;
+  await client.getSavingSessions('A-ONE');
+  assert.equal(octoplusFetches, 4, 'the rejected fetch was not cached; the retry hits the network again');
+});
