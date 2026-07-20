@@ -27,8 +27,8 @@ Last updated: 20 July 2026
 
 ## Next-model entry point
 
-- Sprints 41-46 and 44 are complete on `main`/pending PRs; the next feature work is
-  Sprint 47 (planner + tariff analytics), then Sprint 49 (Trust & Polish).
+- Sprints 41-47 are complete on `main`/pending PRs; the next feature work is
+  Sprint 49 (Trust & Polish, replacing dropped Sprint 48 live-gas).
 - Read `docs/handover/future-sprints.md` before selecting or implementing a
   future sprint. It contains the dependency order, acceptance gates, current
   release boundaries, and a copyable prompt for another AI model.
@@ -135,6 +135,33 @@ in narrowing this down.
 - Sprint 43 owns device-aware SMART/BOOST and settlement semantics; Sprint 44 owns
   effective-price Flows. Sprint 41 intentionally does not infer discounts from
   ambiguous account-level dispatch windows.
+
+## Sprint 47 planner and tariff analytics (DELIVERED, unreleased)
+
+On branch `feat/sprint-47-planner-analytics` (PR pending). Two new PURE, fully
+unit-tested modules: `lib/planner/tie.ts` (TieStrategy earliest/latest/random with
+a seeded deterministic RNG — FNV-1a + mulberry32; tie-aware contiguous
+`selectCheapestWindow`/`selectExpensiveWindow` and non-contiguous `selectExtremeSlots`;
+`planEnergy` returning a complete plan or null, never partial; `energyWeightedAverage`)
+and `lib/analytics/priceAnalytics.ts` (`coveringRows` exact-tiling check;
+`analysePriceWindow` duration-weighted average + median/quartiles + negative/spike
+counts + relative off-peak share; `classifyBand` negative→spike→low→high→typical by
+duration-weighted midrank; `spikeThreshold` = Q3 + max(1.5·IQR, 5p);
+`estimatePlanSavings` vs a uniform-window baseline with pct null when baseline≤0;
+`lowPriceEnergyShare`). Negatives are never clamped anywhere. Thin device adapters
+(`findExtremeSlotAdvanced`, `planAdvanced`, `analysePriceDay`, `currentPriceBand`,
+privacy-safe `plannerSeed` that hashes — never embeds — the device id). SIX new
+additive, opt-in Flow cards (electricity `find_cheapest_slot_advanced`,
+`plan_charge_advanced`, `analyse_price_day`, `relative_price_band_is`; export
+`find_peak_export_slot_advanced`, `plan_export_advanced`); every existing card/ID/token
+byte-unchanged; every output an explicitly-labelled estimate; nothing written to a
+capability. Relative metrics declare window/population/boundary/tie-rule and fail closed
+on an incomplete day (per docs/research/kraken-contracts.md). Driver compose ↔ app.json
+kept byte-consistent and guarded by the new `test/driver-manifest-parity.test.js`. NO new
+capabilities, NO version bump. Tri-model design (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) + dual
+review; 305 tests pass, lint+build clean. Deferred (documented): a plan-token round-trip
+condition and Economy-7 schedule materialisation. Next per the spec is Sprint 49 (Trust &
+Polish).
 
 ## Sprint 44 dispatch and effective-price Flows (DELIVERED, unreleased)
 

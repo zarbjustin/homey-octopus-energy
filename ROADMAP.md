@@ -46,7 +46,7 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
 | 3 | 45 Billing-period summary | P1 | **Pulled earlier** — highest mainstream value, REST-authoritative, low ambiguity. |
 | 4 | 46 Live-energy presentation + widgets | P1 | Reuses S42 source; applies F1 badges. |
 | 5 | 44 Dispatch/effective-price Flows | P1 | **DELIVERED (unreleased)** — opt-in estimated effective rate (== household base; EV rates separate) + `dispatch_cancelled`/`dispatch_changed` triggers; no capabilities, no version bump. |
-| 6 | 47 Planner + tariff analytics | P2 | Unchanged; opt-in power-user. |
+| 6 | 47 Planner + tariff analytics | P2 | **DELIVERED (unreleased)** — pure tie/analytics engine + 6 opt-in advanced Flow cards; declared relative-metric windows; no capabilities/version bump. |
 | 7 | 49 Trust & Polish | P2 | **New**, replaces dropped S48; applies F1 everywhere + docs/maintenance. |
 | — | 48 Estimated live gas | — | **Dropped** as shippable; optional research spike only. |
 
@@ -129,10 +129,22 @@ capability and Flow IDs unless a migration is explicitly documented.
     design (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) + dual review (consensus P1 fix: stale window
     never shown active). No new capabilities/IDs, no version bump. Per-widget badge rollout
     to price/agile/carbon/export/timeline continues on the same plumbing.
-47. **P2 - Planner and tariff analytics** - add earliest/latest/random tie strategies,
-    richer import/export plan tokens, relative daily price bands, negative-price and spike
-    handling, weighted averages, off-peak share, and estimated savings. Keep tariff-specific
-    comparisons and visualisations here rather than expanding the Sprint 41 recovery path.
+47. **DELIVERED (unreleased, PR pending) - P2 - Planner and tariff analytics** - new pure
+    `lib/planner/tie.ts` (earliest/latest/random tie strategies with a seeded, deterministic
+    RNG; tie-aware contiguous/non-contiguous selection; complete-or-null energy plans) and
+    `lib/analytics/priceAnalytics.ts` (duration-weighted relative price bands over a declared,
+    exactly-covered local-day window; median/quartiles; negative-price and spike handling that
+    never clamps; relative off-peak share; estimated savings vs a uniform-window baseline).
+    Exposed as SIX new additive, opt-in Flow cards (electricity: `find_cheapest_slot_advanced`,
+    `plan_charge_advanced`, `analyse_price_day`, `relative_price_band_is`; export:
+    `find_peak_export_slot_advanced`, `plan_export_advanced`) - every existing card/ID byte-
+    unchanged, every output an explicitly-labelled estimate, nothing written to a capability.
+    Relative metrics declare their window/population/boundary/tie-rule and fail closed
+    (throw/false) on an incomplete day rather than extrapolating. Driver compose <-> `app.json`
+    kept byte-consistent, guarded by new `test/driver-manifest-parity.test.js`. NO new
+    capabilities, NO version bump. Tri-model design (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) + dual
+    review. Deferred: a plan-token round-trip condition and Economy-7 schedule materialisation
+    (speculative/higher-risk). Not field-verified or released.
 48. **P3 - Estimated live-gas pilot** - investigate an opt-in GraphQL estimate, label it
     clearly as estimated or stale, and reconcile it against official REST consumption
     before considering general release.
