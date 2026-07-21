@@ -1,48 +1,62 @@
 # Project Handover
 
-Last updated: 20 July 2026
+Last updated: 21 July 2026
 
 ## Current state
 
 - Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current source version: `1.0.19`; release tag: `v1.0.19` (GitHub release published). Homey
-  **Build ID 19 / version 1.0.19** uploaded to the developer account on 20 July 2026 (S50 stability
-  bug-bash + S51 token single-flight). **Manual step remaining:** promote Build 19 to Test/Live in the
-  Homey Developer dashboard (https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/19).
+- Current source version: `1.0.20`; release tag: `v1.0.20` (GitHub release published). Homey
+  **Build ID 20 / version 1.0.20** uploaded to the developer account on 21 July 2026 (IOG
+  tariff-union fix + decisive price-gap census — see the two IOG sections below). **Manual step
+  remaining:** promote Build 20 to Test/Live in the Homey Developer dashboard
+  (https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/20), then share the
+  Test link with Darren (community 156860) and ask for one fresh diagnostic log.
+- `main` HEAD is `32ae53c`. The v1.0.20 ship is commits `e9a37b2` (fix) + `04c1d68`
+  (release bump) + `d552420` (brace-expansion audit fix) + `5321eba` (handover) +
+  `32ae53c` (Darren reply draft). All pushed directly to `main` (owner bypass of the
+  PR rule); CI, Validate, CodeQL, Create GitHub Release, and Publish Homey App all green.
+- Previous: Build 19 / version `1.0.19` uploaded 20 July 2026 (S50 + S51 part 1);
+  it is superseded by Build 20.
 - Homey App Store: Build 13 / version `1.0.13` remains live. Build 17 / version
   `1.0.17` is in Test and under certification review.
 - Build 16 / version `1.0.16` was retracted from certification on 20 July 2026 and
   is now marked superseded by Build 17. Builds 14 and 15 were retracted earlier.
 - Test channel: https://homey.app/a/uk.co.zarb.octopusenergy/test/
-- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/17
+- Build status: https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/20
 - Community support topic: https://community.homey.app/t/156860
-- `main` contains the `1.0.17` release (tag `v1.0.17`, merge `d7b1bac`).
-- Version `1.0.17` was built, validated, packed, and installed successfully on
-  `Justin's Homey Pro` on 20 July 2026.
-- Sprints 42 and 43 were merged through PRs #20 and #21. The `1.0.17` release
-  passed 167 tests, lint, dependency audit, `git diff --check`, protected CI and
-  CodeQL. Homey publish validation retains only the two documented cumulative
-  import/export direction warnings.
+- CI note: the `Publish Homey App` and `CI` workflows run `npm audit` as a hard gate.
+  A high-severity `brace-expansion` advisory (GHSA-3jxr-9vmj-r5cp) blocked the first
+  v1.0.20 push and was cleared with a lockfile-only `npm audit fix` (commit `d552420`).
+  Keep the audit gate green before any release push.
 - GitHub has no open pull requests and the remote contains only `main`. Any local
   remote-tracking references for earlier `release/*` or `agent/*` branches are
   stale, fully merged history and can be removed with `git fetch --prune`.
 
 ## Next-model entry point
 
-- Sprints 42-47 are merged to `main` under version 1.0.17 (S42 #20, S43 #21,
-  S45 #24, S46 #25, S44 #26, S47 #27); Sprint 49 (Trust & Polish) is the
-  current/last planned sprint of this arc.
-- Read `docs/handover/future-sprints.md` before selecting or implementing a
-  future sprint. It contains the dependency order, acceptance gates, current
-  release boundaries, and a copyable prompt for another AI model.
-- Sprint 41's contract record is `docs/research/kraken-contracts.md`. The roadmap
-  does not require David Piper's code; implementation remains original and based
-  on public Octopus contracts. Any later source reuse is a separate GPL and
-  attribution decision.
-- Work on one sprint at a time using a short-lived branch and pull request. Do
-  not combine an unrelated incident fix, release bump, or App Store action with
-  a feature sprint.
+- **Immediate:** promote Build 20 to Test, post the drafted reply
+  (`docs/handover/darren-iog-reply-v1.0.20.md`) to community 156860, and wait for
+  Darren's fresh log. The new `iogResolve` census (`typenameHistogram`,
+  `rawAgreementCount`, `serverActiveCount`, `rawActiveCount`, `invalidDateCount`)
+  will say exactly which tariff typename his account uses and whether it is a
+  client, `active:true`, or genuinely-upstream issue — then close the
+  field-verification gate and update the reply/handover accordingly.
+- After the IOG gate closes, resume the planned arc. Read
+  `docs/handover/future-sprints.md` and `docs/handover/sprints-50-58-spec.md` for
+  the dependency order, acceptance gates, and a copyable prompt for another model.
+- Sprint 41's contract record is `docs/research/kraken-contracts.md` (now updated:
+  the electricity-agreement `TariffType` is a 7-member interface — see the IOG
+  follow-up section). Implementation remains original, based on public Octopus
+  contracts.
+- Release process (verified this session): bump `version` in `package.json`,
+  `package-lock.json` (root + `packages[""]`) and `.homeycompose/app.json`, add a
+  `.homeychangelog.json` entry, run `npx homey app build` to regenerate `app.json`,
+  commit, push to `main` (auto-creates the tag + GitHub release via
+  `homey-app-release.yml`), then `gh workflow run homey-app-publish.yml --ref main`
+  to upload the App Store build. Keep `npm audit` green.
+- Work on one sprint/incident at a time using a short-lived branch. Do not combine
+  an unrelated incident fix, release bump, or App Store action with a feature sprint.
 
 ## IOG price-gap root cause FOUND + fixed — RELEASED as v1.0.18 (PR #29)
 

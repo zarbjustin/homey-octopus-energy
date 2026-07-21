@@ -68,7 +68,7 @@ Octopus account exposes every field.
 | Meter identity and agreements | Authenticated REST account endpoint | Discovery/enrichment only | REST remains authoritative for pairing and repair. |
 | Historical import/export consumption | REST consumption endpoints | Telemetry is not a replacement | Billing and cumulative energy continue to use REST. |
 | Published tariff rate history | REST product tariff endpoints | Narrow current-rate recovery only | Never replace valid REST rows with GraphQL. |
-| IOG household base rate | REST when rows exist | Matching active `DayNightTariff` or `FourRateEvTariff` fallback | Exact tariff and product match; device/dispatch rates remain separate. |
+| IOG household base rate | REST when rows exist | Live-code adoption from any of the five household agreement typenames; day/night synthesis only from a trusted `DayNightTariff`/`FourRateEvTariff` | Adopt the live code, then defer to REST; never fabricate a schedule from single-rate/half-hourly shapes. |
 | Home Mini demand | GraphQL telemetry | Operational live value | Latest timestamp wins; null/stale remains unavailable. |
 | Planned dispatch | GraphQL | Intent, mutable | Not treated as settlement or proof of a cheap rate. |
 | Completed dispatch | GraphQL | Completed control window | Not sufficient alone for historical billing. |
@@ -94,17 +94,40 @@ non-finite demand yields `null`.
 
 Sprint 42 owns cadence, shared account polling, freshness and backoff.
 
-### Active IOG tariff
+### Active IOG tariff (v1.0.20 — all household typenames)
 
-The IOG recovery query requests active electricity agreements and the
-`DayNightTariff` and `FourRateEvTariff` fragments. A result is accepted only when:
+The IOG recovery query requests active electricity agreements with fragments for
+**all five** household import typenames (`StandardTariff`, `DayNightTariff`,
+`ThreeRateTariff`, `FourRateEvTariff`, `HalfHourlyTariff`), plus a second
+unfiltered `all: electricityAgreements { validFrom validTo tariff { __typename } }`
+alias used only for the identifier-free census (the `active` argument is a nullable
+Boolean, so the unfiltered call is schema-valid). Verified against live
+introspection of `https://api.octopus.energy/v1/graphql/`: `TariffType` is a
+**7-member interface** (the five above plus `PrepayTariff` and `GasTariffType`).
 
-1. the union is one of those two known types;
-2. its full tariff and product codes both exactly match REST discovery,
-   case-insensitively;
-3. the agreement is valid at the current instant;
-4. VAT-inclusive and pre-VAT household day/night rates are finite; and
-5. a four-rate result also has all four finite EV-device rate fields.
+A resolved tariff carries a `scheduleTrusted` flag:
+
+- **Trusted** (`DayNightTariff`, `FourRateEvTariff`): exposes an explicit two-band
+  household schedule that may be synthesised into day/night rates. Accepted only
+  when the tariff/product codes match (exact) or a single unambiguous active
+  IOG-family agreement is found (fallback), the agreement is valid now, and the
+  VAT-inclusive + pre-VAT day/night (and, for four-rate, EV) fields are finite.
+- **Untrusted** (`StandardTariff`, `ThreeRateTariff`, `HalfHourlyTariff`): resolved
+  ONLY to obtain the live tariff/product code for adoption. IOG import is commonly
+  a single-register `StandardTariff` (one `unitRate`); its cheap window is delivered
+  via dispatch, not a second agreement rate. We never fabricate a day/night split
+  from a single rate, three bands, or arbitrary half-hourly rows — after adopting
+  the live code we defer to the authoritative REST rows, which recover on the
+  up-to-date code.
+
+Root cause of the v1.0.18 miss (community 156860, log `7c389d7e`): the query only
+requested `DayNightTariff` + `FourRateEvTariff` fragments, so an agreement of any
+other typename arrived with a `__typename` but no rate fields, was filtered out,
+and was counted as `activeAgreementCount: 0` — mis-read as an upstream/account-side
+gap. The census (`rawAgreementCount`, `serverActiveCount`, `typenameHistogram`,
+`rawActiveCount`, `invalidDateCount`, all identifier-free) now distinguishes: no
+agreement, an `active:true` quirk, an unhandled/foreign typename, and a date-parse
+problem.
 
 The fallback is restricted to electricity import products in the `IOG` family
 or Intelligent Go products that are not Intelligent Flux. It produces the
@@ -135,7 +158,7 @@ correct default because product schedules and formulas can change.
 | Agile / `HalfHourlyTariff` | REST half-hour rows | Existing negative-price and planning support applies. |
 | Go and Economy 7 / day-night | REST time slots or register endpoints | Economy 7 local switch settings remain user-configurable. |
 | Cosy, Aira Zero, Flux, Intelligent Flux, Snug / multi-rate | REST dated rows | Refreshes align to half-hour boundaries; no hard-coded schedule is needed. |
-| IOG / `DayNightTariff` and `FourRateEvTariff` | REST first, exact-match GraphQL household-base fallback | Dispatch settlement stays in Sprints 43-44. |
+| IOG / any of the five household typenames | REST first; GraphQL resolves the live code for adoption (all typenames) and synthesises day/night only from a trusted `DayNightTariff`/`FourRateEvTariff` | Untrusted single-rate/half-hourly shapes adopt the code and defer to REST. Dispatch settlement stays in Sprints 43-44. |
 | Import/export tariffs | Separate REST meter agreements and rate rows | Preserve separate device and cost/value semantics. |
 | Power Pack, Charge Pack, Intelligent Drive Pack, Saving/Free Electricity sessions | Add-on, credit or type-of-use settlement | Do not reinterpret these as the household unit rate; model them separately. |
 | Zero Bills and allowance products | Allowance/threshold billing | Requires a future billing-policy model, not a synthetic p/kWh schedule. |
