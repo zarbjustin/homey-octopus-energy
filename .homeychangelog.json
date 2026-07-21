@@ -76,5 +76,8 @@
   },
   "1.0.25": {
     "en": "Reliability & security hardening: the cumulative energy-meter total is now protected against a rare double-count when data refreshes overlap; the Octopus connection token is renewed based on its own expiry (fewer needless reconnects); and all account requests are pinned to Octopus's servers. No changes to how the app looks or the tiles you see."
+  },
+  "1.0.26": {
+    "en": "Intelligent Octopus Go: if your account only publishes the day rate to the API, you can now set your off-peak (night) rate in the device settings to restore correct day/night pricing (fixes prices, off-peak cost and the cheap-charge window all showing the day rate). Also more robust smart-charge dispatch reading, so planned charge slots keep working if a linked device's status is briefly unavailable."
   }
 }
