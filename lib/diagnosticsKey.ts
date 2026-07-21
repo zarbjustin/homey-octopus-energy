@@ -4,14 +4,15 @@ import { createHash, randomBytes } from 'crypto';
 
 /**
  * Privacy: persisted diagnostics/state maps must not be KEYED by raw identifiers
- * (account number, or a device id built from MPAN/MPRN + serial). A settings/backup
- * export would then leak those identifiers directly. Instead we key by a stable,
- * per-install salted hash: the blob contains no plaintext identifier, and
- * correlating a key back to an identifier requires both the install salt and a
- * guessed identifier.
+ * (account number, or a device id built from MPAN/MPRN + serial). Keying by a
+ * per-install salted hash keeps casual/plaintext identifiers out of the persisted
+ * blob and the settings UI. NOTE: the salt is stored in the same settings domain,
+ * so a full settings/backup export contains both salt and hashes and remains open
+ * to offline dictionary guessing of identifiers — this is pseudonymisation to stop
+ * casual exposure, not export-proof confidentiality.
  *
  * The salt is a random per-install value stored once in settings; it is stable
- * across restarts so keys are consistent, and never leaves the device.
+ * across restarts so keys are consistent.
  */
 
 interface SettingsHost {
@@ -44,8 +45,10 @@ export function opaqueKeyMigrating(
   homey: SettingsHost, all: Record<string, unknown>, identifier: string,
 ): string {
   const key = opaqueKey(homey, identifier);
-  if (all[key] === undefined && Object.prototype.hasOwnProperty.call(all, identifier)) {
-    all[key] = all[identifier];
+  if (Object.prototype.hasOwnProperty.call(all, identifier)) {
+    // Only copy the legacy value if the opaque entry doesn't already exist, but
+    // ALWAYS remove the raw-keyed entry so a plaintext identifier can never linger.
+    if (all[key] === undefined) all[key] = all[identifier];
     delete all[identifier];
   }
   return key;

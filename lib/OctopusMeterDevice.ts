@@ -505,6 +505,19 @@ export class OctopusMeterDevice extends Homey.Device {
     // no-op by default
   }
 
+  /**
+   * Quietly adopt a rotated API key on a SIBLING meter after another meter on the
+   * same account was repaired: update the stored key and rebuild the clients so the
+   * next scheduled refresh uses it — WITHOUT an immediate refresh (avoids a
+   * per-sibling budget burst) and without resetting the shared account budget.
+   */
+  async reloadCredentials(apiKey: string): Promise<void> {
+    if (!apiKey || this.store().apiKey === apiKey) return;
+    await this.setStoreValue('apiKey', apiKey).catch((err) => this.error('Could not store rotated key:', err));
+    this.buildClients();
+    await this.onCredentialsApplied().catch((err) => this.error(err));
+  }
+
   getCurrentRate(at: Date = new Date()): Rate | null {
     return rateAt(this.rates, at);
   }

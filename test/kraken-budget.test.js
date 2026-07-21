@@ -79,12 +79,12 @@ test('backoff escalates on repeated penalties and resets after a clean success',
   assert.equal(bucket.gated, false);
 });
 
-test('core debt is bounded so it cannot starve live/best indefinitely', () => {
+test('core debt is bounded so a burst cannot borrow without limit', () => {
   const bucket = new TokenBucket(() => 0);
   for (let i = 0; i < 100; i += 1) bucket.acquire('core');
-  // Bounded to the reserved core-debt floor (tighter than -capacity) so live/best
-  // recover within ~2 tokens of refill after a core burst, not ~6.
-  assert.equal(bucket.snapshot().tokens, -2, 'debt is floored at the core-debt floor');
+  // Bounded to -CAPACITY: a burst cannot drive unlimited debt (core is never
+  // blocked outside a 429 gate, but its borrowing is floored).
+  assert.equal(bucket.snapshot().tokens, -6, 'debt is floored at -capacity');
 });
 
 test('per-priority admission counters are recorded, identifier-free', () => {

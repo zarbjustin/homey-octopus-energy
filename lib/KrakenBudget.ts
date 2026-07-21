@@ -57,11 +57,11 @@ const CAPACITY = 6; // burst
 const REFILL_PER_SEC = 90 / 3600; // ~0.025 tokens/s => <= 90/hour sustained
 const MAX_BACKOFF_MS = 15 * 60_000;
 // Bounded core debt: core is never blocked (outside a 429 gate), but its debt to
-// the shared pool is capped so a core burst cannot starve live/best for longer
-// than one refill of this reserve. Kept small (< CAPACITY) so live/best recover
-// within ~CORE_DEBT_FLOOR/refill seconds after a core burst; sustained core rate
-// is held well under budget by request coalescing/caching, not by blocking core.
-const CORE_DEBT_FLOOR = -2;
+// the shared pool is capped at -CAPACITY so a single burst cannot borrow without
+// limit. NOTE: this bounds a BURST, not sustained core throughput — a true
+// reserved-core rate ceiling (051b) is deferred to a dedicated change; sustained
+// core pressure is instead held down by request coalescing (BL-03) and caching.
+const CORE_DEBT_FLOOR = -CAPACITY;
 
 /**
  * A refilling token bucket with an account-level backoff gate for HTTP 429.

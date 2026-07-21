@@ -169,3 +169,36 @@ test('repair propagates rotated credentials to sibling meters on the same accoun
   assert.equal(other.store.apiKey, 'KEEP', 'a device on a different account is untouched');
   assert.equal(elec.store.apiKey, 'OLD', 'the repaired device itself is excluded (already updated by repair)');
 });
+
+const { getBucket, resetBudget } = require('../.homeybuild/lib/KrakenBudget.js');
+
+test('invalidateAccountCaches does NOT reset the account Kraken budget/429 gate (S60 review fix)', () => {
+  resetBudget();
+  const app = new OctopusEnergyApp();
+  app.liveDemand = undefined;
+  const bucket = getBucket('A-BUDGET');
+  for (let i = 0; i < 6; i += 1) bucket.acquire('live'); // drain to 0
+  bucket.penalise(); // open a 429 gate
+  app.invalidateAccountCaches('A-BUDGET');
+  // Same bucket instance, still gated/drained — a key rotation must not wipe the
+  // account-scoped rate-limit state.
+  assert.strictEqual(getBucket('A-BUDGET'), bucket, 'the account bucket survives cache invalidation');
+  assert.equal(bucket.gated, true, 'an active 429 gate is preserved');
+});
+
+test('repair propagation is skipped on an account-number change (siblings not stranded)', async () => {
+  const app = new OctopusEnergyApp();
+  const s = { apiKey: 'OLD', accountNumber: 'A-ONE', serial: 'g1' };
+  const gas = {
+    getData: () => ({ id: 'gas-1' }),
+    getStoreValue: (k) => s[k],
+    setStoreValue: async (k, v) => { s[k] = v; },
+    store: s,
+  };
+  app.homey = { drivers: { getDriver: (id) => ({ getDevices: () => (id === 'gas' ? [gas] : []) }) } };
+
+  // Repair moved the electricity meter to a DIFFERENT account: do not touch siblings.
+  await app.propagateRepairedCredentials('A-ONE', 'NEW', 'A-TWO', 'elec-1');
+  assert.equal(gas.store.apiKey, 'OLD', 'a sibling is NOT re-keyed when the account number changes');
+  assert.equal(gas.store.accountNumber, 'A-ONE', 'and is NOT moved to the unvalidated new account');
+});

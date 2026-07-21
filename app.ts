@@ -9,7 +9,7 @@ import {
 import { SmartFlexDevice, DispatchView } from './lib/dispatch/types';
 import { PlannedInput, CompletedInput } from './lib/dispatch/reconcile';
 import { LiveDemandSource, LiveDemandCreds } from './lib/LiveDemandSource';
-import { resetBudget, budgetDiagnostics } from './lib/KrakenBudget';
+import { budgetDiagnostics } from './lib/KrakenBudget';
 import { Reading } from './lib/freshness';
 import { crossedAbove, crossedBelow } from './lib/rates';
 
@@ -98,22 +98,33 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     for (const key of [...this.iogTariffInflight.keys()]) {
       if (key.startsWith(iogPrefix)) this.iogTariffInflight.delete(key);
     }
-    resetBudget(accountNumber);
+    // NOTE: deliberately does NOT resetBudget(accountNumber). The Kraken rate
+    // limit is account-scoped and independent of which API key is used, so a
+    // credential rotation / cache clear must not wipe the account's token bucket
+    // or lift an active 429 back-off gate (that would let a repair burst blow the
+    // shared limit precisely during recovery).
     this.liveDemand?.invalidate(accountNumber);
   }
 
   /**
-   * Repairing one meter rotates the API key (and possibly the account) for the
-   * WHOLE account, but only the repaired device's store is updated by the repair
-   * handler. Sibling meters on the same account keep the stale key and then thrash
-   * the shared Kraken client (each sibling refresh recreates it under its own old
-   * key, invalidating the repaired device's caches every cycle) and fail REST auth.
-   * Propagate the new credentials to every sibling on the prior account so they all
-   * converge on one canonical key/client. One-off on repair.
+   * Repairing one meter rotates the API key for the WHOLE account, but only the
+   * repaired device's store is updated by the repair handler. Sibling meters on
+   * the same account keep the stale key and then thrash the shared Kraken client
+   * (each sibling refresh recreates it under its own old key) and fail REST auth.
+   * Propagate the new key to every sibling on the same account — QUIETLY: update
+   * each sibling's stored key and rebuild its clients, WITHOUT an immediate
+   * per-sibling refresh (that would burst the shared budget) and WITHOUT resetting
+   * the account budget/429 gate. Siblings pick up the new key on their next
+   * (jittered) scheduled refresh.
+   *
+   * Only a same-account key rotation is auto-propagated. An account NUMBER change
+   * is NOT propagated: siblings belong to the old account and their meters may not
+   * exist on the new account, so they must be repaired individually.
    */
   async propagateRepairedCredentials(
     priorAccountNumber: string, apiKey: string, accountNumber: string, exceptDeviceId: string,
   ): Promise<void> {
+    if (accountNumber !== priorAccountNumber) return; // key rotation only
     for (const driverId of ['electricity', 'gas', 'export']) {
       let driver: Homey.Driver;
       try {
@@ -124,38 +135,24 @@ module.exports = class OctopusEnergyApp extends Homey.App {
       for (const device of driver.getDevices()) {
         if (String(device.getData().id) === exceptDeviceId) continue;
         if (device.getStoreValue('accountNumber') !== priorAccountNumber) continue;
-        const sibling = device as Homey.Device & {
-          applyCredentials?(store: Record<string, unknown>): Promise<void>;
-        };
-        const current: Record<string, unknown> = {
-          apiKey: device.getStoreValue('apiKey'),
-          accountNumber: device.getStoreValue('accountNumber'),
-          mpxn: device.getStoreValue('mpxn'),
-          serial: device.getStoreValue('serial'),
-          fuel: device.getStoreValue('fuel'),
-          isExport: device.getStoreValue('isExport'),
-          productCode: device.getStoreValue('productCode'),
-          tariffCode: device.getStoreValue('tariffCode'),
-        };
-        const next = { ...current, apiKey, accountNumber };
+        if (device.getStoreValue('apiKey') === apiKey) continue; // already current
+        const sibling = device as Homey.Device & { reloadCredentials?(key: string): Promise<void> };
         try {
-          if (typeof sibling.applyCredentials === 'function') {
+          if (typeof sibling.reloadCredentials === 'function') {
             // eslint-disable-next-line no-await-in-loop
-            await sibling.applyCredentials(next);
+            await sibling.reloadCredentials(apiKey);
           } else {
-            for (const [key, value] of Object.entries(next)) {
-              // eslint-disable-next-line no-await-in-loop
-              await device.setStoreValue(key, value);
-            }
+            // eslint-disable-next-line no-await-in-loop
+            await device.setStoreValue('apiKey', apiKey);
           }
         } catch (err) {
-          this.error('Could not propagate repaired credentials to a sibling meter:', err);
+          this.error('Could not propagate the repaired API key to a sibling meter:', err);
         }
       }
     }
-    // Ensure the shared caches/budget are clean for both the prior and new account.
+    // One-time cache/client cleanup so the shared client rebuilds with the new key.
+    // Does NOT reset the account budget/429 gate (see invalidateAccountCaches).
     this.invalidateAccountCaches(priorAccountNumber);
-    if (accountNumber !== priorAccountNumber) this.invalidateAccountCaches(accountNumber);
   }
 
   // --- Live Home Mini demand (shared, account-scoped) ---------------------

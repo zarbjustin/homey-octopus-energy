@@ -7,7 +7,7 @@ const { AccountPoller } = require('../.homeybuild/lib/AccountPoller.js');
 const { DispatchPoller } = require('../.homeybuild/lib/DispatchPoller.js');
 const { SavingSessionsPoller } = require('../.homeybuild/lib/SavingSessionsPoller.js');
 const { KrakenClient } = require('../.homeybuild/lib/KrakenClient.js');
-const { opaqueKey } = require('../.homeybuild/lib/diagnosticsKey.js');
+const { opaqueKey, opaqueKeyMigrating } = require('../.homeybuild/lib/diagnosticsKey.js');
 
 function fakeApp(accounts) {
   const settings = new Map();
@@ -301,4 +301,16 @@ test('isActive, getAccountView and v2 diagnostics all recompute active against t
   } finally {
     Date.now = realNow;
   }
+});
+
+test('opaqueKeyMigrating always prunes the raw key, even when an opaque entry already exists', () => {
+  const settings = new Map();
+  const homey = { settings: { get: (k) => settings.get(k), set: (k, v) => settings.set(k, v) } };
+  const key = opaqueKey(homey, 'A-ONE');
+  // Both a legacy raw entry and a current opaque entry are present.
+  const all = { 'A-ONE': { known: ['old'] }, [key]: { known: ['current'] } };
+  const resolved = opaqueKeyMigrating(homey, all, 'A-ONE');
+  assert.equal(resolved, key);
+  assert.equal(all['A-ONE'], undefined, 'the raw identifier is always removed');
+  assert.deepEqual(all[key].known, ['current'], 'the existing opaque entry is preserved, not overwritten');
 });
