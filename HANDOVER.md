@@ -57,6 +57,11 @@ Last updated: 21 July 2026
   to upload the App Store build. Keep `npm audit` green.
 - Work on one sprint/incident at a time using a short-lived branch. Do not combine
   an unrelated incident fix, release bump, or App Store action with a feature sprint.
+- **Strategic blueprint (21 Jul 2026):** a multi-model (GPT-5.6 Sol + Opus 4.8 + GPT-5.5)
+  product & engineering review lives in `docs/blueprint/` — start at
+  `docs/blueprint/00-index.md`; `01-executive-summary.md`, `14-engineering-backlog.md`
+  (BL-01…BL-30), and `15-prioritised-roadmap.md` drive the next 6–12 months. It ingests
+  and cross-references (does not replace) `ROADMAP.md` and the S50–S58 spec.
 
 ## IOG price-gap root cause FOUND + fixed — RELEASED as v1.0.18 (PR #29)
 

@@ -1,0 +1,52 @@
+# 03 — Repository health report
+
+Scope: docs-only review of `main` on 2026-07-21. Priority scheme used across this blueprint: **P0** data loss/security/release blocker, **P1** high user or maintainer risk, **P2** important quality/UX/performance risk, **P3** opportunistic polish.
+
+## Executive score
+
+**Weighted health score: 7.2 / 10.** This is a mature, well-tested Homey SDK v3 app with strong API-failure discipline, conservative release gates, and zero runtime dependencies. The main drag is concentration of behaviour in `OctopusMeterDevice`, repeated privacy/time/logging helpers, and remaining S51/S52/S53 hardening work already acknowledged in the roadmap.
+
+## Dimension scorecard
+
+| Dimension | Weight | Score | Evidence | Main recommendation |
+|---|---:|---:|---|---|
+| Architecture | 8 | 6 | `OctopusMeterDevice` owns clients, rates, timers, health, billing, planning, and repair state in one 2,392-line class (`lib/OctopusMeterDevice.ts:161`, `lib/OctopusMeterDevice.ts:1990`, `lib/OctopusMeterDevice.ts:2180`); S52 explicitly plans decomposition (`ROADMAP.md:77`, `docs/handover/sprints-50-58-spec.md:96`). | **P1:** execute S52 with characterization tests before more features. |
+| Folder structure | 4 | 8 | Pure modules are separated for rates/planner/analytics/billing/dispatch (`docs/blueprint/_grounding.md` module map); manifest has 3 drivers and 6 widgets (`app.json:3119`, `app.json:3624`). | Keep new feature logic in pure `lib/*` services, not device subclasses. |
+| Naming | 3 | 8 | Flow/capability IDs are stable and descriptive across manifest (`app.json:53`, `app.json:1135`, `app.json:1743`); tests enforce manifest parity (`test/manifest-parity.test.js:28`, `test/driver-manifest-parity.test.js:43`). | Preserve ID stability; rename user-facing “best tariff” copy before S55. |
+| Patterns | 6 | 7 | Good single-flight cache pattern in `app.ts` maps (`app.ts:127`, `app.ts:145`, `app.ts:181`, `app.ts:257`), but repeated structural casts to `homey.app` remain (`lib/OctopusMeterDevice.ts:279`, `lib/OctopusMeterDevice.ts:1120`). | **P2:** add typed `OctopusApp` interface as in S52. |
+| Code duplication | 5 | 5 | Timezone formatting duplicated in device/pollers and billing (`lib/OctopusMeterDevice.ts:1884`, `lib/OctopusMeterDevice.ts:1914`, `lib/billing/tz.ts:11`); `maskAccount`/redaction duplicated (`lib/OctopusMeterDevice.ts:625`, `lib/OctopusMeterDevice.ts:2157`, `lib/SavingSessionsPoller.ts:165`, `lib/DispatchPoller.ts:200`). | **P1:** centralise `tz`, `maskAccount`, and redaction utilities. |
+| Complexity | 8 | 4 | `runRefresh` fans out core, extra, reporting, health and diagnostics (`lib/OctopusMeterDevice.ts:520`, `lib/OctopusMeterDevice.ts:543`, `lib/OctopusMeterDevice.ts:575`); tariff comparison and billing are also embedded in the device (`lib/OctopusMeterDevice.ts:1800`, `lib/OctopusMeterDevice.ts:2043`). | **P1:** split refresh, pricing, consumption, billing, scheduling services. |
+| Dependency management | 4 | 8 | `dependencies` is empty and all packages are dev-only (`package.json:12`); a targeted `minimatch` override addresses the brace-expansion class (`package.json:21`, `package-lock.json:379`). | **P2:** document the override expiry and keep `npm audit` hard-gated. |
+| Configuration | 4 | 7 | Strict TypeScript is enabled (`tsconfig.json:6`) and Node 22 is required (`package.json:4`), but `allowJs` is still true (`tsconfig.json:10`) and many ESLint rules are disabled (`.eslintrc.json:5`). | **P3:** review disabled rules after S52; tighten where code allows. |
+| Logging | 5 | 7 | Budget skips are non-error logs (`lib/OctopusMeterDevice.ts:562`, `lib/DispatchPoller.ts:190`), diagnostics redact common secrets (`lib/OctopusMeterDevice.ts:625`), but logging/redaction policy is scattered. | **P2:** create one logger/sanitizer boundary. |
+| Error handling | 6 | 8 | REST client blocks redirects/origin drift, retries transient 429/5xx, and respects `Retry-After` (`lib/OctopusClient.ts:149`, `lib/OctopusClient.ts:177`, `lib/OctopusClient.ts:206`); Kraken 429 opens a shared gate (`lib/KrakenClient.ts:176`). | Preserve fail-closed handling; add tests before touching API clients. |
+| Resilience | 8 | 8 | Refresh single-flight watchdog (`lib/OctopusMeterDevice.ts:520`), BudgetError freshness retention (`lib/OctopusMeterDevice.ts:556`), dispatch failed polls retain state without false cancellation (`lib/DispatchPoller.ts:13`, `test/dispatch-reconcile.test.js:64`). | **P1:** add S51 system-level budget and startup-stampede tests. |
+| Caching | 7 | 8 | Account caches include TTL + in-flight maps (`app.ts:127`, `app.ts:162`, `app.ts:234`, `app.ts:257`); Octoplus now uses a 10-min clear-on-reject cache (`lib/KrakenClient.ts:714`). | **P2:** coalesce duplicate REST monthly/billing reads. |
+| Security posture | 7 | 8 | Workflows use least permissions and pinned SHA actions (`.github/workflows/ci.yml:8`, `.github/workflows/ci.yml:16`); REST credentials are not sent cross-origin (`lib/OctopusClient.ts:164`); repair preserves meter identity (`lib/OctopusMeterDriver.ts:130`). | **P1:** remove raw account/device identifiers from persisted diagnostics. |
+| Performance | 7 | 7 | F0 budget is ~90/hr with burst 6 (`lib/KrakenBudget.ts:14`, `lib/KrakenBudget.ts:37`); live demand is shared 60/120/300s and subscription-only (`lib/LiveDemandSource.ts:47`, `lib/LiveDemandSource.ts:82`). Remaining duplicate REST and startup issues are planned in S51 (`ROADMAP.md:76`). | **P1:** finish S51 request-efficiency work. |
+| Concurrency | 7 | 7 | Device refresh and live demand are single-flighted (`lib/OctopusMeterDevice.ts:520`, `lib/LiveDemandSource.ts:151`); app caches single-flight many account calls (`app.ts:131`, `app.ts:269`). Watchdog replacement can leave an older refresh running (`docs/handover/sprints-50-58-spec.md:239`). | **P2:** make refresh generation ownership explicit in S52/S53. |
+| Linting/formatting | 3 | 7 | CI runs lint and tests (`.github/workflows/ci.yml:22`, `.github/workflows/ci.yml:24`); release workflow also runs `git diff --check` (`.github/workflows/homey-app-version.yml:57`). ESLint ignores tests and JS (`.eslintrc.json:3`). | **P3:** consider linting tests after refactor stabilises. |
+| CI/CD | 5 | 8 | CI audits, lints, tests (`.github/workflows/ci.yml:20`); publish validates, audits and runs tests (`.github/workflows/homey-app-publish.yml:31`, `.github/workflows/homey-app-publish.yml:40`). | **P2:** separate pinned action runtime refresh as HANDOVER requests (`HANDOVER.md:619`). |
+| Release automation | 4 | 8 | Release PR workflow syncs package metadata and validates before PR (`.github/workflows/homey-app-version.yml:43`, `.github/workflows/homey-app-version.yml:57`, `.github/workflows/homey-app-version.yml:103`); main push tags/releases (`.github/workflows/homey-app-release.yml:43`). | Keep release changes isolated; never mix with feature PRs. |
+| Versioning | 3 | 8 | Source is 1.0.20 (`package.json:3`, `.homeycompose/app.json:3`) and release workflow verifies package/lock/compose/changelog alignment (`.github/workflows/homey-app-release.yml:24`). | **P3:** refresh stale README release text. |
+| Documentation | 5 | 7 | ROADMAP/HANDOVER are unusually rich (`ROADMAP.md:75`, `HANDOVER.md:165`), but README still says 1.0.18 while source is 1.0.20 (`README.md:48`, `README.md:50`, `package.json:3`). | **P2:** update public docs after IOG field gate closes. |
+| Developer onboarding | 3 | 7 | HANDOVER has architecture map, invariants, release runbook and warnings (`HANDOVER.md:536`, `HANDOVER.md:552`, `HANDOVER.md:585`, `HANDOVER.md:596`). | Add a concise contributor “start here” section once S52 lands. |
+| Testing | 8 | 9 | 32 `node:test` files are wired via package script (`package.json:9`), covering budget (`test/kraken-budget.test.js:12`), live demand (`test/live-demand.test.js:33`), dispatch (`test/dispatch-reconcile.test.js:20`), repair (`test/repair.test.js:18`), billing (`test/billing.test.js:20`), release policy (`test/release-security.test.js:14`). | **P1:** add missing S51 system-budget and repair-propagation tests. |
+
+## Top strengths
+
+1. **Operational trust model.** REST remains settlement-authoritative and GraphQL enrichments fail closed; this is codified in specs (`docs/handover/sprints-50-58-spec.md:38`) and implemented in IOG fallback adoption (`lib/OctopusMeterDevice.ts:986`, `lib/OctopusMeterDevice.ts:1043`).
+2. **Rate-limit-aware design.** Kraken traffic is mediated at `KrakenClient.post` through a shared bucket (`lib/KrakenClient.ts:153`, `lib/KrakenBudget.ts:51`).
+3. **Release discipline.** CI, audit, validate and publish workflows are split and SHA-pinned (`.github/workflows/ci.yml:16`, `.github/workflows/homey-app-publish.yml:45`).
+4. **High-value test suite.** Tests target real failure modes rather than only pure helpers (`test/live-demand.test.js:66`, `test/dispatch-reconcile.test.js:64`, `test/release-security.test.js:14`).
+
+## Highest-leverage fixes
+
+| Priority | Fix | Why now | Evidence |
+|---|---|---|---|
+| P1 | Complete S51 budget hardening: reserved core admission, startup jitter, REST coalescing, repair propagation, system ≤90/hr test. | Reduces the most likely production pain: account-wide throttling and stale credentials. | Planned in `ROADMAP.md:76`; pending tasks in `docs/handover/sprints-50-58-spec.md:80`; current immediate poll starts at `lib/AccountPoller.ts:24`. |
+| P1 | Decompose `OctopusMeterDevice`. | Every new feature currently increases regression risk in the same 2,392-line object. | God-object at `lib/OctopusMeterDevice.ts:161`; S52 target in `docs/handover/sprints-50-58-spec.md:96`. |
+| P1 | Sanitize persisted diagnostic keys and centralize privacy helpers. | Some settings maps are still keyed by raw account/device identity. | Device ID includes meter ids (`lib/OctopusMeterDriver.ts:70`); diagnostics use `getData().id` (`lib/OctopusMeterDevice.ts:639`) and account number keys (`lib/SavingSessionsPoller.ts:70`). |
+| P2 | Update public docs after the IOG field-verification gate. | README is stale and may confuse users/support, but the IOG field gate should not be overclaimed. | Source 1.0.20 (`HANDOVER.md:9`); README 1.0.18 (`README.md:50`); gate warning (`HANDOVER.md:92`). |
+
+⚠ Cross-discipline note: A product reviewer may prefer shipping S54–S58 before S52 because the user-facing roadmap is attractive. I recommend holding the line with `docs/handover/sprints-50-58-spec.md:174`: shipping more features before S51/S52 compounds budget and god-object risk.
