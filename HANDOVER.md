@@ -224,6 +224,31 @@ https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/21; (2
 reply in `docs/handover/darren-iog-reply-v1.0.21.md` to community 156860 and ask Darren for
 one fresh log. Confirm via the new census fields, then close the gate.
 
+## Sprint 60 — Stability & privacy hardening (v1.0.22 / Build 22)
+
+Delivered while awaiting Darren's v1.0.21 field confirmation (independent, low-regression).
+Prioritised from the blueprint (`docs/blueprint/`): BL-01/02/03 + BL-10 + BL-11. Shipped as
+**v1.0.22 / Build 22** (commits `6643c8f`→`959fc9e`; publish run 29849679021):
+- **BL-02 (051c):** `AccountPoller.start()` jitters the first poll (0–15s) — no app-boot budget stampede.
+- **BL-01 (051d/h):** identifier-free per-priority budget counters + a 1-hour system budget test.
+  (Core-debt floor kept at `-CAPACITY`; a true reserved-core RATE ceiling (051b) is deferred.)
+- **BL-03 (051e):** `OctopusClient.get()` short-TTL (10s) coalescing — dedupe concurrent + brief reuse,
+  structured-cloned, bounded; overlapping refresh-cycle reads cost one request.
+- **BL-10:** salted-opaque persisted keys (`lib/diagnosticsKey.ts`) for saving-sessions state/diagnostics
+  + integration diagnostics, with lazy migration (always prunes the raw key). Pseudonymisation, not
+  export-proof (salt shares the settings domain — documented). Settings UI now uses neutral labels.
+- **BL-11 (051g):** repair propagates a rotated API key to sibling meters on the **same** account,
+  QUIETLY (`device.reloadCredentials` — store + rebuild clients, no refresh, no budget reset); an account
+  NUMBER change is not auto-propagated. `resetBudget` removed from `invalidateAccountCaches` (the
+  account rate limit is key-independent — a rotation must not wipe the bucket/429 gate).
+
+Tri-model reviewed (Opus 4.8 + GPT-5.6 Sol + GPT-5.5); three blocking issues (repair budget reset/burst,
+account-change stranding, migration not pruning) fixed at root cause; final verdict no-blocker. 382 tests
+pass; tsc + eslint + `homey validate --level publish` + `npm audit` clean.
+**Remaining manual step:** promote Build 22 → Test.
+**Deferred (tracked):** true reserved-core rate ceiling (051b); the cache-generation guard for stale
+in-flight writes (blueprint BL-08/R-004); a full app-level Kraken budget integration sim.
+
 ## Post-v1.0.18 roadmap (Sprints 50–58) + S50 delivered
 
 A tri-model (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) read-only evaluation of the whole app
