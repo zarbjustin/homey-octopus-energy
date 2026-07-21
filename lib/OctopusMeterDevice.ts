@@ -31,6 +31,12 @@ import {
   tzOffsetMs as tzOffset,
 } from './timezone';
 import { redactSecrets, maskAccount as maskAccountId } from './redact';
+import { DeviceScheduler } from './DeviceScheduler';
+import { refreshHealthDecision, RefreshHealthDecision } from './health';
+
+// Re-exported for backward compatibility with existing importers/tests.
+export { refreshHealthDecision };
+export type { RefreshHealthDecision };
 
 export interface MeterStore {
   apiKey: string;
@@ -50,17 +56,6 @@ export interface MeterSettings {
   expensive_threshold: number;
 }
 
-export interface RefreshHealthDecision {
-  alarm: boolean;
-  fullyHealthy: boolean;
-  priceDegraded: boolean;
-  markAvailable: boolean;
-  markUnavailable: boolean;
-  message: string | null;
-  warning: string | null;
-  authenticationFailure: boolean;
-}
-
 export interface DataFreshness {
   updatedAt: string | null;
   stale: boolean;
@@ -74,67 +69,6 @@ interface IntegrationDiagnostic {
   /** Last time this area was skipped to protect the shared API budget (a soft
    *  retained-value skip, not a fault). */
   lastSkip?: string;
-}
-
-/** Convert refresh results into stable Homey availability behaviour. */
-export function refreshHealthDecision(
-  anySucceeded: boolean,
-  priceSucceeded: boolean,
-  hasTariff: boolean,
-  consecutiveTotalFailures: number,
-  err: unknown,
-): RefreshHealthDecision {
-  const fullyHealthy = anySucceeded && (priceSucceeded || !hasTariff);
-  if (fullyHealthy) {
-    return {
-      alarm: false,
-      fullyHealthy: true,
-      priceDegraded: false,
-      markAvailable: true,
-      markUnavailable: false,
-      message: null,
-      warning: null,
-      authenticationFailure: false,
-    };
-  }
-
-  const raw = err instanceof Error ? err.message : String(err ?? '');
-  const authenticationFailure = /401|authenticat|api key/i.test(raw);
-
-  // A price-only degradation: connectivity and authentication are fine (at
-  // least one other integration succeeded, no auth error) but the current
-  // tariff price is missing. This is a data gap, not a connection problem, so
-  // it must NOT raise the generic connection alarm — surface it as an advisory
-  // warning instead and keep the device available.
-  const priceDegraded = anySucceeded && !authenticationFailure && hasTariff && !priceSucceeded;
-  if (priceDegraded) {
-    return {
-      alarm: false,
-      fullyHealthy: false,
-      priceDegraded: true,
-      markAvailable: true,
-      markUnavailable: false,
-      message: null,
-      warning: 'Current tariff price is temporarily unavailable.',
-      authenticationFailure: false,
-    };
-  }
-
-  let message = 'Octopus Energy is temporarily unavailable.';
-  if (authenticationFailure) {
-    message = 'Authentication failed - repair the device to update your API key.';
-  }
-
-  return {
-    alarm: true,
-    fullyHealthy: false,
-    priceDegraded: false,
-    markAvailable: anySucceeded && !authenticationFailure,
-    markUnavailable: authenticationFailure || (!anySucceeded && consecutiveTotalFailures >= 3),
-    message,
-    warning: null,
-    authenticationFailure,
-  };
 }
 
 /** A single half-hourly Agile slot, shaped for the prices widget. */
@@ -195,7 +129,7 @@ export class OctopusMeterDevice extends Homey.Device {
 
   private previousStanding: number | null = null;
 
-  private refreshTimer: NodeJS.Timeout | null = null;
+  private scheduler: DeviceScheduler | null = null;
 
   private refreshing = false;
 
@@ -230,10 +164,6 @@ export class OctopusMeterDevice extends Homey.Device {
   private lastHealthyRefreshAt = 0;
 
   private diagnosticUpdates: Record<string, IntegrationDiagnostic> = {};
-
-  private alignTimer: NodeJS.Timeout | null = null;
-
-  private agileTimer: NodeJS.Timeout | null = null;
 
   async onInit(): Promise<void> {
     this.lastHealthyRefreshAt = Number(this.getStoreValue('lastHealthyRefreshAt')) || 0;
@@ -2311,67 +2241,29 @@ export class OctopusMeterDevice extends Homey.Device {
       || /(^|-)GO(-|$)/.test(code);
   }
 
+  /** Build the refresh-timer scheduler. Config is read fresh on each start()
+   *  so a tariff or poll-interval change takes effect on the next start. */
+  private buildScheduler(): DeviceScheduler {
+    return new DeviceScheduler({
+      host: this.homey,
+      refresh: () => this.refresh(),
+      config: () => ({
+        isDynamic: this.isDynamicTariff(),
+        isAgile: /AGILE/i.test(this.store().productCode ?? ''),
+        pollIntervalMinutes: Number(this.settings().poll_interval) || 30,
+      }),
+      nextLocalTime: (hhmm) => this.nextLocalTime(hhmm),
+      onError: (message, err) => this.error(message, err),
+    });
+  }
+
   private scheduleRefresh(): void {
-    this.stopTimers();
-    if (!this.isDynamicTariff()) {
-      // Flat/fixed tariffs don't change intraday — just poll on the interval.
-      this.startInterval();
-      return;
-    }
-    // Start polling immediately so a failed startup refresh retries promptly.
-    // Keep an aligned tick that re-fires at EVERY half-hour boundary so the
-    // Agile current price rolls within seconds of each new slot (not just once).
-    this.startInterval();
-    this.scheduleAlignedTick();
-    if (/AGILE/i.test(this.store().productCode ?? '')) this.scheduleAgilePublication();
-  }
-
-  /**
-   * Refresh just after each :00/:30 boundary so the live Agile price rolls
-   * promptly, then reschedule for the following boundary. A one-shot timer
-   * would only roll the price once and then drift with the coarse poll interval.
-   */
-  private scheduleAlignedTick(): void {
-    const now = new Date();
-    const msToHalfHour = (30 - (now.getMinutes() % 30)) * 60_000
-      - now.getSeconds() * 1000 - now.getMilliseconds();
-    // Fire ~2s after the boundary so the new slot's price is current.
-    const delay = Math.max(1000, msToHalfHour) + 2000;
-    this.alignTimer = this.homey.setTimeout(() => {
-      this.refresh().catch((err) => this.error('Aligned refresh failed:', err));
-      this.scheduleAlignedTick();
-    }, delay);
-  }
-
-  /** Refresh shortly after 16:05 daily, when Agile publishes next-day prices. */
-  private scheduleAgilePublication(): void {
-    const tick = () => {
-      this.refresh().catch((err) => this.error('Agile-publication refresh failed:', err));
-      this.agileTimer = this.homey.setTimeout(tick, this.nextLocalTime('16:05').getTime() - Date.now());
-    };
-    this.agileTimer = this.homey.setTimeout(tick, this.nextLocalTime('16:05').getTime() - Date.now());
-  }
-
-  private startInterval(): void {
-    const minutes = Math.max(5, Number(this.settings().poll_interval) || 30);
-    this.refreshTimer = this.homey.setInterval(() => {
-      this.refresh().catch((err) => this.error('Scheduled refresh failed:', err));
-    }, minutes * 60_000);
+    if (!this.scheduler) this.scheduler = this.buildScheduler();
+    this.scheduler.start();
   }
 
   private stopTimers(): void {
-    if (this.refreshTimer) {
-      this.homey.clearInterval(this.refreshTimer);
-      this.refreshTimer = null;
-    }
-    if (this.alignTimer) {
-      this.homey.clearTimeout(this.alignTimer);
-      this.alignTimer = null;
-    }
-    if (this.agileTimer) {
-      this.homey.clearTimeout(this.agileTimer);
-      this.agileTimer = null;
-    }
+    this.scheduler?.stop();
   }
 
   // --- Lifecycle -----------------------------------------------------------
