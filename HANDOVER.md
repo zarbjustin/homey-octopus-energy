@@ -6,16 +6,25 @@ Last updated: 21 July 2026
 
 - Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current source version: `1.0.23`; release tag: `v1.0.23` (GitHub release published). Homey
-  **Build (v1.0.23)** uploaded to the App Store on 21 July 2026 (publish run `29857102772`,
-  green). This build fixes the IOG **Lowest / Highest / Average price today** tiles staying
-  blank: `refreshPriceStats` now samples the live schedule (`rateAt`) at each half-hour across
-  the local day instead of filtering rate rows by `valid_from`-within-today, which is correct for
-  both Agile (discrete rows) and IOG (few long-span rows whose `valid_from` predates today). See
-  commit `4fb83a3` + `test/price-stats.test.js`. **Manual step remaining:** promote the new build
-  to Test/Live in the Homey Developer dashboard
-  (https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy), then ask Darren
-  (community 156860) to confirm the three price-today tiles now populate.
+- Current source version: `1.0.24`; release tag: `v1.0.24` (GitHub release published). Homey
+  **Build (v1.0.24)** uploaded to the App Store on 21 July 2026 (publish run `29866957322`,
+  green). This build fixes the IOG **cost tiles showing £0** (Off-peak/Peak cost today, Cost
+  yesterday, monthly/billing): the cost-history paths (`refreshMonthlyCost`,
+  `refreshBillingSummary`, `refreshDayBreakdown`) fetched tariff rates from the public REST feed,
+  which is empty for IOG, so all historical consumption priced at £0. New `costRatesForWindow`
+  falls back to the authoritative live series (`this.rates`, resolved before the reporting phase)
+  for single-register import meters when the REST feed is empty; two-register (Economy 7) meters
+  are never substituted. See commit `3525d40`/fix + `test/cost-history-iog.test.js`. Prior build
+  v1.0.23 (`4fb83a3`) fixed the IOG Lowest/Highest/Average price-today tiles staying blank
+  (`refreshPriceStats` samples `rateAt` across the local day). **Known IOG limitation:** Darren's
+  HalfHourly feed publishes only the single standard rate (~28.86p) — the overnight cheap band is
+  not exposed as a half-hourly rate — so Lowest=Highest=Average and off-peak usage prices at the
+  day rate (non-zero, but not the ~7p overnight rate). **Manual step remaining:** promote the
+  build to Test/Live at
+  https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy, then ask Darren
+  (community 156860) to confirm the cost tiles now populate.
+- Recent ships this line: v1.0.20 (IOG tariff-union + census), v1.0.21 (IOG HalfHourly.unitRates
+  first-class pricing — Darren confirmed working, log `c0da5fef`), v1.0.22 / Build 22 (Sprint 60
 - Recent ships this line: v1.0.20 (IOG tariff-union + census), v1.0.21 (IOG HalfHourly.unitRates
   first-class pricing — Darren confirmed working, log `c0da5fef`), v1.0.22 / Build 22 (Sprint 60
   stability & privacy hardening), v1.0.23 (IOG price-today tiles fix). Phase 2 (S52 god-object
