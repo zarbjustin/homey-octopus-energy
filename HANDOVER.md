@@ -6,15 +6,22 @@ Last updated: 21 July 2026
 
 - Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current source version: `1.0.20`; release tag: `v1.0.20` (GitHub release published). Homey
-  **Build ID 20 / version 1.0.20** uploaded to the developer account on 21 July 2026 (IOG
-  tariff-union fix + decisive price-gap census — see the two IOG sections below). **Manual step
-  remaining:** promote Build 20 to Test/Live in the Homey Developer dashboard
-  (https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/20), then share the
-  Test link with Darren (community 156860) and ask for one fresh diagnostic log.
-- `main` HEAD is `32ae53c`. The v1.0.20 ship is commits `e9a37b2` (fix) + `04c1d68`
-  (release bump) + `d552420` (brace-expansion audit fix) + `5321eba` (handover) +
-  `32ae53c` (Darren reply draft). All pushed directly to `main` (owner bypass of the
+- Current source version: `1.0.23`; release tag: `v1.0.23` (GitHub release published). Homey
+  **Build (v1.0.23)** uploaded to the App Store on 21 July 2026 (publish run `29857102772`,
+  green). This build fixes the IOG **Lowest / Highest / Average price today** tiles staying
+  blank: `refreshPriceStats` now samples the live schedule (`rateAt`) at each half-hour across
+  the local day instead of filtering rate rows by `valid_from`-within-today, which is correct for
+  both Agile (discrete rows) and IOG (few long-span rows whose `valid_from` predates today). See
+  commit `4fb83a3` + `test/price-stats.test.js`. **Manual step remaining:** promote the new build
+  to Test/Live in the Homey Developer dashboard
+  (https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy), then ask Darren
+  (community 156860) to confirm the three price-today tiles now populate.
+- Recent ships this line: v1.0.20 (IOG tariff-union + census), v1.0.21 (IOG HalfHourly.unitRates
+  first-class pricing — Darren confirmed working, log `c0da5fef`), v1.0.22 / Build 22 (Sprint 60
+  stability & privacy hardening), v1.0.23 (IOG price-today tiles fix). Phase 2 (S52 god-object
+  decomposition) slice 1 landed: `lib/timezone.ts` + `lib/redact.ts` (commit `7604646`).
+- `main` HEAD is `9990cb4`. The v1.0.23 ship is commits `4fb83a3` (fix) + `9990cb4`
+  (release bump). All pushed directly to `main` (owner bypass of the
   PR rule); CI, Validate, CodeQL, Create GitHub Release, and Publish Homey App all green.
 - Previous: Build 19 / version `1.0.19` uploaded 20 July 2026 (S50 + S51 part 1);
   it is superseded by Build 20.
