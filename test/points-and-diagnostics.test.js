@@ -160,6 +160,7 @@ test('IOG price gaps recover from account day/night rates', async () => {
   device.kraken = {
     getActiveIogTariff: async () => ({
       tariffType: 'FourRateEvTariff',
+      scheduleTrusted: true,
       dayRate: 31.5, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7.619,
       evDevicePeakRate: 45, evDeviceOffPeakRate: 6,
     }),

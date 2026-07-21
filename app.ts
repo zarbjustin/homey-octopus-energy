@@ -51,7 +51,9 @@ module.exports = class OctopusEnergyApp extends Homey.App {
 
   private completedWindowInflight = new Map<string, Promise<CompletedInput[]>>();
 
-  private iogTariffCache = new Map<string, { value: AccountIogTariff | null; ts: number; nullStreak: number }>();
+  private iogTariffCache = new Map<string, {
+    value: AccountIogTariff | null; ts: number; nullStreak: number; diag?: IogResolveDiagnostic;
+  }>();
 
   private iogTariffInflight = new Map<string, Promise<AccountIogTariff | null>>();
 
@@ -258,18 +260,30 @@ module.exports = class OctopusEnergyApp extends Homey.App {
   ): Promise<AccountIogTariff | null> {
     const key = `${accountNumber}|${tariffCode}|${productCode}`;
     const cached = this.iogTariffCache.get(key);
-    if (cached && Date.now() - cached.ts < this.iogTariffTtl(cached)) return cached.value;
+    if (cached && Date.now() - cached.ts < this.iogTariffTtl(cached)) {
+      // Replay the last census on a cache hit so the caller's periodic price-gap
+      // diagnostic reflects the real resolution instead of going stale.
+      if (cached.diag) onResolve?.(cached.diag);
+      return cached.value;
+    }
     const inflight = this.iogTariffInflight.get(key);
     if (inflight) return inflight;
+    let lastDiag: IogResolveDiagnostic | undefined;
+    const captureDiag = (d: IogResolveDiagnostic): void => {
+      lastDiag = d;
+      onResolve?.(d);
+    };
     const request = this.getKrakenClient(apiKey, accountNumber)
-      .getActiveIogTariff(accountNumber, tariffCode, productCode, onResolve)
+      .getActiveIogTariff(accountNumber, tariffCode, productCode, captureDiag)
       .then((value) => {
         // A resolved household schedule is effectively fixed (day/night rates
         // change only at contract/price-cap boundaries), so cache it for 6h — a
         // persistent null backs off exponentially (30m → 6h) so a broken account
         // stops paying a `core` Kraken token every 30 min for nothing.
         const priorNulls = value === null ? (this.iogTariffCache.get(key)?.nullStreak ?? 0) + 1 : 0;
-        this.iogTariffCache.set(key, { value, ts: Date.now(), nullStreak: priorNulls });
+        this.iogTariffCache.set(key, {
+          value, ts: Date.now(), nullStreak: priorNulls, diag: lastDiag,
+        });
         this.trimMap(this.iogTariffCache);
         return value;
       })

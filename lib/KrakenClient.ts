@@ -41,14 +41,47 @@ export interface Dispatch {
   end: string;
 }
 
-export type AccountIogTariffType = 'DayNightTariff' | 'FourRateEvTariff';
+export type AccountIogTariffType =
+  | 'StandardTariff'
+  | 'DayNightTariff'
+  | 'ThreeRateTariff'
+  | 'FourRateEvTariff'
+  | 'HalfHourlyTariff';
 
 /** Privacy-safe (identifier-free) summary of how the active IOG agreement was
- *  resolved, for diagnostics only. */
+ *  resolved, for diagnostics only.
+ *
+ *  The `raw*` fields are the DECISIVE census taken from the UNFILTERED agreement
+ *  collection (before any client-side typename/date filter), so they distinguish
+ *  the three very different causes that the post-filter `activeAgreementCount`
+ *  alone collapses into `0`:
+ *    - `rawAgreementCount: 0`                  → the account exposes no
+ *      electricity agreement at all (genuinely upstream/account-side).
+ *    - `rawAgreementCount > 0` with a non-zero  → an agreement exists under that
+ *      `typenameHistogram` entry                   typename; if it is a type we
+ *      handle yet still unresolved, that is a client bug, not an upstream gap.
+ *    - `serverActiveCount: 0` but `rawActiveCount > 0` → a Kraken `active: true`
+ *      quirk hides an otherwise-current agreement.
+ *    - `rawActiveCount: 0` with `invalidDateCount > 0` → a validFrom/validTo
+ *      parsing/window problem, not an absent agreement. */
 export interface IogResolveDiagnostic {
+  /** Total agreements in the UNFILTERED collection (no `active: true` arg). */
+  rawAgreementCount: number;
+  /** Agreements returned by the `active: true` server filter. */
+  serverActiveCount: number;
+  /** Count of unfiltered agreements by tariff `__typename` (identifier-free). */
+  typenameHistogram: Record<string, number>;
+  /** Unfiltered agreements passing the date-active window (any typename). */
+  rawActiveCount: number;
+  /** Unfiltered agreements whose validFrom (or non-null validTo) is unparseable. */
+  invalidDateCount: number;
+  /** Household import agreements that are date-active (post-filter). */
   activeAgreementCount: number;
   dayNightCount: number;
   fourRateCount: number;
+  standardCount: number;
+  threeRateCount: number;
+  halfHourlyCount: number;
   exactMatchFound: boolean;
   fallbackUsed: boolean;
 }
@@ -63,6 +96,12 @@ export interface AccountIogTariff {
   /** Agreement end instant (ISO), or null for an open-ended agreement. */
   validTo: string | null;
   displayName: string;
+  /** Whether `dayRate`/`nightRate` are an authoritative two-band household
+   *  schedule (DayNight/FourRateEv). For single-rate/half-hourly types this is
+   *  `false`: the tariff is resolved to ADOPT the live code so the authoritative
+   *  REST half-hourly rows recover — the rates here must NOT be used to
+   *  synthesize a schedule (they are a flat/best-effort placeholder). */
+  scheduleTrusted: boolean;
   dayRate: number;
   nightRate: number;
   preVatDayRate: number;
@@ -255,6 +294,14 @@ export class KrakenClient {
             validTo
             tariff {
               __typename
+              ... on StandardTariff {
+                tariffCode
+                productCode
+                displayName
+                unitRate
+                preVatUnitRate
+                standingCharge
+              }
               ... on DayNightTariff {
                 tariffCode
                 productCode
@@ -263,6 +310,18 @@ export class KrakenClient {
                 nightRate
                 preVatDayRate
                 preVatNightRate
+                standingCharge
+              }
+              ... on ThreeRateTariff {
+                tariffCode
+                productCode
+                displayName
+                dayRate
+                nightRate
+                offPeakRate
+                preVatDayRate
+                preVatNightRate
+                preVatOffPeakRate
                 standingCharge
               }
               ... on FourRateEvTariff {
@@ -279,10 +338,35 @@ export class KrakenClient {
                 preVatEvDeviceOffPeakRate
                 standingCharge
               }
+              ... on HalfHourlyTariff {
+                tariffCode
+                productCode
+                displayName
+                standingCharge
+                unitRates {
+                  validFrom
+                  validTo
+                  value
+                  preVatValue
+                }
+              }
+            }
+          }
+          all: electricityAgreements {
+            validFrom
+            validTo
+            tariff {
+              __typename
             }
           }
         }
       }`;
+    interface UnitRateRow {
+      validFrom?: string | null;
+      validTo?: string | null;
+      value?: number | null;
+      preVatValue?: number | null;
+    }
     interface Agreement {
       validFrom?: string;
       validTo?: string | null;
@@ -291,18 +375,26 @@ export class KrakenClient {
         tariffCode?: string;
         productCode?: string;
         displayName?: string;
+        unitRate?: number | null;
+        preVatUnitRate?: number | null;
         dayRate?: number | null;
         nightRate?: number | null;
+        offPeakRate?: number | null;
         preVatDayRate?: number | null;
         preVatNightRate?: number | null;
+        preVatOffPeakRate?: number | null;
         evDevicePeakRate?: number | null;
         evDeviceOffPeakRate?: number | null;
         preVatEvDevicePeakRate?: number | null;
         preVatEvDeviceOffPeakRate?: number | null;
+        unitRates?: UnitRateRow[] | null;
         standingCharge?: number | null;
       } | null;
     }
-    const data = await this.query<{ account?: { electricityAgreements?: Agreement[] } }>(
+    interface RawAgreement { validFrom?: string; validTo?: string | null; tariff?: { __typename?: string } | null }
+    const data = await this.query<{
+      account?: { electricityAgreements?: Agreement[]; all?: RawAgreement[] }
+    }>(
       query,
       { accountNumber },
       true,
@@ -310,6 +402,11 @@ export class KrakenClient {
       'core',
     );
     const agreements = data?.account?.electricityAgreements ?? [];
+    // The unfiltered collection is the DECISIVE raw census: it distinguishes a
+    // Kraken `active: true` quirk (server hides an otherwise-current agreement)
+    // from an account that genuinely exposes no agreement at all. Fall back to
+    // the active set if the unfiltered field is absent.
+    const rawAgreements: RawAgreement[] = data?.account?.all ?? agreements;
     const expectedTariff = expectedTariffCode.toUpperCase();
     const expectedProduct = expectedProductCode.toUpperCase();
     const now = Date.now();
@@ -317,19 +414,78 @@ export class KrakenClient {
       return typeof value === 'number' && Number.isFinite(value) ? value : null;
     };
 
+    // The five household electricity IMPORT tariff typenames Kraken can return
+    // (the `TariffType` interface also has Gas/Prepay members and export meter
+    // points surface separately — both are excluded below).
+    const householdTypes = new Set<AccountIogTariffType>([
+      'StandardTariff', 'DayNightTariff', 'ThreeRateTariff', 'FourRateEvTariff', 'HalfHourlyTariff',
+    ]);
+
+    // The household day/night schedule for a tariff, with a `trusted` flag.
+    //
+    //   TRUSTED (an authoritative two-band household schedule that may be
+    //   synthesised into rates):
+    //     - DayNight / FourRateEv: explicit household day and night rates.
+    //
+    //   UNTRUSTED (resolved only to ADOPT the live tariff/product code so the
+    //   authoritative REST half-hourly rows recover — the returned rates are a
+    //   flat/best-effort placeholder and MUST NOT be synthesised into a
+    //   schedule; downstream is gated on `scheduleTrusted`):
+    //     - StandardTariff: a single-register tariff exposes one `unitRate`; the
+    //       IOG cheap window is delivered via dispatch, not a second agreement
+    //       rate. Its live REST rows carry the real two-band schedule.
+    //     - ThreeRate / HalfHourly: reducing three/many bands to a fixed two-band
+    //       schedule by field-name or price-ordering is not a safe assumption, so
+    //       we defer to REST rather than guess the guaranteed-window rate.
+    //
+    //   Returns null only when even the placeholder cannot be formed AND the type
+    //   is trusted; untrusted types return a placeholder so their code is still
+    //   adopted.
+    const scheduleOf = (tariff: NonNullable<Agreement['tariff']>, type: AccountIogTariffType):
+      { dayRate: number; nightRate: number; preVatDayRate: number; preVatNightRate: number; trusted: boolean } | null => {
+      if (type === 'DayNightTariff' || type === 'FourRateEvTariff') {
+        const dayRate = finite(tariff.dayRate);
+        const nightRate = finite(tariff.nightRate);
+        const preVatDayRate = finite(tariff.preVatDayRate);
+        const preVatNightRate = finite(tariff.preVatNightRate);
+        if (dayRate === null || nightRate === null || preVatDayRate === null || preVatNightRate === null) return null;
+        return {
+          dayRate, nightRate, preVatDayRate, preVatNightRate, trusted: true,
+        };
+      }
+      // Untrusted types — best-effort placeholder for the base rate, never used
+      // to synthesise a schedule (adoption + REST is the authoritative recovery).
+      let base = finite(tariff.unitRate);
+      let preVatBase = finite(tariff.preVatUnitRate);
+      if (base === null) base = finite(tariff.dayRate);
+      if (preVatBase === null) preVatBase = finite(tariff.preVatDayRate);
+      if (base === null || preVatBase === null) {
+        const rows = Array.isArray(tariff.unitRates) ? tariff.unitRates : [];
+        const pair = rows
+          .map((r) => ({ inc: finite(r.value), pre: finite(r.preVatValue) }))
+          .find((p) => p.inc !== null && p.pre !== null);
+        if (pair && pair.inc !== null && pair.pre !== null) {
+          base = pair.inc; preVatBase = pair.pre;
+        }
+      }
+      if (base === null || preVatBase === null) {
+        base = 0; preVatBase = 0;
+      }
+      return {
+        dayRate: base, nightRate: base, preVatDayRate: preVatBase, preVatNightRate: preVatBase, trusted: false,
+      };
+    };
+
     // Build a fully-validated tariff from an agreement, or null if it is not a
-    // usable IOG household agreement (missing codes / non-finite required rates).
+    // usable household import agreement (missing codes, or a trusted type with
+    // non-finite required rates).
     const build = (agreement: Agreement, resolvedVia: 'exact' | 'fallback'): AccountIogTariff | null => {
       const { tariff } = agreement;
       const tariffType = tariff?.__typename as AccountIogTariffType | undefined;
-      if (!tariff || (tariffType !== 'DayNightTariff' && tariffType !== 'FourRateEvTariff')) return null;
-      const dayRate = finite(tariff.dayRate);
-      const nightRate = finite(tariff.nightRate);
-      const preVatDayRate = finite(tariff.preVatDayRate);
-      const preVatNightRate = finite(tariff.preVatNightRate);
-      if (!tariff.tariffCode || !tariff.productCode
-        || dayRate === null || nightRate === null
-        || preVatDayRate === null || preVatNightRate === null) return null;
+      if (!tariff || !tariffType || !householdTypes.has(tariffType)) return null;
+      if (!tariff.tariffCode || !tariff.productCode) return null;
+      const schedule = scheduleOf(tariff, tariffType);
+      if (!schedule) return null;
       const evDevicePeakRate = finite(tariff.evDevicePeakRate);
       const evDeviceOffPeakRate = finite(tariff.evDeviceOffPeakRate);
       const preVatEvDevicePeakRate = finite(tariff.preVatEvDevicePeakRate);
@@ -340,14 +496,15 @@ export class KrakenClient {
       return {
         tariffType,
         resolvedVia,
+        scheduleTrusted: schedule.trusted,
         tariffCode: tariff.tariffCode,
         productCode: tariff.productCode,
         validTo: agreement.validTo ?? null,
         displayName: tariff.displayName ?? '',
-        dayRate,
-        nightRate,
-        preVatDayRate,
-        preVatNightRate,
+        dayRate: schedule.dayRate,
+        nightRate: schedule.nightRate,
+        preVatDayRate: schedule.preVatDayRate,
+        preVatNightRate: schedule.preVatNightRate,
         evDevicePeakRate,
         evDeviceOffPeakRate,
         preVatEvDevicePeakRate,
@@ -356,23 +513,28 @@ export class KrakenClient {
       };
     };
 
-    // Household IOG import agreement typenames only (this inherently excludes
-    // export/outgoing agreements, which surface as other typenames); an explicit
+    // Household electricity IMPORT agreement typenames only; an explicit
     // OUTGOING/EXPORT name guard is defence-in-depth since electricityAgreements
     // spans both import and export meter points.
     const exportLike = (t: Agreement['tariff']): boolean => {
       return /OUTGOING|EXPORT/.test(`${t?.tariffCode ?? ''}${t?.productCode ?? ''}`.toUpperCase());
     };
     const isHousehold = (a: Agreement): boolean => (
-      (a.tariff?.__typename === 'DayNightTariff' || a.tariff?.__typename === 'FourRateEvTariff')
-      && !exportLike(a.tariff)
+      householdTypes.has(a.tariff?.__typename as AccountIogTariffType) && !exportLike(a.tariff)
     );
-    const isActive = (a: Agreement): boolean => {
-      const from = Date.parse(a.validFrom ?? '');
-      const to = a.validTo ? Date.parse(a.validTo) : null;
-      return Number.isFinite(from) && (to === null || Number.isFinite(to))
-        && from <= now && (to === null || now < to);
+    // Shared date-window evaluation for both the typed and raw agreement shapes.
+    // Returns 'active' | 'inactive' | 'invalid'. An explicit null/undefined
+    // validTo is open-ended; any present-but-unparseable validFrom/validTo (e.g.
+    // "") is 'invalid' and fails closed rather than being treated as open-ended.
+    const dateStatus = (validFrom?: string, validTo?: string | null): 'active' | 'inactive' | 'invalid' => {
+      const from = Date.parse(validFrom ?? '');
+      if (!Number.isFinite(from)) return 'invalid';
+      const openEnded = validTo === null || validTo === undefined;
+      const to = openEnded ? null : Date.parse(validTo as string);
+      if (to !== null && !Number.isFinite(to)) return 'invalid';
+      return from <= now && (to === null || now < to) ? 'active' : 'inactive';
     };
+    const isActive = (a: Agreement): boolean => dateStatus(a.validFrom, a.validTo) === 'active';
     // Most recent first, preferring open-ended agreements (matches the REST
     // "active tariff" heuristic).
     const byRecent = (a: Agreement, b: Agreement): number => {
@@ -394,6 +556,20 @@ export class KrakenClient {
 
     const household = agreements.filter(isHousehold);
     const active = household.filter(isActive).sort(byRecent);
+
+    // Decisive raw census (identifier-free) over the UNFILTERED collection — it
+    // distinguishes "no agreement at all" from "agreement of a typename we don't
+    // resolve" from "an active:true quirk" from "a date-window/parse problem".
+    const typenameHistogram: Record<string, number> = {};
+    let invalidDateCount = 0;
+    let rawActiveCount = 0;
+    for (const a of rawAgreements) {
+      const name = a.tariff?.__typename ?? 'Unknown';
+      typenameHistogram[name] = (typenameHistogram[name] ?? 0) + 1;
+      const status = dateStatus(a.validFrom, a.validTo);
+      if (status === 'invalid') invalidDateCount += 1;
+      else if (status === 'active') rawActiveCount += 1;
+    }
 
     let result: AccountIogTariff | null = null;
     const exactMatches = active.filter((a) => a.tariff?.tariffCode?.toUpperCase() === expectedTariff
@@ -419,10 +595,21 @@ export class KrakenClient {
       if (distinct.size === 1) [result] = candidates; // most recent (active is sorted)
     }
 
+    const countType = (name: AccountIogTariffType): number => (
+      active.filter((a) => a.tariff?.__typename === name).length
+    );
     onResolve?.({
+      rawAgreementCount: rawAgreements.length,
+      serverActiveCount: agreements.length,
+      typenameHistogram,
+      rawActiveCount,
+      invalidDateCount,
       activeAgreementCount: active.length,
-      dayNightCount: active.filter((a) => a.tariff?.__typename === 'DayNightTariff').length,
-      fourRateCount: active.filter((a) => a.tariff?.__typename === 'FourRateEvTariff').length,
+      dayNightCount: countType('DayNightTariff'),
+      fourRateCount: countType('FourRateEvTariff'),
+      standardCount: countType('StandardTariff'),
+      threeRateCount: countType('ThreeRateTariff'),
+      halfHourlyCount: countType('HalfHourlyTariff'),
       exactMatchFound: result?.resolvedVia === 'exact',
       fallbackUsed: result?.resolvedVia === 'fallback',
     });

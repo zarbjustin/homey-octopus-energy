@@ -1,0 +1,25 @@
+{
+  "data": {
+    "account": {
+      "electricityAgreements": [
+        {
+          "validFrom": "2026-01-01T00:00:00Z",
+          "validTo": null,
+          "tariff": {
+            "__typename": "ThreeRateTariff",
+            "tariffCode": "E-1R-IOG-THREE-SYNTHETIC-26-01-01-C",
+            "productCode": "IOG-THREE-SYNTHETIC-26-01-01",
+            "displayName": "Synthetic Three Rate Intelligent Go",
+            "dayRate": 31.5,
+            "nightRate": 12.0,
+            "offPeakRate": 8.0,
+            "preVatDayRate": 30.0,
+            "preVatNightRate": 11.428,
+            "preVatOffPeakRate": 7.619,
+            "standingCharge": 49.2
+          }
+        }
+      ]
+    }
+  }
+}

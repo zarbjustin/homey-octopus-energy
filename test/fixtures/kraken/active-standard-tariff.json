@@ -1,0 +1,21 @@
+{
+  "data": {
+    "account": {
+      "electricityAgreements": [
+        {
+          "validFrom": "2026-01-01T00:00:00Z",
+          "validTo": null,
+          "tariff": {
+            "__typename": "StandardTariff",
+            "tariffCode": "E-1R-INTELLI-VAR-SYNTHETIC-26-01-01-C",
+            "productCode": "INTELLI-VAR-SYNTHETIC-26-01-01",
+            "displayName": "Synthetic Intelligent Octopus Go",
+            "unitRate": 28.95,
+            "preVatUnitRate": 27.571,
+            "standingCharge": 49.2
+          }
+        }
+      ]
+    }
+  }
+}

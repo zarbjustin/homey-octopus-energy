@@ -155,6 +155,7 @@ test('active IOG tariff uses the matching day/night account agreement', async (t
   assert.deepEqual(tariff, {
     tariffType: 'DayNightTariff',
     resolvedVia: 'exact',
+    scheduleTrusted: true,
     tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
     productCode: 'IOG-SYNTHETIC-26-01-01',
     validTo: null,
@@ -193,6 +194,7 @@ test('active IOG tariff accepts the matching four-rate EV agreement', async (t) 
   assert.deepEqual(tariff, {
     tariffType: 'FourRateEvTariff',
     resolvedVia: 'exact',
+    scheduleTrusted: true,
     tariffCode: 'E-1R-IOG-FOUR-SYNTHETIC-26-01-01-C',
     productCode: 'IOG-FOUR-SYNTHETIC-26-01-01',
     validTo: null,
@@ -207,6 +209,142 @@ test('active IOG tariff accepts the matching four-rate EV agreement', async (t) 
     preVatEvDeviceOffPeakRate: 7.619,
     standingCharge: 49.2,
   });
+});
+
+test('active IOG tariff resolves a single-register StandardTariff (day rate blank fix)', async (t) => {
+  const response = fixture('active-standard-tariff');
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    requests.push(request);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  // Intelligent Octopus Go import is commonly a single-register StandardTariff:
+  // one flat unitRate. Before the fix this typename was silently discarded,
+  // producing "Day rate still blank". We resolve it (so its live code is
+  // adopted and REST recovers) but mark the schedule UNTRUSTED — we never
+  // fabricate a day/night split from a single rate.
+  const diags = [];
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff(
+    'A-ONE',
+    'E-1R-INTELLI-VAR-SYNTHETIC-26-01-01-C',
+    'INTELLI-VAR-SYNTHETIC-26-01-01',
+    (d) => diags.push(d),
+  );
+
+  assert.deepEqual(tariff, {
+    tariffType: 'StandardTariff',
+    resolvedVia: 'exact',
+    scheduleTrusted: false,
+    tariffCode: 'E-1R-INTELLI-VAR-SYNTHETIC-26-01-01-C',
+    productCode: 'INTELLI-VAR-SYNTHETIC-26-01-01',
+    validTo: null,
+    displayName: 'Synthetic Intelligent Octopus Go',
+    dayRate: 28.95,
+    nightRate: 28.95,
+    preVatDayRate: 27.571,
+    preVatNightRate: 27.571,
+    evDevicePeakRate: null,
+    evDeviceOffPeakRate: null,
+    preVatEvDevicePeakRate: null,
+    preVatEvDeviceOffPeakRate: null,
+    standingCharge: 49.2,
+  });
+  assert.match(requests[1].query, /\.\.\. on StandardTariff/);
+  assert.match(requests[1].query, /\.\.\. on HalfHourlyTariff/);
+  assert.match(requests[1].query, /\.\.\. on ThreeRateTariff/);
+  assert.equal(diags[0].standardCount, 1);
+  assert.equal(diags[0].rawAgreementCount, 1);
+});
+
+test('active IOG tariff resolves a HalfHourlyTariff for code adoption (untrusted schedule)', async (t) => {
+  const response = fixture('active-half-hourly-tariff');
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  const diags = [];
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff(
+    'A-ONE',
+    'E-1R-INTELLI-VAR-SYNTHETIC-26-01-01-C',
+    'INTELLI-VAR-SYNTHETIC-26-01-01',
+    (d) => diags.push(d),
+  );
+
+  assert.ok(tariff);
+  assert.equal(tariff.tariffType, 'HalfHourlyTariff');
+  // Resolved so the live code is adopted, but the schedule is NOT trusted — we
+  // do not compress arbitrary half-hourly rows into a fixed day/night split.
+  assert.equal(tariff.scheduleTrusted, false);
+  assert.equal(tariff.dayRate, tariff.nightRate);
+  assert.equal(diags[0].halfHourlyCount, 1);
+});
+
+test('active IOG tariff resolves a ThreeRateTariff for code adoption (untrusted schedule)', async (t) => {
+  const response = fixture('active-three-rate-tariff');
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff(
+    'A-ONE',
+    'E-1R-IOG-THREE-SYNTHETIC-26-01-01-C',
+    'IOG-THREE-SYNTHETIC-26-01-01',
+  );
+
+  assert.ok(tariff);
+  assert.equal(tariff.tariffType, 'ThreeRateTariff');
+  // Three bands are not safely reducible to two by field name or price order,
+  // so the schedule is untrusted; adoption + REST provides the real rates.
+  assert.equal(tariff.scheduleTrusted, false);
+});
+
+test('IOG census distinguishes an unhandled typename from a genuinely empty account', async (t) => {
+  // An account whose only agreement is a PrepayTariff (a type we intentionally
+  // do not price): the census must still report it so the log is not mistaken
+  // for "no agreement at all".
+  const response = {
+    data: {
+      account: {
+        electricityAgreements: [
+          {
+            validFrom: '2026-01-01T00:00:00Z',
+            validTo: null,
+            tariff: { __typename: 'PrepayTariff', tariffCode: 'E-1R-PREPAY-SYNTHETIC-26-01-01-C', productCode: 'PREPAY-SYNTHETIC-26-01-01' },
+          },
+        ],
+      },
+    },
+  };
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  const diags = [];
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff(
+    'A-ONE', 'E-1R-IOG-STALE-26-01-01-C', 'IOG-STALE-26-01-01', (d) => diags.push(d),
+  );
+
+  assert.equal(tariff, null, 'a prepay-only account fails closed');
+  assert.deepEqual(diags[0].typenameHistogram, { PrepayTariff: 1 });
+  assert.equal(diags[0].rawAgreementCount, 1, 'raw census proves an agreement exists');
+  assert.equal(diags[0].activeAgreementCount, 0, 'but none is a priced household import type');
 });
 
 test('active IOG tariff recovers via fallback when the stored code is stale (the fix)', async (t) => {
@@ -234,7 +372,13 @@ test('active IOG tariff recovers via fallback when the stored code is stale (the
   assert.equal(tariff.tariffCode, 'E-1R-IOG-SYNTHETIC-26-01-01-C'); // the real code
   assert.equal(tariff.dayRate, 31.5);
   assert.deepEqual(diags[0], {
+    rawAgreementCount: 1,
+    serverActiveCount: 1,
+    typenameHistogram: { DayNightTariff: 1 },
+    rawActiveCount: 1,
+    invalidDateCount: 0,
     activeAgreementCount: 1, dayNightCount: 1, fourRateCount: 0,
+    standardCount: 0, threeRateCount: 0, halfHourlyCount: 0,
     exactMatchFound: false, fallbackUsed: true,
   });
 });

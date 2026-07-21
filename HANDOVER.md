@@ -79,6 +79,66 @@ and we fail closed with the advisory. Do NOT declare the incident fixed until Da
 confirms on the Test build. The drafted community reply to Darren is in
 `docs/handover/darren-iog-reply.md`.
 
+## IOG follow-up — the v1.0.18 fix was INCOMPLETE (root cause now nailed)
+
+A fresh community log (156860, log `7c389d7e`, 21 Jul 2026) from the same account
+showed the v1.0.18 build STILL blank: `iogResolve.activeAgreementCount:0`,
+`dayNightCount:0`, `fourRateCount:0`, repeated `Octopus returned no rate covering
+the current time`. v1.0.18's note read this as "upstream / no client synthesis
+possible". **That conclusion was wrong**, for two compounding reasons found this
+session (tri-model: Opus 4.8 + GPT-5.6 Sol + GPT-5.5, verified against the live
+public GraphQL + REST endpoints):
+
+1. **The diagnostic was ambiguous.** `activeAgreementCount` was measured AFTER the
+   household+date filters, so `0` conflated three different causes: no agreement at
+   all, an agreement of a typename we don't handle, or a date-window/parse problem.
+2. **`getActiveIogTariff` only handled 2 of the 7 `TariffType` interface members.**
+   Introspection of `https://api.octopus.energy/v1/graphql/` confirms `TariffType`
+   is an INTERFACE with possibleTypes `StandardTariff, DayNightTariff,
+   ThreeRateTariff, FourRateEvTariff, HalfHourlyTariff, PrepayTariff,
+   GasTariffType`. The query only requested `DayNightTariff` + `FourRateEvTariff`
+   fragments, so an IOG agreement of any other type got `__typename` but **no rate
+   fields**, was dropped by `isHousehold`, and counted as `activeAgreementCount:0`.
+   IOG (`INTELLI-VAR-22-10-14`) is a **single-register** product (one
+   `standard_unit_rate`), i.e. a GraphQL **`StandardTariff`** whose single
+   `unitRate` we were discarding — hence "Day rate still blank".
+
+**The fix (this session) — conservative, fail-closed:**
+- Extended the query + `build()` to RESOLVE all five household import typenames,
+  but only to obtain the **live tariff/product code for adoption**. A new
+  `AccountIogTariff.scheduleTrusted` flag is `true` only for `DayNightTariff` /
+  `FourRateEvTariff` (which expose an explicit two-band household schedule).
+  `StandardTariff` / `ThreeRateTariff` / `HalfHourlyTariff` are `scheduleTrusted:
+  false`: we never fabricate a day/night split from a single rate, three bands, or
+  arbitrary half-hourly rows.
+- `intelligentGoBaseRates` adopts the live code (fixing the stale stored code for
+  ALL typenames) and then, when `!scheduleTrusted`, returns null — deferring to
+  the **authoritative REST half-hourly rows**, which recover on the adopted live
+  code (IOG REST returns the real two-band day/night rows once the code is
+  current). Only trusted DayNight/FourRateEv are ever synthesised.
+- **Decisive census** added to `IogResolveDiagnostic`, computed from a SECOND
+  unfiltered `all: electricityAgreements` alias alongside `active: true`:
+  `rawAgreementCount` (unfiltered) + `serverActiveCount` (active:true) +
+  `typenameHistogram` (by `__typename`) + `rawActiveCount` + `invalidDateCount`,
+  all identifier-free, plus per-type active counts. This distinguishes: no
+  agreement (`rawAgreementCount:0`), an `active:true` quirk (`serverActiveCount:0`
+  but `rawActiveCount>0`), an unhandled/foreign typename (`typenameHistogram`), and
+  a date-parse problem (`invalidDateCount>0`).
+- Hardening: shared `dateStatus()` (empty/unparseable `validTo` now fails closed as
+  invalid, not open-ended); `unitRates` guarded with `Array.isArray`; `app.ts`
+  replays the census on cache hits (adoption still calls `invalidateIogTariff`).
+- New fixtures + 7 tests (Standard / HalfHourly / ThreeRate resolution +
+  untrusted-defer-to-REST + census disambiguation); 365 tests pass, tsc + eslint +
+  `homey app validate --level publish` all clean. Tri-model design + review
+  (Opus 4.8 primary; GPT-5.6 Sol + GPT-5.5 cross-checked the diagnosis AND the
+  implementation — their mispricing-safety objections drove the fail-closed rework).
+
+**Still to do:** ship as a new patch release, then have Darren install the Test
+build and send one fresh log. The `typenameHistogram` will now say exactly which
+typename his account uses — and `rawAgreementCount`/`serverActiveCount` will say
+whether it's a client, `active:true`, or genuinely-upstream issue. Only then update
+`docs/handover/darren-iog-reply.md` and close the field-verification gate.
+
 ## Post-v1.0.18 roadmap (Sprints 50–58) + S50 delivered
 
 A tri-model (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) read-only evaluation of the whole app

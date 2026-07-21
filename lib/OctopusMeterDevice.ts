@@ -1024,10 +1024,41 @@ export class OctopusMeterDevice extends Homey.Device {
     const s = this.store();
     if (s.fuel !== 'electricity' || s.isExport || !s.accountNumber || !s.tariffCode || !s.productCode
       || !this.isIntelligentGoTariff()) return null;
+    // Capture the ORIGINAL stored codes before adoption may mutate them.
+    const priorTariff = `${s.tariffCode ?? ''}`.toUpperCase();
+    const priorProduct = `${s.productCode ?? ''}`.toUpperCase();
     try {
       const tariff = await this.activeIogTariff();
       if (!tariff) return null;
+      // Adopt the live code first (fixes a stale stored code for ALL typenames),
+      // then only synthesise a schedule when the agreement carries an
+      // authoritative two-band household schedule. For single-rate/half-hourly
+      // types we deliberately do NOT fabricate a day/night schedule — adoption
+      // lets the authoritative REST half-hourly rows recover.
       await this.maybeAdoptIogAgreement(tariff);
+      if (!tariff.scheduleTrusted) {
+        // The live code is adopted; fetch its authoritative REST rows NOW so we
+        // recover within THIS refresh instead of waiting a cycle — but only when
+        // adoption actually changed the code (else it repeats the same empty call
+        // that brought us here). Falls closed to null if REST still has no rows.
+        const changed = tariff.tariffCode.toUpperCase() !== priorTariff
+          || tariff.productCode.toUpperCase() !== priorProduct;
+        if (changed) {
+          try {
+            const restRates = await this.client.standardUnitRates(
+              s.fuel, tariff.productCode, tariff.tariffCode, this.periodWindow(),
+            );
+            if (rateAt(restRates)) {
+              this.log('Price-gap recovery: adopted the live IOG code and recovered its REST rows.');
+              return restRates;
+            }
+          } catch (err) {
+            this.log('Price-gap recovery: REST retry on the adopted IOG code was unavailable.');
+          }
+        }
+        this.log('Price-gap recovery: adopted the live IOG code; deferring rates to REST (untrusted schedule shape).');
+        return null;
+      }
       const from = this.localMidnight(-2).getTime();
       const to = this.localMidnight(3).getTime();
       const rates: Rate[] = [];

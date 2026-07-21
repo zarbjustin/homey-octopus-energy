@@ -171,7 +171,7 @@ test('intelligentGoBaseRates adopts the resolved household code when the stored 
   device.localMidnight = (d) => new Date(Date.UTC(2026, 0, 1 + d));
   device.kraken = {
     getActiveIogTariff: async () => ({
-      tariffType: 'DayNightTariff', resolvedVia: 'fallback', validTo: null,
+      tariffType: 'DayNightTariff', resolvedVia: 'fallback', scheduleTrusted: true, validTo: null,
       tariffCode: 'E-1R-IOG-REAL-26-01-01-C', productCode: 'IOG-REAL-26-01-01',
       dayRate: 31.5, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7.619,
       evDevicePeakRate: null, evDeviceOffPeakRate: null,
@@ -184,4 +184,81 @@ test('intelligentGoBaseRates adopts the resolved household code when the stored 
   assert.equal(store.tariffCode, 'E-1R-IOG-REAL-26-01-01-C', 'adopted the real code');
   assert.equal(store.productCode, 'IOG-REAL-26-01-01');
   assert.equal(invalidated, 1, 'the IOG tariff cache is invalidated (not the whole account/budget)');
+});
+
+test('intelligentGoBaseRates adopts an untrusted-shape code but defers rates to REST', async () => {
+  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-STALE-26-01-01', tariffCode: 'E-1R-INTELLI-STALE-26-01-01-C' };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  let invalidated = 0;
+  device.store = () => store;
+  device.setStoreValue = async (k, v) => { store[k] = v; };
+  device.isIntelligentGoTariff = () => true;
+  device.ensureRegisterCapabilities = async () => {};
+  device.log = () => {};
+  device.error = () => {};
+  device.homey = { clock: { getTimezone: () => 'Europe/London' }, app: { invalidateIogTariff: () => { invalidated += 1; } } };
+  device.vatInc = () => true;
+  device.localMidnight = (d) => new Date(Date.UTC(2026, 0, 1 + d));
+  const restCalls = [];
+  device.client = {
+    standardUnitRates: async (fuel, productCode, tariffCode) => {
+      restCalls.push({ productCode, tariffCode });
+      // The adopted (live) code returns real rows covering now; the stale one did not.
+      if (productCode === 'INTELLI-REAL-26-01-01') {
+        const from = new Date(Date.now() - 3600_000).toISOString();
+        const to = new Date(Date.now() + 3600_000).toISOString();
+        return [{ value_inc_vat: 24, value_exc_vat: 22.8, valid_from: from, valid_to: to, payment_method: null }];
+      }
+      return [];
+    },
+  };
+  device.kraken = {
+    // A StandardTariff/HalfHourly-style agreement: resolved for code adoption
+    // only. We must NOT fabricate a day/night schedule from it.
+    getActiveIogTariff: async () => ({
+      tariffType: 'StandardTariff', resolvedVia: 'fallback', scheduleTrusted: false, validTo: null,
+      tariffCode: 'E-1R-INTELLI-REAL-26-01-01-C', productCode: 'INTELLI-REAL-26-01-01',
+      dayRate: 28.95, nightRate: 28.95, preVatDayRate: 27.571, preVatNightRate: 27.571,
+      evDevicePeakRate: null, evDeviceOffPeakRate: null,
+      preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 49,
+    }),
+  };
+
+  const rates = await device.intelligentGoBaseRates();
+  // The live code is adopted AND its authoritative REST rows are recovered in the
+  // same cycle — never a fabricated day/night schedule.
+  assert.ok(Array.isArray(rates) && rates.length === 1, 'recovered the adopted code\'s REST rows');
+  assert.equal(rates[0].value_inc_vat, 24);
+  assert.deepEqual(restCalls, [{ productCode: 'INTELLI-REAL-26-01-01', tariffCode: 'E-1R-INTELLI-REAL-26-01-01-C' }]);
+  assert.equal(store.tariffCode, 'E-1R-INTELLI-REAL-26-01-01-C', 'the live code is still adopted');
+  assert.equal(store.productCode, 'INTELLI-REAL-26-01-01');
+  assert.equal(invalidated, 1, 'adoption invalidated the IOG tariff cache');
+});
+
+test('intelligentGoBaseRates fails closed to null when an untrusted adopted code still has no REST rows', async () => {
+  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-STALE-26-01-01', tariffCode: 'E-1R-INTELLI-STALE-26-01-01-C' };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => store;
+  device.setStoreValue = async (k, v) => { store[k] = v; };
+  device.isIntelligentGoTariff = () => true;
+  device.ensureRegisterCapabilities = async () => {};
+  device.log = () => {};
+  device.error = () => {};
+  device.homey = { clock: { getTimezone: () => 'Europe/London' }, app: { invalidateIogTariff: () => {} } };
+  device.vatInc = () => true;
+  device.localMidnight = (d) => new Date(Date.UTC(2026, 0, 1 + d));
+  device.client = { standardUnitRates: async () => [] }; // no rows even for the live code
+  device.kraken = {
+    getActiveIogTariff: async () => ({
+      tariffType: 'HalfHourlyTariff', resolvedVia: 'fallback', scheduleTrusted: false, validTo: null,
+      tariffCode: 'E-1R-INTELLI-REAL-26-01-01-C', productCode: 'INTELLI-REAL-26-01-01',
+      dayRate: 0, nightRate: 0, preVatDayRate: 0, preVatNightRate: 0,
+      evDevicePeakRate: null, evDeviceOffPeakRate: null,
+      preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: null,
+    }),
+  };
+
+  const rates = await device.intelligentGoBaseRates();
+  assert.equal(rates, null, 'no rows and no fabricated schedule → fail closed');
+  assert.equal(store.tariffCode, 'E-1R-INTELLI-REAL-26-01-01-C', 'code still adopted for the next cycle');
 });
