@@ -24,11 +24,13 @@ Last updated: 21 July 2026
   (pure `refreshHealthDecision`), commit `30b7acc`; slice 3 landed `lib/pricing/iogSchedule.ts`
   (`iogUnitRatesToRates` + `synthesiseIogDayNightRates`) + `lib/pricing/priceGap.ts`
   (`isRecoverablePriceGapError`), commit `a647d39`; slice 4 landed `lib/consumption/cumulative.ts`
-  (`computeCumulativeUpdate` — the single cumulative-meter writer), commit `216e527` —
-  `OctopusMeterDevice` now 2273 LOC (from 2399), zero user-visible change, 416 tests green. Next
-  decomposition slice per `docs/blueprint/16-implementation-plan.md` §2.1: extract
-  `ReportingService` + a thin `PlanningFacade`, then BL-08 generation/cancellation safety (the
-  cumulative-writer arithmetic is now isolated in `computeCumulativeUpdate`, ready for that guard).
+  (`computeCumulativeUpdate` — the single cumulative-meter writer), commit `216e527`; slice 5
+  landed `lib/planning/window.ts` (`computeRatesHorizon`, `computeUpcomingExtremes`,
+  `isWithinCheapestPercentile`), commit `7f1d5d4` — `OctopusMeterDevice` now 2255 LOC (from 2399),
+  zero user-visible change, 424 tests green. Next decomposition slice per
+  `docs/blueprint/16-implementation-plan.md` §2.1: extract a thin `ReportingService`, then make the
+  device a lifecycle façade, then BL-08 generation/cancellation safety (the cumulative-writer
+  arithmetic is now isolated in `computeCumulativeUpdate`, ready for that guard).
 - `main` HEAD is `9990cb4`. The v1.0.23 ship is commits `4fb83a3` (fix) + `9990cb4`
   (release bump). All pushed directly to `main` (owner bypass of the
   PR rule); CI, Validate, CodeQL, Create GitHub Release, and Publish Homey App all green.
