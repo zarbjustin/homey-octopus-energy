@@ -177,17 +177,13 @@
       });
 
       const status = document.getElementById('saving-session-status');
-      const maskIdentifier = (value) => {
-        const text = String(value || '');
-        return text.length > 8 ? `${text.slice(0, 3)}...${text.slice(-4)}` : text;
-      };
       Homey.get('saving_sessions_diagnostics_v1', (err, diagnostics) => {
         if (err || !diagnostics || !Object.keys(diagnostics).length) return;
         status.textContent = '';
-        Object.entries(diagnostics).forEach(([account, value]) => {
+        Object.entries(diagnostics).forEach(([account, value], i) => {
           const item = document.createElement('li');
           const title = document.createElement('strong');
-          title.textContent = maskIdentifier(account);
+          title.textContent = Object.keys(diagnostics).length > 1 ? `Account ${i + 1}` : 'Saving Sessions';
           const detail = document.createElement('span');
           const checked = value.lastAttempt ? new Date(value.lastAttempt).toLocaleString() : 'not yet';
           let message = value.lastError
@@ -226,10 +222,10 @@
       Homey.get('integration_diagnostics_v1', (err, diagnostics) => {
         if (err || !diagnostics || !Object.keys(diagnostics).length) return;
         integrationStatus.textContent = '';
-        Object.entries(diagnostics).forEach(([deviceId, areas]) => {
+        Object.entries(diagnostics).forEach(([deviceId, areas], i) => {
           const item = document.createElement('li');
           const title = document.createElement('strong');
-          title.textContent = maskIdentifier(deviceId);
+          title.textContent = Object.keys(diagnostics).length > 1 ? `Meter ${i + 1}` : 'Meter';
           const detail = document.createElement('span');
           const entries = Object.entries(areas || {});
           const failures = entries.filter(([, value]) => value.lastError);
