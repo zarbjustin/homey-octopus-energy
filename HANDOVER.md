@@ -6,21 +6,20 @@ Last updated: 21 July 2026
 
 - Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current source version: `1.0.24`; release tag: `v1.0.24` (GitHub release published). Homey
-  **Build (v1.0.24)** uploaded to the App Store on 21 July 2026 (publish run `29866957322`,
-  green). This build fixes the IOG **cost tiles showing £0** (Off-peak/Peak cost today, Cost
-  yesterday, monthly/billing): the cost-history paths (`refreshMonthlyCost`,
-  `refreshBillingSummary`, `refreshDayBreakdown`) fetched tariff rates from the public REST feed,
-  which is empty for IOG, so all historical consumption priced at £0. New `costRatesForWindow`
-  falls back to the authoritative live series (`this.rates`, resolved before the reporting phase)
-  for single-register import meters when the REST feed is empty; two-register (Economy 7) meters
-  are never substituted. See commit `3525d40`/fix + `test/cost-history-iog.test.js`. Prior build
-  v1.0.23 (`4fb83a3`) fixed the IOG Lowest/Highest/Average price-today tiles staying blank
-  (`refreshPriceStats` samples `rateAt` across the local day). **Known IOG limitation:** Darren's
-  HalfHourly feed publishes only the single standard rate (~28.86p) — the overnight cheap band is
-  not exposed as a half-hourly rate — so Lowest=Highest=Average and off-peak usage prices at the
-  day rate (non-zero, but not the ~7p overnight rate). **Manual step remaining:** promote the
-  build to Test/Live at
+- Current source version: `1.0.25`; release tag: `v1.0.25` (GitHub release published). Homey
+  **Build (v1.0.25)** uploaded to the App Store on 21 July 2026 (publish run `29871078184`,
+  green). This build batches the internal safety/hardening work: **BL-08** (cumulative energy-meter
+  writer is stale-write-safe — generation fence + serialized commit queue with inside-lock
+  re-read, preventing rare double-count/regression when refreshes overlap) and **BL-30** (Kraken
+  token renewed from its own JWT `exp` claim; authenticated GraphQL requests pinned to the
+  configured Octopus origins). Zero user-visible change. Prior build v1.0.24 (`3525d40`) fixed the
+  IOG **cost tiles showing £0** via `costRatesForWindow` (price history from the authoritative live
+  series when the public REST feed is empty); v1.0.23 (`4fb83a3`) fixed the IOG
+  Lowest/Highest/Average price-today tiles staying blank (`refreshPriceStats` samples `rateAt`
+  across the local day). **Known IOG limitation:** Darren's HalfHourly feed publishes only the
+  single standard rate (~28.86p) — the overnight cheap band is not exposed as a half-hourly rate —
+  so Lowest=Highest=Average and off-peak usage prices at the day rate (non-zero, but not the ~7p
+  overnight rate). **Manual step remaining:** promote the build to Test/Live at
   https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy, then ask Darren
   (community 156860) to confirm the cost tiles now populate.
 - Recent ships this line: v1.0.20 (IOG tariff-union + census), v1.0.21 (IOG HalfHourly.unitRates
@@ -48,10 +47,10 @@ Last updated: 21 July 2026
   token refresh (commit `224a7e1`, `lib/jwt.ts`), GraphQL origin pinning for authed requests
   (commit `d1f9f82`, `assertAllowedOrigin` + REST `getAll` already pinned), bounded REST
   pagination (pre-existing `MAX_PAGINATION_PAGES`), and centralised unsupported-field backoff
-  (pre-existing `KrakenClient.isUnsupportedFieldError` + 24h points backoff). **Unreleased on
-  `main` (ready to batch into the next App Store build): BL-08 + BL-30** — all zero-user-visible /
-  safety-only. Remaining Phase 2 (optional, lower value): a thin `ReportingService` + device-as-
-  façade (mostly mechanical relocation of I/O orchestration).
+  (pre-existing `KrakenClient.isUnsupportedFieldError` + 24h points backoff). **Shipped in v1.0.25**
+  (release commit `b94c041`, publish run `29871078184`, green) — BL-08 + BL-30 are now released.
+  Remaining Phase 2 (optional, lower value): a thin `ReportingService` + device-as-façade (mostly
+  mechanical relocation of I/O orchestration).
 - `main` HEAD is `9990cb4`. The v1.0.23 ship is commits `4fb83a3` (fix) + `9990cb4`
   (release bump). All pushed directly to `main` (owner bypass of the
   PR rule); CI, Validate, CodeQL, Create GitHub Release, and Publish Homey App all green.
