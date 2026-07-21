@@ -513,7 +513,10 @@ export class OctopusMeterDevice extends Homey.Device {
    */
   async reloadCredentials(apiKey: string): Promise<void> {
     if (!apiKey || this.store().apiKey === apiKey) return;
-    await this.setStoreValue('apiKey', apiKey).catch((err) => this.error('Could not store rotated key:', err));
+    // If the key write fails, do NOT rebuild clients with the stale key (that would
+    // recreate the very key-thrash we are fixing); let it reject so the caller's
+    // per-sibling try/catch records it and the sibling is retried on next repair.
+    await this.setStoreValue('apiKey', apiKey);
     this.buildClients();
     await this.onCredentialsApplied().catch((err) => this.error(err));
   }

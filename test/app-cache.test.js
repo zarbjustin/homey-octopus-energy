@@ -202,3 +202,27 @@ test('repair propagation is skipped on an account-number change (siblings not st
   assert.equal(gas.store.apiKey, 'OLD', 'a sibling is NOT re-keyed when the account number changes');
   assert.equal(gas.store.accountNumber, 'A-ONE', 'and is NOT moved to the unvalidated new account');
 });
+
+test('repair propagation uses the quiet reloadCredentials path with no refresh burst', async () => {
+  const app = new OctopusEnergyApp();
+  const s = { apiKey: 'OLD', accountNumber: 'A-ONE', serial: 'g1' };
+  let reloaded = null;
+  let refreshed = false;
+  let appliedHeavy = false;
+  const gas = {
+    getData: () => ({ id: 'gas-1' }),
+    getStoreValue: (k) => s[k],
+    setStoreValue: async (k, v) => { s[k] = v; },
+    reloadCredentials: async (key) => { reloaded = key; s.apiKey = key; },
+    applyCredentials: async () => { appliedHeavy = true; },
+    refresh: async () => { refreshed = true; },
+    store: s,
+  };
+  app.homey = { drivers: { getDriver: (id) => ({ getDevices: () => (id === 'gas' ? [gas] : []) }) } };
+
+  await app.propagateRepairedCredentials('A-ONE', 'NEW', 'A-ONE', 'elec-1');
+  assert.equal(reloaded, 'NEW', 'the sibling is updated via the quiet reloadCredentials path');
+  assert.equal(s.apiKey, 'NEW');
+  assert.equal(refreshed, false, 'no per-sibling refresh burst');
+  assert.equal(appliedHeavy, false, 'the heavy applyCredentials path is not used for siblings');
+});
