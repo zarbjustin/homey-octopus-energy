@@ -35,6 +35,7 @@ import { DeviceScheduler } from './DeviceScheduler';
 import { refreshHealthDecision, RefreshHealthDecision } from './health';
 import { iogUnitRatesToRates, synthesiseIogDayNightRates } from './pricing/iogSchedule';
 import { isRecoverablePriceGapError } from './pricing/priceGap';
+import { computeCumulativeUpdate } from './consumption/cumulative';
 
 // Re-exported for backward compatibility with existing importers/tests.
 export { refreshHealthDecision };
@@ -836,14 +837,12 @@ export class OctopusMeterDevice extends Homey.Device {
       // correct; write the cursor before the total so an interrupted write
       // under-counts (loses a delta) rather than double-counting.
       const persistedEnd: string | null = this.getStoreValue('lastConsumptionEnd');
-      const lastEnd = persistedEnd ? new Date(persistedEnd).getTime() : 0;
-      const fresh = sorted.filter((r) => new Date(r.interval_end).getTime() > lastEnd);
-      if (fresh.length) {
-        const add = this.toMeterUnit(sumConsumption(fresh));
-        const cumulative = Number(((Number(this.getStoreValue('cumulativeMeter')) || 0) + add).toFixed(3));
-        await this.setStoreValue('lastConsumptionEnd', sorted[sorted.length - 1].interval_end);
-        await this.setStoreValue('cumulativeMeter', cumulative);
-        await this.setCapabilityValue(meterCap as string, cumulative).catch(this.error);
+      const priorCumulative = Number(this.getStoreValue('cumulativeMeter')) || 0;
+      const update = computeCumulativeUpdate(sorted, persistedEnd, priorCumulative, (raw) => this.toMeterUnit(raw));
+      if (update) {
+        await this.setStoreValue('lastConsumptionEnd', update.cursorIso);
+        await this.setStoreValue('cumulativeMeter', update.cumulative);
+        await this.setCapabilityValue(meterCap as string, update.cumulative).catch(this.error);
       } else if (this.getStoreValue('cumulativeMeter') != null) {
         await this.setCapabilityValue(meterCap as string, Number(this.getStoreValue('cumulativeMeter'))).catch(this.error);
       }
