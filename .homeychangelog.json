@@ -79,5 +79,8 @@
   },
   "1.0.26": {
     "en": "Intelligent Octopus Go: if your account only publishes the day rate to the API, you can now set your off-peak (night) rate in the device settings to restore correct day/night pricing (fixes prices, off-peak cost and the cheap-charge window all showing the day rate). Also more robust smart-charge dispatch reading, so planned charge slots keep working if a linked device's status is briefly unavailable."
+  },
+  "1.0.27": {
+    "en": "Intelligent Octopus Go: the app now reads the day/night rate type from Octopus's half-hourly data, so if your account publishes an off-peak rate the cheap overnight price is applied automatically (fixes prices, off-peak cost and the cheap-charge window showing the day rate). If your account only exposes the day rate, set your off-peak rate in the new device setting. Plus more robust smart-charge dispatch reading."
   }
 }
