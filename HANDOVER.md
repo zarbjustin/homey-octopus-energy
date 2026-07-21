@@ -44,11 +44,14 @@ Last updated: 21 July 2026
   mutex). Tri-model reviewed (GPT-5.6 Sol, 3 rounds). `OctopusMeterDevice` ~2346 LOC, zero
   user-visible change, 438 tests green. Next decomposition slice per
   `docs/blueprint/16-implementation-plan.md` §2.1: extract a thin `ReportingService`, then make the
-  device a lifecycle façade. **BL-30 (API hardening) started** (commit `224a7e1`): the Kraken JWT
-  refresh now schedules from the token's own `exp` claim (pure `lib/jwt.ts`, proportional skew,
-  opaque-token fallback) instead of a fixed 1h guess. Remaining BL-30 items: GraphQL origin
-  pinning, re-introspection on unsupported-field errors, bounded REST page sizes. **BL-08 is
-  committed but not yet released — ready to batch into the next App Store build.**
+  device a lifecycle façade. **BL-30 (API hardening) substantially complete** — JWT-`exp`-based
+  token refresh (commit `224a7e1`, `lib/jwt.ts`), GraphQL origin pinning for authed requests
+  (commit `d1f9f82`, `assertAllowedOrigin` + REST `getAll` already pinned), bounded REST
+  pagination (pre-existing `MAX_PAGINATION_PAGES`), and centralised unsupported-field backoff
+  (pre-existing `KrakenClient.isUnsupportedFieldError` + 24h points backoff). **Unreleased on
+  `main` (ready to batch into the next App Store build): BL-08 + BL-30** — all zero-user-visible /
+  safety-only. Remaining Phase 2 (optional, lower value): a thin `ReportingService` + device-as-
+  façade (mostly mechanical relocation of I/O orchestration).
 - `main` HEAD is `9990cb4`. The v1.0.23 ship is commits `4fb83a3` (fix) + `9990cb4`
   (release bump). All pushed directly to `main` (owner bypass of the
   PR rule); CI, Validate, CodeQL, Create GitHub Release, and Publish Homey App all green.
