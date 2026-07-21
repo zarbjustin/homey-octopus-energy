@@ -164,6 +164,7 @@ export class OctopusMeterDriver extends Homey.Driver {
       };
       // Let the meter device wait for any in-flight refresh, write the new
       // credentials, clear account-scoped caches, and refresh as one operation.
+      const priorAccount = device.getStoreValue('accountNumber');
       const meterDevice = device as Homey.Device & {
         applyCredentials?: (store: MeterStore) => Promise<void>;
       };
@@ -174,6 +175,18 @@ export class OctopusMeterDriver extends Homey.Driver {
           // eslint-disable-next-line no-await-in-loop
           await device.setStoreValue(key, value);
         }
+      }
+      // Propagate the rotated key/account to sibling meters on the same account so
+      // they don't keep thrashing the shared client with a stale key.
+      const app = this.homey?.app as (Homey.App & {
+        propagateRepairedCredentials?(
+          priorAccount: string, apiKey: string, accountNumber: string, exceptDeviceId: string,
+        ): Promise<void>;
+      }) | undefined;
+      if (priorAccount && typeof app?.propagateRepairedCredentials === 'function') {
+        await app.propagateRepairedCredentials(
+          priorAccount, creds.apiKey, creds.accountNumber, String(device.getData().id),
+        ).catch((err) => this.error('Sibling credential propagation failed:', err));
       }
       return { done: true };
     });

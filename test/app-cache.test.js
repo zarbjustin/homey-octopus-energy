@@ -133,3 +133,39 @@ test('invalidateIogTariff drops only the IOG cache, not the whole account/budget
   await app.getCachedIogTariff('key', 'A-3', 'E-1R-IOG-Z-C', 'IOG-Z');
   assert.equal(calls, 2, 'the entry is re-fetched after targeted invalidation');
 });
+
+test('repair propagates rotated credentials to sibling meters on the same account (BL-11)', async () => {
+  const app = new OctopusEnergyApp();
+  // Two sibling devices (electricity + gas) on account A-ONE with the OLD key,
+  // plus one on a different account that must NOT be touched.
+  const makeDevice = (id, store) => {
+    const s = { ...store };
+    return {
+      id,
+      getData: () => ({ id }),
+      getStoreValue: (k) => s[k],
+      setStoreValue: async (k, v) => { s[k] = v; },
+      applied: null,
+      applyCredentials: async (next) => { Object.assign(s, next); },
+      store: s,
+    };
+  };
+  const elec = makeDevice('elec-1', { apiKey: 'OLD', accountNumber: 'A-ONE', mpxn: '111', serial: 'e1', fuel: 'electricity' });
+  const gas = makeDevice('gas-1', { apiKey: 'OLD', accountNumber: 'A-ONE', mpxn: '999', serial: 'g1', fuel: 'gas' });
+  const other = makeDevice('elec-2', { apiKey: 'KEEP', accountNumber: 'A-TWO', mpxn: '222', serial: 'e2', fuel: 'electricity' });
+  const drivers = {
+    electricity: { getDevices: () => [elec, other] },
+    gas: { getDevices: () => [gas] },
+    export: { getDevices: () => [] },
+  };
+  app.homey = { drivers: { getDriver: (id) => { const d = drivers[id]; if (!d) throw new Error('no'); return d; } } };
+
+  // Repair happened on elec-1 (excluded); propagate NEW key to siblings on A-ONE.
+  await app.propagateRepairedCredentials('A-ONE', 'NEW', 'A-ONE', 'elec-1');
+
+  assert.equal(gas.store.apiKey, 'NEW', 'the sibling gas meter gets the rotated key');
+  assert.equal(gas.store.accountNumber, 'A-ONE');
+  assert.equal(gas.store.serial, 'g1', 'the sibling keeps its own meter identity');
+  assert.equal(other.store.apiKey, 'KEEP', 'a device on a different account is untouched');
+  assert.equal(elec.store.apiKey, 'OLD', 'the repaired device itself is excluded (already updated by repair)');
+});

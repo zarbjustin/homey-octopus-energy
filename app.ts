@@ -102,6 +102,62 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     this.liveDemand?.invalidate(accountNumber);
   }
 
+  /**
+   * Repairing one meter rotates the API key (and possibly the account) for the
+   * WHOLE account, but only the repaired device's store is updated by the repair
+   * handler. Sibling meters on the same account keep the stale key and then thrash
+   * the shared Kraken client (each sibling refresh recreates it under its own old
+   * key, invalidating the repaired device's caches every cycle) and fail REST auth.
+   * Propagate the new credentials to every sibling on the prior account so they all
+   * converge on one canonical key/client. One-off on repair.
+   */
+  async propagateRepairedCredentials(
+    priorAccountNumber: string, apiKey: string, accountNumber: string, exceptDeviceId: string,
+  ): Promise<void> {
+    for (const driverId of ['electricity', 'gas', 'export']) {
+      let driver: Homey.Driver;
+      try {
+        driver = this.homey.drivers.getDriver(driverId);
+      } catch (err) {
+        continue;
+      }
+      for (const device of driver.getDevices()) {
+        if (String(device.getData().id) === exceptDeviceId) continue;
+        if (device.getStoreValue('accountNumber') !== priorAccountNumber) continue;
+        const sibling = device as Homey.Device & {
+          applyCredentials?(store: Record<string, unknown>): Promise<void>;
+        };
+        const current: Record<string, unknown> = {
+          apiKey: device.getStoreValue('apiKey'),
+          accountNumber: device.getStoreValue('accountNumber'),
+          mpxn: device.getStoreValue('mpxn'),
+          serial: device.getStoreValue('serial'),
+          fuel: device.getStoreValue('fuel'),
+          isExport: device.getStoreValue('isExport'),
+          productCode: device.getStoreValue('productCode'),
+          tariffCode: device.getStoreValue('tariffCode'),
+        };
+        const next = { ...current, apiKey, accountNumber };
+        try {
+          if (typeof sibling.applyCredentials === 'function') {
+            // eslint-disable-next-line no-await-in-loop
+            await sibling.applyCredentials(next);
+          } else {
+            for (const [key, value] of Object.entries(next)) {
+              // eslint-disable-next-line no-await-in-loop
+              await device.setStoreValue(key, value);
+            }
+          }
+        } catch (err) {
+          this.error('Could not propagate repaired credentials to a sibling meter:', err);
+        }
+      }
+    }
+    // Ensure the shared caches/budget are clean for both the prior and new account.
+    this.invalidateAccountCaches(priorAccountNumber);
+    if (accountNumber !== priorAccountNumber) this.invalidateAccountCaches(accountNumber);
+  }
+
   // --- Live Home Mini demand (shared, account-scoped) ---------------------
 
   /** Subscribe a device to shared live-demand updates for its account. */
