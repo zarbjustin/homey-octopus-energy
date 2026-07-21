@@ -58,5 +58,8 @@
   },
   "1.0.19": {
     "en": "Reliability & efficiency fixes: Saving Sessions and Free Electricity now keep refreshing after the first check; the Intelligent dispatch status in Settings shows correctly again; the 'dispatching now' indicator is more accurate and no longer sticks after a failed check; and startup makes fewer redundant Octopus API calls to stay well within the account rate limit."
+  },
+  "1.0.20": {
+    "en": "Fixes a persistent “day rate blank” issue on Intelligent Octopus Go: the app now reads every kind of household tariff agreement from your account (not just the two it previously recognised), adopts your live tariff code when the stored one has drifted, and recovers the real prices automatically. Also adds a clearer, fully anonymised diagnostic so any remaining edge case can be pinpointed quickly."
   }
 }
