@@ -64,5 +64,8 @@
   },
   "1.0.21": {
     "en": "Fixes Intelligent Octopus Go import prices that showed as unavailable: the app now reads your half-hourly rates directly from your account agreement (used like Agile prices) when Octopus’s public price feed is empty for your tariff. Also clarifies the two smart-charging tiles — “Cheap-charge window (planned)” (the app’s own plan) vs “Octopus smart-charging now” (a live Octopus dispatch) — and shows the planned window as “—” rather than “No” when prices aren’t available yet."
+  },
+  "1.0.22": {
+    "en": "Stability & efficiency: the app spreads out its start-up checks so it no longer briefly hammers the Octopus API on boot; overlapping data reads within a refresh are now combined into fewer requests; repairing one meter now updates the API key for the other meters on the same account automatically (no more repeated auth errors); and stored diagnostics no longer keep your account or meter identifiers in the clear."
   }
 }
