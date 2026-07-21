@@ -36,6 +36,9 @@ import { refreshHealthDecision, RefreshHealthDecision } from './health';
 import { iogUnitRatesToRates, synthesiseIogDayNightRates } from './pricing/iogSchedule';
 import { isRecoverablePriceGapError } from './pricing/priceGap';
 import { computeCumulativeUpdate } from './consumption/cumulative';
+import {
+  computeRatesHorizon, computeUpcomingExtremes, isWithinCheapestPercentile,
+} from './planning/window';
 
 // Re-exported for backward compatibility with existing importers/tests.
 export { refreshHealthDecision };
@@ -1263,32 +1266,17 @@ export class OctopusMeterDevice extends Homey.Device {
 
   /** The furthest-ahead instant covered by the cached rates (ms), or 0. */
   ratesHorizon(): number {
-    let max = 0;
-    for (const r of this.rates) {
-      const end = r.valid_to ? new Date(r.valid_to).getTime() : new Date(r.valid_from).getTime() + 1800_000;
-      if (end > max) max = end;
-    }
-    return max;
+    return computeRatesHorizon(this.rates);
   }
 
   /** Cheapest / most expensive upcoming rate values (p/kWh) for tonight tokens. */
   upcomingExtremes(): { cheapest: number; cheapestStart: string; expensive: number } | null {
-    const now = Date.now();
-    const fwd = this.rates.filter((r) => {
-      const end = r.valid_to ? new Date(r.valid_to).getTime() : Infinity;
-      return end > now;
-    });
-    if (!fwd.length) return null;
-    let cheapest = fwd[0];
-    let expensive = fwd[0];
-    for (const r of fwd) {
-      if (valueOf(r, this.vatInc()) < valueOf(cheapest, this.vatInc())) cheapest = r;
-      if (valueOf(r, this.vatInc()) > valueOf(expensive, this.vatInc())) expensive = r;
-    }
+    const ext = computeUpcomingExtremes(this.rates, Date.now(), this.vatInc());
+    if (!ext) return null;
     return {
-      cheapest: Number(valueOf(cheapest, this.vatInc()).toFixed(2)),
-      cheapestStart: this.formatLocal(new Date(cheapest.valid_from)),
-      expensive: Number(valueOf(expensive, this.vatInc()).toFixed(2)),
+      cheapest: ext.cheapest,
+      cheapestStart: this.formatLocal(new Date(ext.cheapestStartIso)),
+      expensive: ext.expensive,
     };
   }
 
@@ -1297,14 +1285,8 @@ export class OctopusMeterDevice extends Homey.Device {
     const current = rateAt(this.rates, at);
     if (!current) return false;
     const to = new Date(at.getTime() + hours * 3600_000);
-    const window = ratesInWindow(this.rates, this.planningWindowStart(at), to)
-      .map((r) => valueOf(r, this.vatInc()))
-      .sort((a, b) => a - b);
-    if (!window.length) return false;
-    const cv = valueOf(current, this.vatInc());
-    const rank = window.filter((v) => v <= cv).length; // 1-based count at/below current
-    const pct = (rank / window.length) * 100;
-    return pct <= Math.max(0, Math.min(100, percent));
+    const window = ratesInWindow(this.rates, this.planningWindowStart(at), to);
+    return isWithinCheapestPercentile(window, current, this.vatInc(), percent);
   }
 
   /** Local time string for the start of the next smart-charge slot, or null. */
