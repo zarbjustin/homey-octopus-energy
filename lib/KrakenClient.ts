@@ -17,6 +17,7 @@ import {
 import { SmartFlexDevice, classifyKind } from './dispatch/types';
 import { normaliseDevices } from './dispatch/deviceModel';
 import { PlannedInput, CompletedInput } from './dispatch/reconcile';
+import { jwtExpiryMs } from './jwt';
 
 const GRAPHQL_URL = 'https://api.octopus.energy/v1/graphql/';
 
@@ -283,8 +284,19 @@ export class KrakenClient {
     const token = data?.obtainKrakenToken?.token;
     if (!token) throw new Error('Could not obtain a Kraken token — check your API key.');
     this.token = token;
-    // Kraken tokens last ~1 hour; refresh a little early to be safe.
-    this.tokenExpiry = Date.now() + 50 * 60 * 1000;
+    // Prefer the token's own `exp` claim so we refresh exactly when Kraken says
+    // it expires. Use a proportional skew (capped at 5 min) so even a
+    // short-lived token stays briefly cacheable — this both absorbs clock drift
+    // and prevents refresh thrashing that would burn the shared `core` budget.
+    // Fall back to the ~1h heuristic when the claim is unreadable or not ahead.
+    const MAX_SKEW_MS = 5 * 60 * 1000;
+    const claim = jwtExpiryMs(token);
+    if (claim !== null && claim > Date.now()) {
+      const skew = Math.min(MAX_SKEW_MS, (claim - Date.now()) / 2);
+      this.tokenExpiry = claim - skew;
+    } else {
+      this.tokenExpiry = Date.now() + 50 * 60 * 1000;
+    }
     return token;
   }
 
