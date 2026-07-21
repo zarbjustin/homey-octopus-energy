@@ -154,15 +154,45 @@ export class KrakenClient {
 
   private readonly accountKey: string;
 
+  /** The exact origins this client is allowed to send authenticated GraphQL
+   *  requests to — pinned to the configured endpoints so a stray/injected URL
+   *  can never receive the bearer token (defense-in-depth). */
+  private readonly allowedOrigins: Set<string>;
+
   constructor(apiKey: string, accountNumber?: string, url: string = GRAPHQL_URL, backendUrl?: string) {
     if (!apiKey) throw new Error('An Octopus API key is required.');
     this.apiKey = apiKey;
     this.url = url;
     this.backendUrl = backendUrl ?? (url === GRAPHQL_URL ? BACKEND_GRAPHQL_URL : url);
+    this.allowedOrigins = new Set(
+      [this.url, this.backendUrl]
+        .map((u) => {
+          try {
+            return new URL(u).origin;
+          } catch {
+            return '';
+          }
+        })
+        .filter((o) => o !== ''),
+    );
     // All GraphQL traffic for one account shares a single request budget. When
     // an account number is unknown (rare bootstrap paths) fall back to a stable
     // non-reversible key so a missing account still gets *a* bucket.
     this.accountKey = accountNumber || `key:${apiKey.slice(0, 6)}`;
+  }
+
+  /** Reject any request URL whose origin is not a configured Kraken endpoint,
+   *  BEFORE the bearer token is attached or the budget is spent. */
+  private assertAllowedOrigin(url: string): void {
+    let origin: string;
+    try {
+      origin = new URL(url).origin;
+    } catch {
+      throw new Error('Refusing to send a Kraken request to a malformed URL.');
+    }
+    if (!this.allowedOrigins.has(origin)) {
+      throw new Error(`Refusing to send a Kraken request to an unexpected origin: ${origin}`);
+    }
   }
 
   private async post<T>(
@@ -172,6 +202,7 @@ export class KrakenClient {
     url = this.url,
     priority: KrakenPriority = 'best',
   ): Promise<GraphQLResponse<T>> {
+    this.assertAllowedOrigin(url);
     const bucket = getBucket(this.accountKey);
     const maxAttempts = 3;
     let lastErr: unknown;
