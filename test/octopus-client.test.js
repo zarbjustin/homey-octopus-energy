@@ -348,3 +348,30 @@ test('consumption URL encodes meter path segments', async () => {
   await client.consumption('electricity', '123/456', 'SERIAL/ONE');
   assert.match(requestedUrl, /123%2F456\/meters\/SERIAL%2FONE\/consumption/);
 });
+
+test('GET coalescing: concurrent identical reads hit the network once (BL-03)', async () => {
+  let calls = 0;
+  const client = new OctopusClient({
+    apiKey: 'secret',
+    fetchImpl: async () => { calls += 1; return jsonResponse({ count: 1, results: [{ v: 1 }] }); },
+  });
+
+  // Two concurrent identical GETs share one network request.
+  const [a, b] = await Promise.all([
+    client.getAccount('A-DEDUP'),
+    client.getAccount('A-DEDUP'),
+  ]);
+  assert.strictEqual(calls, 1, 'concurrent identical GETs are coalesced to one fetch');
+
+  // A sequential identical GET within the short TTL reuses the response.
+  await client.getAccount('A-DEDUP');
+  assert.strictEqual(calls, 1, 'a repeat within the TTL is served from the coalescer');
+
+  // A different path is a separate request.
+  await client.getAccount('A-OTHER');
+  assert.strictEqual(calls, 2, 'a different URL is not coalesced');
+
+  // Coalesced callers get independent (cloned) objects, not a shared reference.
+  assert.notStrictEqual(a, b, 'each caller receives its own cloned copy');
+  assert.deepEqual(a, b, 'but with equal content');
+});

@@ -122,6 +122,19 @@ export class OctopusClient {
 
   private readonly fetchImpl: typeof fetch;
 
+  /** Short-TTL GET coalescing: dedupe identical concurrent requests and reuse an
+   *  identical response for a few seconds so overlapping reads within one refresh
+   *  cycle (e.g. monthly-cost + billing summary hitting the same consumption/rates/
+   *  standing endpoints, or the two per-refresh carbon calls) cost one network
+   *  request. TTL is far below any poll interval, so it is dedup — not a cache that
+   *  changes cross-cycle freshness. Responses are cloned on return so a caller that
+   *  mutates its result cannot corrupt a coalesced peer's copy. */
+  private readonly getInflight = new Map<string, Promise<unknown>>();
+
+  private readonly getCache = new Map<string, { ts: number; value: unknown }>();
+
+  private static readonly GET_COALESCE_TTL_MS = 10_000;
+
   constructor(opts: OctopusClientOptions) {
     if (!opts.apiKey) throw new Error('An Octopus API key is required.');
     this.apiKey = opts.apiKey;
@@ -181,9 +194,39 @@ export class OctopusClient {
     return url.toString();
   }
 
-  /** Perform a single GET request with auth, retry and typed error handling. */
+  /** Perform a GET with short-TTL coalescing (dedupe concurrent + brief reuse). */
   async get<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
-    const url = this.buildUrl(path, params);
+    const key = this.buildUrl(path, params);
+    const cached = this.getCache.get(key);
+    if (cached && Date.now() - cached.ts < OctopusClient.GET_COALESCE_TTL_MS) {
+      return OctopusClient.clone(cached.value) as T;
+    }
+    const inflight = this.getInflight.get(key);
+    if (inflight) return OctopusClient.clone(await inflight) as T;
+    const request = this.getUncached<T>(key)
+      .then((value) => {
+        this.getCache.set(key, { ts: Date.now(), value });
+        // Bound the cache the same way the app bounds its maps.
+        if (this.getCache.size > 64) {
+          const oldest = this.getCache.keys().next().value as string | undefined;
+          if (oldest !== undefined) this.getCache.delete(oldest);
+        }
+        return value;
+      })
+      .finally(() => this.getInflight.delete(key));
+    this.getInflight.set(key, request);
+    return OctopusClient.clone(await request) as T;
+  }
+
+  /** Structured clone so coalesced callers never share a mutable reference. */
+  private static clone<T>(value: T): T {
+    if (value === null || typeof value !== 'object') return value;
+    const sc = (globalThis as { structuredClone?: (v: unknown) => unknown }).structuredClone;
+    return (sc ? sc(value) : JSON.parse(JSON.stringify(value))) as T;
+  }
+
+  /** Perform a single GET request with auth, retry and typed error handling. */
+  private async getUncached<T>(url: string): Promise<T> {
     let lastErr: unknown;
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
