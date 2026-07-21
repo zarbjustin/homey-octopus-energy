@@ -915,6 +915,27 @@ export class OctopusMeterDevice extends Homey.Device {
     return true;
   }
 
+  /**
+   * The unit rates used to price HISTORICAL consumption over a window.
+   *
+   * The public REST unit-rate feed is empty for Intelligent Octopus Go accounts
+   * (the settlement product publishes no public rows — the account's own
+   * HalfHourly agreement is authoritative). The live price already recovers this
+   * via `intelligentGoBaseRates`, leaving the resolved series in `this.rates`.
+   * The cost-history paths (month cost, peak/off-peak/yesterday breakdown,
+   * billing summary) fetch their own REST rates, so for IOG they would price
+   * every record at £0. When the REST feed returns no rows for a single-register
+   * import meter, fall back to the authoritative live series so those surfaces
+   * stay consistent with the live "cost today" tile instead of showing zero.
+   *
+   * Two-register (Economy 7) meters are never substituted — their day/night
+   * registers must not borrow the single-rate series.
+   */
+  protected costRatesForWindow(restDayRates: Rate[], twoRegister: boolean): Rate[] {
+    if (twoRegister || restDayRates.length) return restDayRates;
+    return this.rates;
+  }
+
   private periodWindow(): { period_from: string; period_to: string } {
     const now = new Date();
     const from = new Date(now.getTime() - 30 * 3600_000); // cover the last 24h for cost calc
@@ -1921,9 +1942,13 @@ export class OctopusMeterDevice extends Homey.Device {
     ]);
     if (!records.length) return;
 
+    // For IOG (and any single-register import meter whose public REST feed is
+    // empty), price history from the authoritative live series instead of £0.
+    const dayRatesForCost = this.costRatesForWindow(dayRates, twoRegister);
+
     let pence = 0;
     for (const r of records) {
-      const rate = this.rateForRecord(r.interval_start, dayRates, nightRates);
+      const rate = this.rateForRecord(r.interval_start, dayRatesForCost, nightRates);
       if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
     }
     if (this.includeStandingChargeInCost()) {
@@ -1944,7 +1969,7 @@ export class OctopusMeterDevice extends Homey.Device {
       await this.setCapabilityValue(projectedCap, Number(projected.toFixed(2))).catch(this.error);
     }
 
-    await this.refreshDayBreakdown(records, dayRates, nightRates, standingHistory);
+    await this.refreshDayBreakdown(records, dayRatesForCost, nightRates, standingHistory);
     this.lastMonthlyRefresh = Date.now();
   }
 
@@ -1978,6 +2003,9 @@ export class OctopusMeterDevice extends Homey.Device {
         : Promise.resolve([] as Rate[]),
       this.client.standingCharges(s.fuel, s.productCode, s.tariffCode, window),
     ]);
+    // IOG parity: price history from the authoritative live series when the
+    // public REST feed is empty, so the billing summary never shows £0 usage.
+    const dayRatesForCost = this.costRatesForWindow(dayRates, twoRegister);
     if (!records.length) {
       // No settled data for the current period yet — persist a current-period
       // placeholder so the settings surface never shows the previous period.
@@ -1989,7 +2017,7 @@ export class OctopusMeterDevice extends Homey.Device {
         timeZone: tz,
         incVat: this.vatInc(),
         import: {
-          records: [], dayRates, nightRates, standing, isNight: (iso: string) => this.isNightTime(iso),
+          records: [], dayRates: dayRatesForCost, nightRates, standing, isNight: (iso: string) => this.isNightTime(iso),
         },
       }));
       return;
@@ -2008,7 +2036,7 @@ export class OctopusMeterDevice extends Homey.Device {
       incVat: this.vatInc(),
       import: {
         records,
-        dayRates,
+        dayRates: dayRatesForCost,
         nightRates,
         standing,
         isNight: (iso: string) => this.isNightTime(iso),
