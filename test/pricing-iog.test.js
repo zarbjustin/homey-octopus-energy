@@ -151,3 +151,69 @@ test('synthesising from a flat day base + configured night rate yields the real 
   const values = rates.map((r) => r.value_inc_vat);
   assert.notEqual(Math.min(...values), Math.max(...values));
 });
+
+// --- Automatic day/night reconstruction from typed unitRates (the schema-verified
+//     path: IOG publishes the 6.90p cheap band as a distinct OFF_PEAK row next to
+//     the STANDARD day row; reading rateType lets us price it with no user config). --
+
+const { iogHouseholdBands, iogRateTypeSummary } = require('../.homeybuild/lib/pricing/iogSchedule.js');
+
+test('iogHouseholdBands reconstructs day/night from STANDARD + OFF_PEAK rows', () => {
+  const asOf = Date.parse('2026-07-21T12:00:00Z');
+  const bands = iogHouseholdBands([
+    { validFrom: '2026-07-21T00:00:00Z', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49, rateType: 'STANDARD' },
+    { validFrom: '2026-07-21T00:00:00Z', validTo: null, valueIncVat: 6.9, valuePreVat: 6.57, rateType: 'OFF_PEAK' },
+  ], asOf);
+  assert.deepEqual(bands, {
+    dayRate: 28.86, nightRate: 6.9, preVatDayRate: 27.49, preVatNightRate: 6.57,
+  });
+});
+
+test('iogHouseholdBands returns null when only the STANDARD day rate is published', () => {
+  assert.equal(iogHouseholdBands([
+    { validFrom: '2026-07-21T00:00:00Z', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49, rateType: 'STANDARD' },
+  ], Date.parse('2026-07-21T12:00:00Z')), null);
+});
+
+test('iogHouseholdBands ignores EV_DEVICE bands (they price the EV register, not the home)', () => {
+  // Only an EV off-peak band present → no household night band → null (fall back).
+  assert.equal(iogHouseholdBands([
+    { validFrom: '2026-07-21T00:00:00Z', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49, rateType: 'STANDARD' },
+    { validFrom: '2026-07-21T00:00:00Z', validTo: null, valueIncVat: 6.9, valuePreVat: 6.57, rateType: 'EV_DEVICE_OFF_PEAK' },
+  ], Date.parse('2026-07-21T12:00:00Z')), null);
+});
+
+test('iogHouseholdBands picks the value effective now across a scheduled price change (never a future row)', () => {
+  const rows = [
+    // Current bands (validTo = the change date), plus FUTURE bands from 1 Aug.
+    { validFrom: '2026-07-01T00:00:00Z', validTo: '2026-08-01T00:00:00Z', valueIncVat: 28.86, valuePreVat: 27.49, rateType: 'STANDARD' },
+    { validFrom: '2026-07-01T00:00:00Z', validTo: '2026-08-01T00:00:00Z', valueIncVat: 6.9, valuePreVat: 6.57, rateType: 'OFF_PEAK' },
+    { validFrom: '2026-08-01T00:00:00Z', validTo: null, valueIncVat: 31.0, valuePreVat: 29.52, rateType: 'STANDARD' },
+    { validFrom: '2026-08-01T00:00:00Z', validTo: null, valueIncVat: 7.5, valuePreVat: 7.14, rateType: 'OFF_PEAK' },
+  ];
+  const bands = iogHouseholdBands(rows, Date.parse('2026-07-21T12:00:00Z'));
+  assert.equal(bands.dayRate, 28.86, 'the currently-effective day rate is used, not the future one');
+  assert.equal(bands.nightRate, 6.9, 'the currently-effective night rate is used, not the future one');
+  // On/after the change date the new bands take effect.
+  const after = iogHouseholdBands(rows, Date.parse('2026-08-02T12:00:00Z'));
+  assert.equal(after.dayRate, 31.0);
+  assert.equal(after.nightRate, 7.5);
+});
+
+test('iogHouseholdBands returns null when the only matching rows are future-dated', () => {
+  assert.equal(iogHouseholdBands([
+    { validFrom: '2026-08-01T00:00:00Z', validTo: null, valueIncVat: 31.0, valuePreVat: 29.52, rateType: 'STANDARD' },
+    { validFrom: '2026-08-01T00:00:00Z', validTo: null, valueIncVat: 7.5, valuePreVat: 7.14, rateType: 'OFF_PEAK' },
+  ], Date.parse('2026-07-21T12:00:00Z')), null);
+});
+
+test('iogRateTypeSummary reports the distinct rateType→value pairs for diagnostics', () => {
+  assert.equal(iogRateTypeSummary([
+    { validFrom: 'a', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49, rateType: 'STANDARD' },
+    { validFrom: 'b', validTo: null, valueIncVat: 6.9, valuePreVat: 6.57, rateType: 'OFF_PEAK' },
+  ]), 'STANDARD=28.86,OFF_PEAK=6.9');
+  assert.equal(iogRateTypeSummary([
+    { validFrom: 'a', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49, rateType: 'STANDARD' },
+  ]), 'STANDARD=28.86');
+  assert.equal(iogRateTypeSummary([{ validFrom: 'a', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49 }]), 'none');
+});

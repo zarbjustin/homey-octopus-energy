@@ -17,29 +17,28 @@ Hi Darren,
 
 That's a brilliant set of screenshots — they cracked both problems. Thank you.
 
-**1. Everything priced at 28.86p / off-peak £0 / no cheap window — now fixable.**
-You confirmed the important bit: your Night rate (6.90p, 23:30–05:30) is a *real published rate*,
-not an after-the-fact credit. The catch is that Octopus's half-hourly API feed for your IOG
-account only hands us the **single day rate (28.86p)** — the 6.90p band simply isn't in the data we
-receive, which is why every price tile flattened and the cheap-charge planner couldn't find a cheap
-window.
+**1. Everything priced at 28.86p / off-peak £0 / no cheap window.**
+You confirmed the key thing: your Night rate (6.90p, 23:30–05:30) is a *real published rate*. Digging
+into Octopus's data feed, each half-hourly rate actually carries a hidden "type" tag (Standard vs
+Off-peak) that the app wasn't reading — so it only ever saw your Standard 28.86p and priced the whole
+day at it. The new build now reads that tag, so if your account publishes the 6.90p as an Off-peak
+rate it will **automatically** build a proper day/night price — Current/Next flip to 6.90p overnight,
+Lowest/Highest/Average separate out, Off-peak cost fills in, and the **Cheap-charge window / Next
+planned charge slot** tiles (those are the app's own cheapest-window planner) start working again.
 
-I've added a small setting so you can restore correct pricing: **Device → Settings → "IOG off-peak
-(night) rate (p/kWh inc VAT)"** — set it to **6.90**. The app then builds a proper day/night price
-across the guaranteed 23:30–05:30 window, so Current/Next price flip to 6.90p overnight,
-Lowest/Highest/Average separate out, Off-peak cost today fills in, and the **Cheap-charge window /
-Next planned charge slot** tiles start working again (those are the app's own cheapest-window
-planner — they were blinded by the flat price). Leave it at 0 to keep the Octopus-published value.
+As a belt-and-braces fallback there's also a new **Device → Settings → "IOG off-peak (night) rate"**
+box — if for any reason your account only exposes the day rate, set that to **6.90** and you'll get
+correct day/night pricing anyway.
 
-**2. "Next planned charge slot: —" and the dispatch-poll errors — fixed.**
-Separately, the app was failing to read your Zappi's smart-charge plan: one non-essential field
-(the device's live status) was erroring and taking the *whole* dispatch read down with it
-("Device status could not be fetched"). It now tolerates that so your planned dispatches can come
-through, and it's more robust if one linked device hiccups. With your car plugged in you should see
-the planned slots populate.
+**2. "Next planned charge slot: —" and the dispatch-poll errors.**
+Separately, one non-essential field (your device's live status) was erroring and taking the *whole*
+smart-charge read down with it ("Device status could not be fetched"). It now tolerates that, so your
+planned dispatches can come through, and it's more robust if a linked device hiccups.
 
-If you can update on Test, set the night rate to 6.90, and grab a fresh screenshot (ideally around
-the 23:30 changeover), that'll confirm both fixes end-to-end.
+Could you update to the new Test build, and send me **one fresh diagnostic log** after 23:30 with the
+car plugged in? The log now prints exactly which rate bands your account publishes (e.g.
+`STANDARD=28.86,OFF_PEAK=6.90`), which will confirm the automatic pricing end-to-end — and if it only
+shows `STANDARD=28.86`, that tells me to point you at the manual box above.
 
 Really appreciate the thorough testing, Darren.
 

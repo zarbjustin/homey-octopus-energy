@@ -103,6 +103,12 @@ export interface AccountIogUnitRate {
   validTo: string | null;
   valueIncVat: number;
   valuePreVat: number;
+  /** The register/band this row prices, e.g. STANDARD, OFF_PEAK, ECO7_NIGHT,
+   *  EV_DEVICE_OFF_PEAK. IOG publishes the guaranteed 23:30–05:30 cheap rate as a
+   *  distinct OFF_PEAK row alongside the STANDARD day row, so reading this lets us
+   *  reconstruct the two-band household schedule instead of pricing everything at
+   *  the STANDARD rate. Null when the upstream row omits it. */
+  rateType: string | null;
 }
 
 export interface AccountIogTariff {
@@ -427,6 +433,7 @@ export class KrakenClient {
                   validTo
                   value
                   preVatValue
+                  rateType
                 }
               }
             }
@@ -445,6 +452,7 @@ export class KrakenClient {
       validTo?: string | null;
       value?: number | null;
       preVatValue?: number | null;
+      rateType?: string | null;
     }
     interface Agreement {
       validFrom?: string;
@@ -576,6 +584,7 @@ export class KrakenClient {
             validTo: r.validTo ?? null,
             valueIncVat: finite(r.value),
             valuePreVat: finite(r.preVatValue),
+            rateType: r.rateType ?? null,
           }))
           // Drop rows we cannot price safely: a row must have finite inc/exc-VAT
           // values AND a parseable validFrom. A missing/invalid start must never

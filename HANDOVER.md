@@ -4,30 +4,33 @@ Last updated: 21 July 2026
 
 ## Current state
 
-- **v1.0.26 (21 Jul 2026) — IOG night-rate + planned-dispatch fixes (community 156860, Darren).**
-  Darren confirmed via screenshots his IOG tariff is a genuine two-rate **Night 6.90p (23:30–05:30)
-  / Day 28.86p**, but Octopus's half-hourly API feed for his account publishes only the 28.86p day
-  rate — so the app (which promoted those flat HalfHourly `unitRates` to the authoritative price
-  series) priced everything at 28.86p, showed Off-peak cost £0, and blinded the local cheapest-
-  window charge planner (Cheap-charge window "No" / Next planned charge slot "—"). **Bug A fix:** a
-  new optional device setting **`iog_night_rate`** (p/kWh inc VAT); when set and the HalfHourly rows
-  are flat (single distinct value, via `isFlatUnitRates`/`iogFlatDayRate` in `lib/pricing/
-  iogSchedule.ts`), `intelligentGoBaseRates` synthesises a proper day/night series over the
-  guaranteed window (`synthesiseIogDayNightRates` + `isIogNightTime`). Fails closed (unchanged) when
-  unset; genuine multi-band half-hourly accounts untouched. The synthesis horizon is now a shared
-  `iogScheduleWindow()` (−45..+3 days) so month/billing cost prices history correctly instead of
-  undercounting older records to £0 (also improves the existing trusted DayNight path). **Bug B fix
-  (dispatch poll):** `KrakenClient.query()` gained an opt-in `allowPartial` predicate so a nullable
-  provider-backed `status{currentState}` error ("Device status could not be fetched") no longer
-  sinks the whole `getDevices`/dispatch read — only `getDevices` opts in; every other caller
-  (balance, agreements, dispatches) stays strict-throw/fail-closed. `app.ts getFlexPlanned` now uses
-  `Promise.allSettled` and fails closed (throws, retains prior state, never falsely cancels) if any
-  candidate device errors; the account-scoped legacy feed is reserved for device-less accounts.
-  Tri-model process: investigation (GPT-5.6 Sol + GPT-5.5 + Opus 4.8) → implementation → review (all
-  three) → Opus re-review, all green. 457 tests pass, tsc + lint clean, publish-level validate green,
-  `npm audit` clean. Drafted community reply: `docs/handover/darren-iog-night-rate-reply.md`.
-  **Manual step remaining:** promote the v1.0.26 build to Test/Live and ask Darren to set his night
-  rate to 6.90 and re-test around the 23:30 changeover.
+- **v1.0.27 (21 Jul 2026) — IOG automatic day/night from `rateType` (community 156860, Darren).**
+  Follow-up to v1.0.26 after Darren reported the price still didn't flip to 6.90p at 23:30 (he was on
+  the pre-fix build). **Public Kraken schema introspection** (`https://api.octopus.energy/v1/graphql/`)
+  revealed `HalfHourlyTariff.unitRates` rows carry a **`rateType`** field (enum: STANDARD, OFF_PEAK,
+  ECO7_NIGHT, PEAK, EV_DEVICE_OFF_PEAK, HMC_GUARANTEE_*, …) that our query never requested — so the
+  6.90p guaranteed off-peak band, published as a distinct OFF_PEAK row next to the STANDARD day row,
+  was invisible and everything priced at STANDARD. v1.0.27 now requests `rateType` and, when the API
+  exposes a household off-peak band, **automatically** reconstructs the day/night schedule
+  (`iogHouseholdBands` in `lib/pricing/iogSchedule.ts` — most-recent *active-at-now* STANDARD/PEAK/
+  ECO7_DAY/WEEKDAY day band + OFF_PEAK/ECO7_NIGHT night band, excluding EV_DEVICE*/HMC*, never a
+  future-dated row). Order in `intelligentGoBaseRates`: automatic published bands → configured
+  `iog_night_rate` (v1.0.26 manual fallback) → flat rows. An identifier-free diagnostic log line
+  (`iogRateTypeSummary`, e.g. `STANDARD=28.86,OFF_PEAK=6.90`) reveals exactly which bands a user's
+  account publishes — so Darren's next log confirms whether the automatic path applies or the manual
+  box is needed, ending this incident's history of unverified schema hypotheses. Tri-model review
+  (Sol + 5.5 + Opus) of the delta: Sol caught a future-row pricing bug (fixed with the active-now
+  `asOf` check + test); Opus/5.5 confirmed sound. 463 tests pass, tsc + lint clean, publish-validate
+  green, `npm audit` clean. Reply draft: `docs/handover/darren-iog-night-rate-reply.md` (updated).
+  **Manual step remaining:** promote v1.0.27 to Test and ask Darren for one fresh post-23:30 log.
+- **v1.0.26 (21 Jul 2026) — IOG night-rate setting + planned-dispatch resilience (community 156860).**
+  Bug A: added the optional `iog_night_rate` device setting so a flat HalfHourly series can be
+  synthesised into day/night (`isFlatUnitRates`/`iogFlatDayRate` + `synthesiseIogDayNightRates`),
+  shared horizon `iogScheduleWindow()` (−45..+3) so month/billing history prices correctly. Bug B:
+  `KrakenClient.query()` opt-in `allowPartial` (only `getDevices` opts in) so a nullable
+  `status{currentState}` error no longer sinks the dispatch read; `getFlexPlanned` uses
+  `Promise.allSettled` and fails closed on any candidate error (legacy account feed reserved for
+  device-less accounts). Shipped: release `ea6b738`, publish run `29876352515` (green).
 - Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
 - Prior source version: `1.0.25`; release tag: `v1.0.25` (GitHub release published). Homey

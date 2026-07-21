@@ -35,6 +35,7 @@ import { DeviceScheduler } from './DeviceScheduler';
 import { refreshHealthDecision, RefreshHealthDecision } from './health';
 import {
   iogUnitRatesToRates, synthesiseIogDayNightRates, isFlatUnitRates, iogFlatDayRate,
+  iogHouseholdBands, iogRateTypeSummary,
 } from './pricing/iogSchedule';
 import { isRecoverablePriceGapError } from './pricing/priceGap';
 import { computeCumulativeUpdate } from './consumption/cumulative';
@@ -1087,15 +1088,30 @@ export class OctopusMeterDevice extends Homey.Device {
       if (tariff.unitRates && tariff.unitRates.length) {
         const rows: Rate[] = iogUnitRatesToRates(tariff.unitRates);
         if (rateAt(rows)) {
+          // Diagnostic (identifier-free): what bands does this account actually
+          // publish? Reveals whether the off-peak rate is available upstream.
+          this.log(`Price-gap recovery: HalfHourly rate bands — ${iogRateTypeSummary(tariff.unitRates)}.`);
+          // AUTOMATIC day/night: IOG publishes the guaranteed 23:30–05:30 cheap
+          // rate as a distinct OFF_PEAK row alongside the STANDARD day row. When
+          // both household bands are present, reconstruct the two-band schedule
+          // directly — no user configuration needed.
+          const published = iogHouseholdBands(tariff.unitRates, Date.now());
+          if (published) {
+            const { from, to } = this.iogScheduleWindow();
+            const synthesised = synthesiseIogDayNightRates(
+              published, from, to, (slotStart) => this.isIogNightTime(slotStart),
+            );
+            this.log('Price-gap recovery: synthesising day/night from the published HalfHourly OFF_PEAK band.');
+            return synthesised;
+          }
           // IOG is commonly published as a HalfHourlyTariff whose `unitRates`
           // carry ONLY the single standard/day rate (e.g. 28.86p) — the
-          // guaranteed 23:30–05:30 off-peak band (e.g. 6.90p) is NOT a distinct
-          // settlement row here. Promoting a flat single-rate series to the
-          // authoritative price series flattens every tile (Lowest/Highest/
-          // Average, Next price, off-peak cost) and blinds the local
-          // cheapest-window planner (community 156860). When the user has
-          // configured their IOG night rate, synthesise a proper day/night
-          // series over the guaranteed window instead of pricing the day flat.
+          // guaranteed off-peak band is NOT exposed as a distinct row. Promoting
+          // a flat single-rate series to the authoritative price series flattens
+          // every tile (Lowest/Highest/Average, Next price, off-peak cost) and
+          // blinds the local cheapest-window planner (community 156860). When the
+          // user has configured their IOG night rate, synthesise a proper
+          // day/night series over the guaranteed window instead of pricing flat.
           const dayBase = isFlatUnitRates(tariff.unitRates) ? iogFlatDayRate(tariff.unitRates) : null;
           const override = dayBase ? this.iogNightRateOverride() : null;
           if (dayBase && override && override.inc !== dayBase.inc) {
