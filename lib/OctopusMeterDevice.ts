@@ -4,6 +4,7 @@ import Homey from 'homey';
 import { OctopusClient, FuelType } from './OctopusClient';
 import { KrakenClient, AccountIogTariff, IogResolveDiagnostic } from './KrakenClient';
 import { isBudgetError } from './KrakenBudget';
+import { opaqueKeyMigrating } from './diagnosticsKey';
 import {
   Rate, rateAt, valueOf, sumConsumption, cheapestRate, cheapestWindow,
   isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers, ratesInWindow,
@@ -636,7 +637,12 @@ export class OctopusMeterDevice extends Homey.Device {
     try {
       const key = 'integration_diagnostics_v1';
       const all = (this.homey.settings.get(key) || {}) as Record<string, Record<string, IntegrationDiagnostic>>;
-      const deviceId = String(this.getData().id);
+      // Key by a salted opaque id, not the raw `${fuel}-${mpan}-${serial}` device id,
+      // so a settings/backup export cannot leak the MPAN/serial. Legacy raw-keyed
+      // entries are migrated in place.
+      const deviceId = opaqueKeyMigrating(
+        this.homey, all as Record<string, unknown>, String(this.getData().id),
+      );
       const existing = all[deviceId] || {};
       for (const [area, update] of Object.entries(this.diagnosticUpdates)) {
         if (!update.lastSuccess && existing[area]?.lastSuccess) {

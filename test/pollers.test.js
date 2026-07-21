@@ -7,6 +7,7 @@ const { AccountPoller } = require('../.homeybuild/lib/AccountPoller.js');
 const { DispatchPoller } = require('../.homeybuild/lib/DispatchPoller.js');
 const { SavingSessionsPoller } = require('../.homeybuild/lib/SavingSessionsPoller.js');
 const { KrakenClient } = require('../.homeybuild/lib/KrakenClient.js');
+const { opaqueKey } = require('../.homeybuild/lib/diagnosticsKey.js');
 
 function fakeApp(accounts) {
   const settings = new Map();
@@ -80,6 +81,22 @@ test('start() jitters the first poll instead of stampeding on boot; stop() cance
   assert.ok(app.homey.cleared.includes(pendingId), 'stop() clears the pending startup timer');
 });
 
+test('legacy raw-keyed saving-session state migrates to an opaque key, preserving known ids', async (t) => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  // Simulate a pre-upgrade blob keyed by the raw account number with a known id.
+  app.homey.settings.set('saving_sessions_state_v2', { 'A-ONE': { known: ['old-id'], started: [], ended: [], feStarted: [], feEnded: [] } });
+  t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => []);
+  t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => []);
+
+  await new SavingSessionsPoller(app).poll();
+
+  const state = app.homey.settings.get('saving_sessions_state_v2');
+  const k = opaqueKey(app.homey, 'A-ONE');
+  assert.equal(state['A-ONE'], undefined, 'the raw-keyed entry is removed');
+  assert.ok(state[k], 'state now lives under the opaque key');
+  assert.ok(state[k].known.includes('old-id'), 'known ids are preserved across migration (no re-fire)');
+});
+
 test('account pollers deduplicate devices while retaining distinct accounts', () => {
   const app = fakeApp([
     { apiKey: 'key-a', accountNumber: 'A-ONE' },
@@ -120,12 +137,16 @@ test('Saving Session state is isolated per account', async (t) => {
   t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => []);
   await new SavingSessionsPoller(app).poll();
   const state = app.homey.settings.get('saving_sessions_state_v2');
-  assert.deepEqual(Object.keys(state).sort(), ['A-ONE', 'A-TWO']);
-  assert.deepEqual(state['A-ONE'].known, ['shared-id']);
-  assert.deepEqual(state['A-TWO'].known, ['shared-id']);
+  // Persisted keys are salted-opaque, not raw account numbers (privacy — BL-10).
+  const k1 = opaqueKey(app.homey, 'A-ONE');
+  const k2 = opaqueKey(app.homey, 'A-TWO');
+  assert.deepEqual(Object.keys(state).sort(), [k1, k2].sort());
+  assert.deepEqual(state[k1].known, ['shared-id']);
+  assert.deepEqual(state[k2].known, ['shared-id']);
+  assert.equal(JSON.stringify(state).includes('A-ONE'), false, 'no raw account number persisted');
   const diagnostics = app.homey.settings.get('saving_sessions_diagnostics_v1');
-  assert.equal(diagnostics['A-ONE'].sessionCount, 1);
-  assert.equal(diagnostics['A-ONE'].lastError, undefined);
+  assert.equal(diagnostics[k1].sessionCount, 1);
+  assert.equal(diagnostics[k1].lastError, undefined);
 });
 
 test('Saving Session API failures are logged once and retained for diagnostics', async (t) => {
@@ -139,8 +160,9 @@ test('Saving Session API failures are logged once and retained for diagnostics',
 
   assert.equal(app.errors.length, 1);
   const diagnostics = app.homey.settings.get('saving_sessions_diagnostics_v1');
-  assert.match(diagnostics['A-ONE'].lastError, /field is unavailable/);
-  assert.ok(diagnostics['A-ONE'].lastAttempt);
+  const k = opaqueKey(app.homey, 'A-ONE');
+  assert.match(diagnostics[k].lastError, /field is unavailable/);
+  assert.ok(diagnostics[k].lastAttempt);
 });
 
 test('Saving Session diagnostics redact the API key from errors', async (t) => {
@@ -151,7 +173,7 @@ test('Saving Session diagnostics redact the API key from errors', async (t) => {
   await new SavingSessionsPoller(app).poll();
 
   const diagnostics = app.homey.settings.get('saving_sessions_diagnostics_v1');
-  assert.equal(diagnostics['A-ONE'].lastError, 'Request failed for [redacted]');
+  assert.equal(diagnostics[opaqueKey(app.homey, 'A-ONE')].lastError, 'Request failed for [redacted]');
 });
 
 test('dispatch failures are logged once and redacted', async (t) => {

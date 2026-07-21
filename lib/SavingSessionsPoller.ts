@@ -3,6 +3,7 @@
 import { AccountPoller } from './AccountPoller';
 import { SavingSession } from './KrakenClient';
 import { isBudgetError } from './KrakenBudget';
+import { opaqueKey, opaqueKeyMigrating } from './diagnosticsKey';
 
 interface PollerState {
   known: string[];
@@ -47,14 +48,14 @@ export class SavingSessionsPoller extends AccountPoller {
       // A budget skip is an expected, freshness-preserving skip — record the
       // attempt and clear any prior error (it is not currently failing).
       if (isBudgetError(err)) {
-        const previous = this.diagnostics()[creds.accountNumber];
+        const previous = this.diagnosticFor(creds.accountNumber);
         this.updateDiagnostics(creds.accountNumber, {
           ...previous, lastAttempt: attemptedAt, lastError: undefined,
         });
         return;
       }
       const message = this.errorMessage(err, creds.apiKey);
-      const previous = this.diagnostics()[creds.accountNumber];
+      const previous = this.diagnosticFor(creds.accountNumber);
       if (previous?.lastError !== message) {
         this.app.error(`Saving Sessions poll failed for ${this.maskAccount(creds.accountNumber)}:`, err);
       }
@@ -67,7 +68,8 @@ export class SavingSessionsPoller extends AccountPoller {
     }
 
     const allState = (this.app.homey.settings.get('saving_sessions_state_v2') || {}) as Record<string, PollerState>;
-    const state: PollerState = allState[creds.accountNumber]
+    const stateKey = opaqueKeyMigrating(this.app.homey, allState as Record<string, unknown>, creds.accountNumber);
+    const state: PollerState = allState[stateKey]
       || { known: [], started: [], ended: [] };
     state.feStarted = state.feStarted ?? [];
     state.feEnded = state.feEnded ?? [];
@@ -130,7 +132,7 @@ export class SavingSessionsPoller extends AccountPoller {
 
     // Keep the persisted id lists bounded.
     const trim = (arr: string[]) => arr.slice(-50);
-    allState[creds.accountNumber] = {
+    allState[stateKey] = {
       known: trim(state.known),
       started: trim(state.started),
       ended: trim(state.ended),
@@ -151,9 +153,16 @@ export class SavingSessionsPoller extends AccountPoller {
     return (this.app.homey.settings.get('saving_sessions_diagnostics_v1') || {}) as Record<string, PollDiagnostics>;
   }
 
+  /** Current diagnostic for an account, tolerant of a not-yet-migrated raw key. */
+  private diagnosticFor(accountNumber: string): PollDiagnostics | undefined {
+    const all = this.diagnostics();
+    return all[opaqueKey(this.app.homey, accountNumber)] ?? all[accountNumber];
+  }
+
   private updateDiagnostics(accountNumber: string, value: PollDiagnostics): void {
     const all = this.diagnostics();
-    all[accountNumber] = value;
+    const key = opaqueKeyMigrating(this.app.homey, all as Record<string, unknown>, accountNumber);
+    all[key] = value;
     this.app.homey.settings.set('saving_sessions_diagnostics_v1', all);
   }
 
