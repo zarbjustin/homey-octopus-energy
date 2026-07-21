@@ -67,5 +67,8 @@
   },
   "1.0.22": {
     "en": "Stability & efficiency: the app spreads out its start-up checks so it no longer briefly hammers the Octopus API on boot; overlapping data reads within a refresh are now combined into fewer requests; repairing one meter now updates the API key for the other meters on the same account automatically (no more repeated auth errors); and stored diagnostics no longer keep your account or meter identifiers in the clear."
+  },
+  "1.0.23": {
+    "en": "Fix: on Intelligent Octopus Go the Lowest, Highest and Average price today tiles could stay blank even when the current price was showing. They now read the day's prices directly from your live schedule, so the overnight cheap rate and daytime rate appear correctly."
   }
 }
