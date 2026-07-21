@@ -35,11 +35,17 @@ Last updated: 21 July 2026
   (`isRecoverablePriceGapError`), commit `a647d39`; slice 4 landed `lib/consumption/cumulative.ts`
   (`computeCumulativeUpdate` — the single cumulative-meter writer), commit `216e527`; slice 5
   landed `lib/planning/window.ts` (`computeRatesHorizon`, `computeUpcomingExtremes`,
-  `isWithinCheapestPercentile`), commit `7f1d5d4` — `OctopusMeterDevice` now 2255 LOC (from 2399),
-  zero user-visible change, 424 tests green. Next decomposition slice per
+  `isWithinCheapestPercentile`), commit `7f1d5d4`. **BL-08 / R-004 done** (commit `6a1d9a3`):
+  the cumulative-meter writer is now stale-write-safe — a monotonic refresh generation fences
+  superseded refreshes (after the 90s watchdog reset), and the read-modify-write is strictly
+  serialised on a per-device commit queue that re-reads the cursor inside the critical section
+  (no double-count / regression). Deliberate correctness-over-liveness tradeoff documented
+  (Homey writes are uncancellable; the realistic hang vector is the network fetch, outside the
+  mutex). Tri-model reviewed (GPT-5.6 Sol, 3 rounds). `OctopusMeterDevice` ~2346 LOC, zero
+  user-visible change, 438 tests green. Next decomposition slice per
   `docs/blueprint/16-implementation-plan.md` §2.1: extract a thin `ReportingService`, then make the
-  device a lifecycle façade, then BL-08 generation/cancellation safety (the cumulative-writer
-  arithmetic is now isolated in `computeCumulativeUpdate`, ready for that guard).
+  device a lifecycle façade. **BL-08 is committed but not yet released — ready to batch into the
+  next App Store build.**
 - `main` HEAD is `9990cb4`. The v1.0.23 ship is commits `4fb83a3` (fix) + `9990cb4`
   (release bump). All pushed directly to `main` (owner bypass of the
   PR rule); CI, Validate, CodeQL, Create GitHub Release, and Publish Homey App all green.
