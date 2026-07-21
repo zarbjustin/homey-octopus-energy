@@ -33,6 +33,8 @@ import {
 import { redactSecrets, maskAccount as maskAccountId } from './redact';
 import { DeviceScheduler } from './DeviceScheduler';
 import { refreshHealthDecision, RefreshHealthDecision } from './health';
+import { iogUnitRatesToRates, synthesiseIogDayNightRates } from './pricing/iogSchedule';
+import { isRecoverablePriceGapError } from './pricing/priceGap';
 
 // Re-exported for backward compatibility with existing importers/tests.
 export { refreshHealthDecision };
@@ -657,8 +659,7 @@ export class OctopusMeterDevice extends Homey.Device {
     try {
       await this.refreshPrices();
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err ?? '');
-      if (!/no (?:current )?.*rate|no rate covering|404|not found/i.test(message)) throw err;
+      if (!isRecoverablePriceGapError(err)) throw err;
       // Throttle the expensive forced recovery: a persistent gap must not run
       // REST rediscovery + product-variant probing every refresh (budget/log
       // churn). The first failure always attempts it; then at most once per 6h.
@@ -996,13 +997,7 @@ export class OctopusMeterDevice extends Homey.Device {
       // published this way with an EMPTY REST feed, so these rows are the only
       // current price — use them directly, never synthesise, never defer to REST.
       if (tariff.unitRates && tariff.unitRates.length) {
-        const rows: Rate[] = tariff.unitRates.map((r) => ({
-          value_inc_vat: r.valueIncVat,
-          value_exc_vat: r.valuePreVat,
-          valid_from: r.validFrom,
-          valid_to: r.validTo,
-          payment_method: null,
-        }));
+        const rows: Rate[] = iogUnitRatesToRates(tariff.unitRates);
         if (rateAt(rows)) {
           this.log('Price-gap recovery: pricing from the account HalfHourly agreement rows (authoritative).');
           return rows;
@@ -1034,19 +1029,7 @@ export class OctopusMeterDevice extends Homey.Device {
       }
       const from = this.localMidnight(-2).getTime();
       const to = this.localMidnight(3).getTime();
-      const rates: Rate[] = [];
-      for (let start = from; start < to; start += 30 * 60_000) {
-        const end = start + 30 * 60_000;
-        const night = this.isIogNightTime(new Date(start));
-        rates.push({
-          value_inc_vat: night ? tariff.nightRate : tariff.dayRate,
-          value_exc_vat: night ? tariff.preVatNightRate : tariff.preVatDayRate,
-          valid_from: new Date(start).toISOString(),
-          valid_to: new Date(end).toISOString(),
-          payment_method: null,
-        });
-      }
-      return rates;
+      return synthesiseIogDayNightRates(tariff, from, to, (slotStart) => this.isIogNightTime(slotStart));
     } catch (err) {
       this.log('Intelligent Octopus Go account-rate fallback was unavailable.');
       return null;
