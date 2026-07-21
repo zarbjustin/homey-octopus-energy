@@ -1,6 +1,6 @@
 'use strict';
 
-import { Rate, regionFromTariff } from '../../lib/rates';
+import { Rate, rateAt, regionFromTariff } from '../../lib/rates';
 import { OctopusMeterDevice } from '../../lib/OctopusMeterDevice';
 import type { Reading } from '../../lib/freshness';
 import {
@@ -203,6 +203,19 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
   private async updateSmartCharge(): Promise<void> {
     if (!this.hasCapability('octopus_smart_charge')) return;
+    // Without a price covering NOW the cheapest-window planner cannot say yes or
+    // no, so show "unknown" (null → "—") rather than a misleading "No". Gating on
+    // a current-covering row (not merely non-empty rates) means stale/historical
+    // rows after a failed refresh don't produce a false answer. This also prevents
+    // the "window: No" vs "Octopus smart-charging now: Yes" contradiction.
+    const hasPrice = rateAt(this.rates) !== null;
+    if (!hasPrice) {
+      await this.setCapabilityValue('octopus_smart_charge', null).catch(this.error);
+      if (this.hasCapability('octopus_charge_start')) {
+        await this.setCapabilityValue('octopus_charge_start', '—').catch(this.error);
+      }
+      return;
+    }
     const hours = Number(this.getSetting('smart_charge_hours')) || 3;
     const by = String(this.getSetting('smart_charge_by') || '07:00');
     const inPlan = this.isInCheapestPlan(hours, by, this.smartChargeMaxPrice());

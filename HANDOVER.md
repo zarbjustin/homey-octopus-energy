@@ -167,6 +167,55 @@ CodeQL and the "Publish Homey App" workflow all passed; **Build 20 / version
 https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/20, then
 share the Test link with Darren and ask for one fresh diagnostic log.
 
+## IOG third pass — v1.0.20 was STILL incomplete; HalfHourly root cause nailed (S59 → v1.0.21)
+
+Darren's v1.0.20 log (`78c9a84d`, 21 Jul 2026) was decisive:
+`iogResolve.typenameHistogram: {StandardTariff:1, HalfHourlyTariff:1}`,
+`rawAgreementCount:2`, `exactMatchFound:true`, `halfHourlyCount:1`, REST
+`primaryCount:0`/`fallbackCount:0`. → His **import** agreement is a
+**`HalfHourlyTariff`** (the `StandardTariff` is his **export** meter, correctly
+filtered out of the household set). His stored code already matched exactly, so
+v1.0.20's "adopt code, else defer to REST" deferred to a **permanently-empty REST
+feed** → price never resolved → "Current tariff price is temporarily unavailable."
+
+**Systemic root cause:** we kept treating GraphQL as a "code-adoption fallback" and
+REST as the sole price source. For a HalfHourly IOG account the authoritative
+half-hourly prices are **already in the agreement's own `unitRates`** (rows with
+`validFrom`/`validTo`/`value`/`preVatValue` — like Agile REST rows). **v1.0.20
+fetched those rows and threw them away.**
+
+**The S59 fix (v1.0.21):**
+- **Price-source unification:** a `HalfHourlyTariff` agreement's own `unitRates` are
+  now a **first-class price source** — mapped directly to rate rows and priced via
+  `rateAt(now)`. `AccountIogTariff` retains `unitRates` (only rows with a parseable
+  `validFrom` + finite values; a missing start is dropped, never back-dated — fail
+  closed). DayNight/FourRate synthesis unchanged; Standard/ThreeRate still
+  adopt-code-then-defer.
+- **Cache safety:** the IOG-tariff cache TTL is now bounded to the row horizon
+  (5–30 min) for HalfHourly (dynamic series), not the 6h used for fixed rates.
+- **Smart-charge clarity:** retitled the two confusable capabilities —
+  `octopus_smart_charge` "Smart charge window" → **"Cheap-charge window (planned)"**
+  (the app's price-based planner) and `octopus_dispatching` "Smart charging active"
+  → **"Octopus smart-charging now"** (Octopus's live dispatch); the planner now shows
+  **"—" (unknown)** instead of a misleading "No" when no current price is available
+  (gated on `rateAt(this.rates)`), resolving Darren's "window: No vs active: Yes"
+  contradiction.
+- **Instrumentation:** census gains `halfHourlyRowCount` + `halfHourlyCoversNow` —
+  one more log then proves the fix works vs "no rate exposed anywhere = genuinely
+  upstream (escalate to Octopus)."
+- Tri-model reviewed (Opus 4.8 orchestrator + GPT-5.6 Sol + GPT-5.5); two blocking
+  issues they raised (null-`validFrom` fabrication; 6h cache staleness) fixed. 372
+  tests pass (incl. HalfHourly pricing, null-`validFrom` drop, all-historical
+  fall-through, stale-price smart-charge null); tsc + eslint + publish-validate clean.
+- **Overlap:** S59 folds in the price-provenance slice of S53 (BL-15/R-017) and the
+  smart-charge clarity slice of S57, and resolves blueprint risk R-008. The rest of
+  the S50–S58 / blueprint roadmap is unchanged. Docs: `docs/research/kraken-contracts.md`
+  IOG section updated; Darren reply drafted in
+  `docs/handover/darren-iog-reply-v1.0.21.md`.
+
+**Still OPEN — IOG field-verification gate.** Ship v1.0.21 → Test, then Darren's next
+log confirms via `halfHourlyRowCount`/`halfHourlyCoversNow`. Do not close until confirmed.
+
 ## Post-v1.0.18 roadmap (Sprints 50–58) + S50 delivered
 
 A tri-model (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) read-only evaluation of the whole app

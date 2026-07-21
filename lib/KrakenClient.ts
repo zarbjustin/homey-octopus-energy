@@ -82,8 +82,26 @@ export interface IogResolveDiagnostic {
   standardCount: number;
   threeRateCount: number;
   halfHourlyCount: number;
+  /** Rows in the resolved agreement's own `unitRates` (HalfHourlyTariff), and
+   *  whether one covers the current instant. `-1` when the resolved tariff is
+   *  not half-hourly / has no rows. Decisive for "IOG published as half-hourly
+   *  in GraphQL but empty in REST": rowCount>0 + coversNow=true means the
+   *  account IS exposing a current rate and the app should price from it. */
+  halfHourlyRowCount: number;
+  halfHourlyCoversNow: boolean;
   exactMatchFound: boolean;
   fallbackUsed: boolean;
+}
+
+/** A single half-hourly unit-rate row from an account agreement (HalfHourlyTariff),
+ *  the authoritative price series for an IOG account whose REST rows are empty.
+ *  `validFrom` is always a parseable ISO instant (rows without one are dropped at
+ *  resolution, so pricing and the diagnostic census agree and never fail open). */
+export interface AccountIogUnitRate {
+  validFrom: string;
+  validTo: string | null;
+  valueIncVat: number;
+  valuePreVat: number;
 }
 
 export interface AccountIogTariff {
@@ -102,6 +120,10 @@ export interface AccountIogTariff {
    *  REST half-hourly rows recover — the rates here must NOT be used to
    *  synthesize a schedule (they are a flat/best-effort placeholder). */
   scheduleTrusted: boolean;
+  /** The agreement's own authoritative half-hourly rows (HalfHourlyTariff only),
+   *  or null. When present, these ARE the price series (like Agile REST rows) and
+   *  should be used directly — no synthesis, no deferral to an empty REST feed. */
+  unitRates: AccountIogUnitRate[] | null;
   dayRate: number;
   nightRate: number;
   preVatDayRate: number;
@@ -486,6 +508,25 @@ export class KrakenClient {
       if (!tariff.tariffCode || !tariff.productCode) return null;
       const schedule = scheduleOf(tariff, tariffType);
       if (!schedule) return null;
+      // Retain the agreement's own half-hourly rows (HalfHourlyTariff) as the
+      // authoritative price series. IOG is frequently published as a
+      // HalfHourlyTariff whose REST unit-rate feed is empty — these rows are the
+      // only current price, so we must not discard them.
+      const unitRates: AccountIogUnitRate[] | null = tariffType === 'HalfHourlyTariff'
+        ? (Array.isArray(tariff.unitRates) ? tariff.unitRates : [])
+          .map((r) => ({
+            validFrom: r.validFrom ?? '',
+            validTo: r.validTo ?? null,
+            valueIncVat: finite(r.value),
+            valuePreVat: finite(r.preVatValue),
+          }))
+          // Drop rows we cannot price safely: a row must have finite inc/exc-VAT
+          // values AND a parseable validFrom. A missing/invalid start must never
+          // be back-dated into "covers now" (that would fail OPEN); dropping keeps
+          // pricing and the census (which also requires a finite validFrom) in lockstep.
+          .filter((r): r is AccountIogUnitRate => r.valueIncVat !== null && r.valuePreVat !== null
+            && Number.isFinite(Date.parse(r.validFrom)))
+        : null;
       const evDevicePeakRate = finite(tariff.evDevicePeakRate);
       const evDeviceOffPeakRate = finite(tariff.evDeviceOffPeakRate);
       const preVatEvDevicePeakRate = finite(tariff.preVatEvDevicePeakRate);
@@ -497,6 +538,7 @@ export class KrakenClient {
         tariffType,
         resolvedVia,
         scheduleTrusted: schedule.trusted,
+        unitRates,
         tariffCode: tariff.tariffCode,
         productCode: tariff.productCode,
         validTo: agreement.validTo ?? null,
@@ -598,6 +640,18 @@ export class KrakenClient {
     const countType = (name: AccountIogTariffType): number => (
       active.filter((a) => a.tariff?.__typename === name).length
     );
+    // Decisive HalfHourly signal: does the resolved agreement carry its own rows,
+    // and does one cover now? Distinguishes "IOG half-hourly in GraphQL, empty in
+    // REST — priceable" from "no rate exposed anywhere — genuinely upstream".
+    const resolvedRows = result?.unitRates ?? null;
+    const halfHourlyRowCount = resolvedRows ? resolvedRows.length : -1;
+    const halfHourlyCoversNow = resolvedRows
+      ? resolvedRows.some((r) => {
+        const from = Date.parse(r.validFrom);
+        const to = r.validTo ? Date.parse(r.validTo) : Infinity;
+        return from <= now && now < to;
+      })
+      : false;
     onResolve?.({
       rawAgreementCount: rawAgreements.length,
       serverActiveCount: agreements.length,
@@ -610,6 +664,8 @@ export class KrakenClient {
       standardCount: countType('StandardTariff'),
       threeRateCount: countType('ThreeRateTariff'),
       halfHourlyCount: countType('HalfHourlyTariff'),
+      halfHourlyRowCount,
+      halfHourlyCoversNow,
       exactMatchFound: result?.resolvedVia === 'exact',
       fallbackUsed: result?.resolvedVia === 'fallback',
     });

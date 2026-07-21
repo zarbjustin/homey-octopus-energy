@@ -61,5 +61,8 @@
   },
   "1.0.20": {
     "en": "Fixes a persistent “day rate blank” issue on Intelligent Octopus Go: the app now reads every kind of household tariff agreement from your account (not just the two it previously recognised), adopts your live tariff code when the stored one has drifted, and recovers the real prices automatically. Also adds a clearer, fully anonymised diagnostic so any remaining edge case can be pinpointed quickly."
+  },
+  "1.0.21": {
+    "en": "Fixes Intelligent Octopus Go import prices that showed as unavailable: the app now reads your half-hourly rates directly from your account agreement (used like Agile prices) when Octopus’s public price feed is empty for your tariff. Also clarifies the two smart-charging tiles — “Cheap-charge window (planned)” (the app’s own plan) vs “Octopus smart-charging now” (a live Octopus dispatch) — and shows the planned window as “—” rather than “No” when prices aren’t available yet."
   }
 }

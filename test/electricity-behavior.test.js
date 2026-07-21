@@ -74,6 +74,22 @@ test('plunge trigger and notification fire only when crossing below zero', async
   assert.equal(notifications.length, 1);
 });
 
+test('smart-charge window is unknown when rates are present but none covers now (stale price)', async () => {
+  const values = { octopus_smart_charge: true };
+  const device = Object.create(ElectricityDevice.prototype);
+  device.hasCapability = (c) => c === 'octopus_smart_charge' || c === 'octopus_charge_start';
+  device.getCapabilityValue = (c) => (c in values ? values[c] : null);
+  device.setCapabilityValue = async (c, v) => { values[c] = v; };
+  device.error = () => {};
+  device.currentPrice = 12.3; // stale value from a previous successful refresh
+  const past = Date.now() - 3600_000;
+  device.rates = [{ value_inc_vat: 12.3, value_exc_vat: 11.7, valid_from: new Date(past - 1800_000).toISOString(), valid_to: new Date(past).toISOString() }];
+
+  await device.updateSmartCharge();
+  assert.equal(values.octopus_smart_charge, null, 'no current-covering row → unknown, not a stale true/false');
+  assert.equal(values.octopus_charge_start, '—');
+});
+
 test('repair leaves live power alone when it is inactive', async () => {
   const device = Object.create(ElectricityDevice.prototype);
   device.liveSubscribedAccount = null;
@@ -82,4 +98,39 @@ test('repair leaves live power alone when it is inactive', async () => {
   // the app on a credential change), so repair is a no-op when live power is off.
   await device.onCredentialsApplied();
   assert.equal(device.liveSubscribedAccount, null);
+});
+
+test('smart-charge window shows unknown (null) not a misleading No when price data is absent', async () => {
+  const values = {};
+  const device = Object.create(ElectricityDevice.prototype);
+  device.hasCapability = (c) => c === 'octopus_smart_charge' || c === 'octopus_charge_start';
+  device.getCapabilityValue = (c) => (c in values ? values[c] : null);
+  device.setCapabilityValue = async (c, v) => { values[c] = v; };
+  device.error = () => {};
+  device.currentPrice = null; // no price resolved (IOG price gap)
+  device.rates = [];
+
+  await device.updateSmartCharge();
+  assert.equal(values.octopus_smart_charge, null, 'window is unknown, not false');
+  assert.equal(values.octopus_charge_start, '—');
+});
+
+test('smart-charge window computes normally once price data exists', async () => {
+  const values = { octopus_smart_charge: null };
+  const device = Object.create(ElectricityDevice.prototype);
+  device.hasCapability = (c) => c === 'octopus_smart_charge' || c === 'octopus_charge_start';
+  device.getCapabilityValue = (c) => (c in values ? values[c] : null);
+  device.setCapabilityValue = async (c, v) => { values[c] = v; };
+  device.error = () => {};
+  device.getSetting = () => undefined;
+  device.smartChargeMaxPrice = () => undefined;
+  device.isInCheapestPlan = () => true;
+  device.nextChargeStart = () => '01:30';
+  device.trigger = () => {};
+  device.currentPrice = 12.3;
+  device.rates = [{ value_inc_vat: 12.3, value_exc_vat: 11.7, valid_from: new Date().toISOString(), valid_to: null }];
+
+  await device.updateSmartCharge();
+  assert.equal(values.octopus_smart_charge, true);
+  assert.equal(values.octopus_charge_start, '01:30');
 });

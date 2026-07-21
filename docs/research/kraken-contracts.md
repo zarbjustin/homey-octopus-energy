@@ -68,7 +68,7 @@ Octopus account exposes every field.
 | Meter identity and agreements | Authenticated REST account endpoint | Discovery/enrichment only | REST remains authoritative for pairing and repair. |
 | Historical import/export consumption | REST consumption endpoints | Telemetry is not a replacement | Billing and cumulative energy continue to use REST. |
 | Published tariff rate history | REST product tariff endpoints | Narrow current-rate recovery only | Never replace valid REST rows with GraphQL. |
-| IOG household base rate | REST when rows exist | Live-code adoption from any of the five household agreement typenames; day/night synthesis only from a trusted `DayNightTariff`/`FourRateEvTariff` | Adopt the live code, then defer to REST; never fabricate a schedule from single-rate/half-hourly shapes. |
+| IOG household base rate | REST when rows exist; else the account **HalfHourlyTariff** agreement's own `unitRates` (used directly) | Live-code adoption from any household typename; day/night synthesis only from trusted `DayNightTariff`/`FourRateEvTariff`; HalfHourly rows used verbatim | Fail-closed; never fabricate. Device/dispatch rates stay separate. |
 | Home Mini demand | GraphQL telemetry | Operational live value | Latest timestamp wins; null/stale remains unavailable. |
 | Planned dispatch | GraphQL | Intent, mutable | Not treated as settlement or proof of a cheap rate. |
 | Completed dispatch | GraphQL | Completed control window | Not sufficient alone for historical billing. |
@@ -105,20 +105,39 @@ Boolean, so the unfiltered call is schema-valid). Verified against live
 introspection of `https://api.octopus.energy/v1/graphql/`: `TariffType` is a
 **7-member interface** (the five above plus `PrepayTariff` and `GasTariffType`).
 
-A resolved tariff carries a `scheduleTrusted` flag:
+A resolved tariff carries a `scheduleTrusted` flag and, for `HalfHourlyTariff`, its
+own `unitRates` rows:
 
 - **Trusted** (`DayNightTariff`, `FourRateEvTariff`): exposes an explicit two-band
   household schedule that may be synthesised into day/night rates. Accepted only
   when the tariff/product codes match (exact) or a single unambiguous active
   IOG-family agreement is found (fallback), the agreement is valid now, and the
   VAT-inclusive + pre-VAT day/night (and, for four-rate, EV) fields are finite.
-- **Untrusted** (`StandardTariff`, `ThreeRateTariff`, `HalfHourlyTariff`): resolved
-  ONLY to obtain the live tariff/product code for adoption. IOG import is commonly
-  a single-register `StandardTariff` (one `unitRate`); its cheap window is delivered
-  via dispatch, not a second agreement rate. We never fabricate a day/night split
-  from a single rate, three bands, or arbitrary half-hourly rows — after adopting
-  the live code we defer to the authoritative REST rows, which recover on the
-  up-to-date code.
+- **HalfHourlyTariff — authoritative rows (v1.0.21).** The agreement exposes its own
+  `unitRates` (`LIST<UnitRate>`, no args; each `{ validFrom, validTo, value,
+  preVatValue, rateType }`). These **are** the account's half-hourly price series,
+  exactly like Agile REST rows. IOG is frequently published this way with an **empty
+  REST unit-rate feed**, so these rows are the ONLY current price — the app uses them
+  **directly** (`value → inc-VAT`, `preVatValue → exc-VAT`, `validFrom/validTo`) and
+  selects the row covering now with `rateAt`. This is not synthesis and not a day/night
+  compression; it is the published series verbatim. Fail-closed: if no row covers now,
+  fall through (never fabricate).
+- **Untrusted, code-only** (`StandardTariff`, `ThreeRateTariff`): resolved to obtain the
+  live tariff/product code for adoption. IOG import can be a single-register
+  `StandardTariff` (one `unitRate`). We do not fabricate a day/night split from a single
+  rate or three bands — after adopting the live code we defer to REST rows, which recover
+  on the up-to-date code.
+
+Root cause of the v1.0.18/v1.0.20 misses (community 156860): v1.0.18 handled only
+`DayNight`/`FourRateEv`; v1.0.20 added the other typenames but only for *code adoption*
+and then deferred to REST — for an account whose import agreement is a `HalfHourlyTariff`
+with an empty REST feed (log `78c9a84d`: `typenameHistogram {StandardTariff:1,
+HalfHourlyTariff:1}`, `exactMatchFound:true`, REST `primaryCount:0`), that deferral hit a
+permanently-empty source. The `StandardTariff` in that account is the **export** meter,
+correctly filtered out of the household set. v1.0.21 fixes it by treating the HalfHourly
+agreement's own rows as a first-class price source, and adds `halfHourlyRowCount` /
+`halfHourlyCoversNow` to the census to distinguish "priceable from GraphQL" from "no rate
+exposed anywhere (genuinely upstream)".
 
 Root cause of the v1.0.18 miss (community 156860, log `7c389d7e`): the query only
 requested `DayNightTariff` + `FourRateEvTariff` fragments, so an agreement of any
@@ -158,7 +177,7 @@ correct default because product schedules and formulas can change.
 | Agile / `HalfHourlyTariff` | REST half-hour rows | Existing negative-price and planning support applies. |
 | Go and Economy 7 / day-night | REST time slots or register endpoints | Economy 7 local switch settings remain user-configurable. |
 | Cosy, Aira Zero, Flux, Intelligent Flux, Snug / multi-rate | REST dated rows | Refreshes align to half-hour boundaries; no hard-coded schedule is needed. |
-| IOG / any of the five household typenames | REST first; GraphQL resolves the live code for adoption (all typenames) and synthesises day/night only from a trusted `DayNightTariff`/`FourRateEvTariff` | Untrusted single-rate/half-hourly shapes adopt the code and defer to REST. Dispatch settlement stays in Sprints 43-44. |
+| IOG / any of the five household typenames | REST first; a `HalfHourlyTariff` agreement's own `unitRates` are used **directly** as authoritative rows; `DayNight`/`FourRateEv` synthesised; `Standard`/`ThreeRate` adopt-code-then-defer-to-REST | v1.0.21: HalfHourly agreement rows are a first-class price source (fixes the empty-REST IOG case). Dispatch settlement stays in Sprints 43-44. |
 | Import/export tariffs | Separate REST meter agreements and rate rows | Preserve separate device and cost/value semantics. |
 | Power Pack, Charge Pack, Intelligent Drive Pack, Saving/Free Electricity sessions | Add-on, credit or type-of-use settlement | Do not reinterpret these as the household unit rate; model them separately. |
 | Zero Bills and allowance products | Allowance/threshold billing | Requires a future billing-policy model, not a synthetic p/kWh schedule. |

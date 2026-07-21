@@ -1,7 +1,7 @@
 {
   "type": "string",
   "title": {
-    "en": "Next charge slot"
+    "en": "Next planned charge slot"
   },
   "getable": true,
   "setable": false,

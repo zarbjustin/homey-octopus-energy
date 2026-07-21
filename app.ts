@@ -292,13 +292,29 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     return request;
   }
 
-  /** Cache lifetime for an IOG tariff entry: 6h for a resolved value (bounded by
-   *  the agreement's validTo); exponential 30m→6h backoff for a persistent null. */
+  /** Cache lifetime for an IOG tariff entry: 6h for a fixed day/night value
+   *  (bounded by the agreement's validTo); a HalfHourly agreement carries a
+   *  DYNAMIC price series, so cap it to its row horizon (and refresh at least
+   *  every 30 min so the forward series stays current); exponential 30m→6h
+   *  backoff for a persistent null. */
   private iogTariffTtl(entry: { value: AccountIogTariff | null; ts: number; nullStreak: number }): number {
     if (entry.value === null) {
       return Math.min(30 * 60_000 * 2 ** Math.max(0, entry.nullStreak - 1), 6 * 3600_000);
     }
     const sixHours = 6 * 3600_000;
+    const rows = entry.value.unitRates;
+    if (rows && rows.length) {
+      // Cache only while the returned rows can still price "now"; never the 6h
+      // used for fixed rates (which would leave a stale half-hourly series).
+      const lastTo = rows.reduce((max, r) => {
+        const t = r.validTo ? Date.parse(r.validTo) : Infinity;
+        return Number.isFinite(t) && t > max ? t : max;
+      }, 0);
+      const horizon = lastTo > 0 ? Math.max(0, lastTo - entry.ts) : sixHours;
+      // Refresh at the row horizon when it is sooner than 30 min (a 1-min floor
+      // avoids hammering); never keep an expired half-hourly series cached.
+      return Math.max(60_000, Math.min(30 * 60_000, horizon));
+    }
     const validTo = entry.value.validTo ? Date.parse(entry.value.validTo) : NaN;
     if (Number.isFinite(validTo)) return Math.max(0, Math.min(sixHours, validTo - entry.ts));
     return sixHours;

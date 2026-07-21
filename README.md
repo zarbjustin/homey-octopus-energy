@@ -47,8 +47,8 @@ homey app run        # run on a connected Homey
 
 ## Current release
 
-Source version `1.0.18` (Homey Build 18, in Test/certification). Sprints 42–47
-are merged under this release: a shared Kraken request
+Source version `1.0.21` (Homey Build pending Test). Sprints 42–47
+are merged under this line: a shared Kraken request
 budget and live-data poller, a device-aware dispatch truth model, a billing-period
 summary, live-energy presentation and provenance badges, an opt-in estimated
 Intelligent Octopus Go effective rate (never settlement), and an opt-in advanced
@@ -56,11 +56,12 @@ planner & tariff-analytics engine with earliest/latest/random tie strategies,
 relative price bands, and negative-price/spike handling. Every estimated, planned,
 or relative figure is labelled as such and is never presented as a settled bill.
 The quality baseline is a clean lint and dependency audit, a full passing test
-suite, and successful Homey publish validation. Version 1.0.18 also fixes the
-Intelligent Octopus Go price gap (the household day/night rate now recovers from
-your account agreement even after a tariff-code change) and stops expected API
-rate-limit skips from surfacing as errors; that IOG recovery remains in Test and
-is **not yet field-confirmed**.
+suite, and successful Homey publish validation. Version `1.0.21` fixes Intelligent
+Octopus Go import prices that showed as unavailable — the app now reads your
+half-hourly rates directly from your account agreement (used like Agile prices)
+when Octopus's public price feed is empty for your tariff — and clarifies the two
+smart-charging tiles ("Cheap-charge window (planned)" vs "Octopus smart-charging
+now"). That IOG recovery remains in Test and is **not yet field-confirmed**.
 
 ## API reference
 

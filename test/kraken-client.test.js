@@ -156,6 +156,7 @@ test('active IOG tariff uses the matching day/night account agreement', async (t
     tariffType: 'DayNightTariff',
     resolvedVia: 'exact',
     scheduleTrusted: true,
+    unitRates: null,
     tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
     productCode: 'IOG-SYNTHETIC-26-01-01',
     validTo: null,
@@ -195,6 +196,7 @@ test('active IOG tariff accepts the matching four-rate EV agreement', async (t) 
     tariffType: 'FourRateEvTariff',
     resolvedVia: 'exact',
     scheduleTrusted: true,
+    unitRates: null,
     tariffCode: 'E-1R-IOG-FOUR-SYNTHETIC-26-01-01-C',
     productCode: 'IOG-FOUR-SYNTHETIC-26-01-01',
     validTo: null,
@@ -240,6 +242,7 @@ test('active IOG tariff resolves a single-register StandardTariff (day rate blan
     tariffType: 'StandardTariff',
     resolvedVia: 'exact',
     scheduleTrusted: false,
+    unitRates: null,
     tariffCode: 'E-1R-INTELLI-VAR-SYNTHETIC-26-01-01-C',
     productCode: 'INTELLI-VAR-SYNTHETIC-26-01-01',
     validTo: null,
@@ -281,11 +284,52 @@ test('active IOG tariff resolves a HalfHourlyTariff for code adoption (untrusted
 
   assert.ok(tariff);
   assert.equal(tariff.tariffType, 'HalfHourlyTariff');
-  // Resolved so the live code is adopted, but the schedule is NOT trusted — we
-  // do not compress arbitrary half-hourly rows into a fixed day/night split.
+  // The schedule is NOT trusted (we never compress rows into a day/night split),
+  // but the agreement's own half-hourly rows ARE retained as the authoritative
+  // price series (used directly by the device, like Agile REST rows).
   assert.equal(tariff.scheduleTrusted, false);
-  assert.equal(tariff.dayRate, tariff.nightRate);
+  assert.ok(Array.isArray(tariff.unitRates) && tariff.unitRates.length === 2, 'unitRates retained');
+  assert.equal(tariff.unitRates[0].valueIncVat, 28.95);
+  assert.equal(tariff.unitRates[1].valueIncVat, 7.0);
   assert.equal(diags[0].halfHourlyCount, 1);
+  assert.equal(diags[0].halfHourlyRowCount, 2, 'census reports the row count');
+});
+
+test('active IOG HalfHourly drops rows with a missing/invalid validFrom (never fails open)', async (t) => {
+  const response = {
+    data: {
+      account: {
+        electricityAgreements: [{
+          validFrom: '2026-01-01T00:00:00Z', validTo: null,
+          tariff: {
+            __typename: 'HalfHourlyTariff',
+            tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C', productCode: 'INTELLI-VAR-22-10-14',
+            displayName: 'IOG', standingCharge: 49.2,
+            unitRates: [
+              { validFrom: '2026-01-01T04:30:00Z', validTo: '2026-01-01T22:30:00Z', value: 28.95, preVatValue: 27.571 },
+              { validFrom: null, validTo: null, value: 7.0, preVatValue: 6.667 },
+              { validFrom: 'not-a-date', validTo: null, value: 9.0, preVatValue: 8.5 },
+            ],
+          },
+        }],
+        all: [{ validFrom: '2026-01-01T00:00:00Z', validTo: null, tariff: { __typename: 'HalfHourlyTariff' } }],
+      },
+    },
+  };
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse(response);
+  });
+
+  const tariff = await new KrakenClient('api-key').getActiveIogTariff(
+    'A-ONE', 'E-1R-INTELLI-VAR-22-10-14-C', 'INTELLI-VAR-22-10-14',
+  );
+  assert.ok(tariff && Array.isArray(tariff.unitRates));
+  assert.equal(tariff.unitRates.length, 1, 'only the row with a parseable validFrom is kept');
+  assert.equal(tariff.unitRates[0].valueIncVat, 28.95);
 });
 
 test('active IOG tariff resolves a ThreeRateTariff for code adoption (untrusted schedule)', async (t) => {
@@ -379,6 +423,7 @@ test('active IOG tariff recovers via fallback when the stored code is stale (the
     invalidDateCount: 0,
     activeAgreementCount: 1, dayNightCount: 1, fourRateCount: 0,
     standardCount: 0, threeRateCount: 0, halfHourlyCount: 0,
+    halfHourlyRowCount: -1, halfHourlyCoversNow: false,
     exactMatchFound: false, fallbackUsed: true,
   });
 });

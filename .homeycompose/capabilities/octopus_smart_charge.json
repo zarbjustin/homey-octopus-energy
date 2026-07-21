@@ -1,7 +1,7 @@
 {
   "type": "boolean",
   "title": {
-    "en": "Smart charge window"
+    "en": "Cheap-charge window (planned)"
   },
   "getable": true,
   "setable": false,

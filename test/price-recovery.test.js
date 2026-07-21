@@ -186,6 +186,83 @@ test('intelligentGoBaseRates adopts the resolved household code when the stored 
   assert.equal(invalidated, 1, 'the IOG tariff cache is invalidated (not the whole account/budget)');
 });
 
+test('intelligentGoBaseRates prices IOG from HalfHourly agreement rows when REST is empty (Darren scenario)', async () => {
+  // Darren's account: import agreement is a HalfHourlyTariff whose REST unit-rate
+  // feed is empty; its own unitRates ARE the authoritative price series. The code
+  // already matches exactly (no adoption). We must price directly from the rows.
+  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-VAR-22-10-14', tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C' };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => store;
+  device.setStoreValue = async (k, v) => { store[k] = v; };
+  device.isIntelligentGoTariff = () => true;
+  device.ensureRegisterCapabilities = async () => {};
+  device.log = () => {};
+  device.error = () => {};
+  device.homey = { clock: { getTimezone: () => 'Europe/London' }, app: { invalidateIogTariff: () => {} } };
+  device.vatInc = () => true;
+  device.localMidnight = (d) => new Date(Date.now() + d * 24 * 3600_000);
+  // Two half-hourly rows straddling "now": a day rate covering now and a night rate after.
+  const now = Date.now();
+  const dayFrom = new Date(now - 3600_000).toISOString();
+  const dayTo = new Date(now + 3600_000).toISOString();
+  const nightFrom = dayTo;
+  const nightTo = new Date(now + 4 * 3600_000).toISOString();
+  device.kraken = {
+    getActiveIogTariff: async () => ({
+      tariffType: 'HalfHourlyTariff', resolvedVia: 'exact', scheduleTrusted: false, validTo: null,
+      tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C', productCode: 'INTELLI-VAR-22-10-14',
+      dayRate: 0, nightRate: 0, preVatDayRate: 0, preVatNightRate: 0,
+      evDevicePeakRate: null, evDeviceOffPeakRate: null,
+      preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 49,
+      unitRates: [
+        { validFrom: dayFrom, validTo: dayTo, valueIncVat: 28.95, valuePreVat: 27.571 },
+        { validFrom: nightFrom, validTo: nightTo, valueIncVat: 7.0, valuePreVat: 6.667 },
+      ],
+    }),
+  };
+
+  const rates = await device.intelligentGoBaseRates();
+  assert.ok(Array.isArray(rates) && rates.length === 2, 'priced from the agreement rows, not deferred to REST');
+  const { rateAt } = require('../.homeybuild/lib/rates.js');
+  const current = rateAt(rates);
+  assert.ok(current, 'a row covers now');
+  assert.equal(current.value_inc_vat, 28.95, 'the current half-hourly rate is used directly');
+  assert.equal(current.value_exc_vat, 27.571);
+});
+
+test('intelligentGoBaseRates falls through when HalfHourly rows are all historical (no coverage)', async () => {
+  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-VAR-22-10-14', tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C' };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => store;
+  device.setStoreValue = async (k, v) => { store[k] = v; };
+  device.isIntelligentGoTariff = () => true;
+  device.ensureRegisterCapabilities = async () => {};
+  device.log = () => {};
+  device.error = () => {};
+  device.homey = { clock: { getTimezone: () => 'Europe/London' }, app: { invalidateIogTariff: () => {} } };
+  device.vatInc = () => true;
+  device.localMidnight = (d) => new Date(Date.now() + d * 24 * 3600_000);
+  device.client = { standardUnitRates: async () => [] }; // REST also empty
+  const now = Date.now();
+  device.kraken = {
+    getActiveIogTariff: async () => ({
+      tariffType: 'HalfHourlyTariff', resolvedVia: 'exact', scheduleTrusted: false, validTo: null,
+      tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C', productCode: 'INTELLI-VAR-22-10-14',
+      dayRate: 0, nightRate: 0, preVatDayRate: 0, preVatNightRate: 0,
+      evDevicePeakRate: null, evDeviceOffPeakRate: null,
+      preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 49,
+      unitRates: [
+        // Both rows ended in the past — none covers now → must fail closed to null.
+        { validFrom: new Date(now - 4 * 3600_000).toISOString(), validTo: new Date(now - 3 * 3600_000).toISOString(), valueIncVat: 28.95, valuePreVat: 27.571 },
+        { validFrom: new Date(now - 3 * 3600_000).toISOString(), validTo: new Date(now - 2 * 3600_000).toISOString(), valueIncVat: 7.0, valuePreVat: 6.667 },
+      ],
+    }),
+  };
+
+  const rates = await device.intelligentGoBaseRates();
+  assert.equal(rates, null, 'no current-covering row and empty REST → fail closed, never fabricate');
+});
+
 test('intelligentGoBaseRates adopts an untrusted-shape code but defers rates to REST', async () => {
   const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-STALE-26-01-01', tariffCode: 'E-1R-INTELLI-STALE-26-01-01-C' };
   const device = Object.create(OctopusMeterDevice.prototype);

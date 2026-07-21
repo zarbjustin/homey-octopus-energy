@@ -1036,6 +1036,24 @@ export class OctopusMeterDevice extends Homey.Device {
       // types we deliberately do NOT fabricate a day/night schedule — adoption
       // lets the authoritative REST half-hourly rows recover.
       await this.maybeAdoptIogAgreement(tariff);
+      // FIRST-CLASS PRICE SOURCE: a HalfHourlyTariff agreement carries its own
+      // authoritative half-hourly rows (like Agile REST rows). IOG is frequently
+      // published this way with an EMPTY REST feed, so these rows are the only
+      // current price — use them directly, never synthesise, never defer to REST.
+      if (tariff.unitRates && tariff.unitRates.length) {
+        const rows: Rate[] = tariff.unitRates.map((r) => ({
+          value_inc_vat: r.valueIncVat,
+          value_exc_vat: r.valuePreVat,
+          valid_from: r.validFrom,
+          valid_to: r.validTo,
+          payment_method: null,
+        }));
+        if (rateAt(rows)) {
+          this.log('Price-gap recovery: pricing from the account HalfHourly agreement rows (authoritative).');
+          return rows;
+        }
+        this.log('Price-gap recovery: HalfHourly agreement rows do not cover now; deferring.');
+      }
       if (!tariff.scheduleTrusted) {
         // The live code is adopted; fetch its authoritative REST rows NOW so we
         // recover within THIS refresh instead of waiting a cycle — but only when
