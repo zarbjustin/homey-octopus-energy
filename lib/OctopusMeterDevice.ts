@@ -1953,11 +1953,28 @@ export class OctopusMeterDevice extends Homey.Device {
     return tzElapsedLocalMonthDays(date, this.homey.clock.getTimezone());
   }
 
+  /** The half-hourly prices in effect across today (local), sampled from the
+   *  schedule at each :00/:30 slot. Sampling (rather than filtering rows by
+   *  `valid_from` within today) makes the stats correct for BOTH discrete rate
+   *  rows (Agile — one row per slot, valid_from today) AND long-span rows (IOG
+   *  day/night — a few rows covering many hours whose valid_from predates today).
+   *  DST-safe: the local-day window is 46/48/50 slots as appropriate. */
+  private pricesAcrossToday(): number[] {
+    const start = this.localMidnight(0).getTime();
+    const end = this.localMidnight(1).getTime();
+    const inc = this.vatInc();
+    const out: number[] = [];
+    for (let t = start; t < end; t += 30 * 60_000) {
+      const rate = rateAt(this.rates, new Date(t));
+      if (rate) out.push(valueOf(rate, inc));
+    }
+    return out;
+  }
+
   /** Compute today's price min/max/avg and the next half-hour price. */
   protected async refreshPriceStats(): Promise<void> {
     if (!this.hasCapability('octopus_price_avg_today')) return;
-    const todays = ratesInWindow(this.rates, this.localMidnight(0), this.localMidnight(1))
-      .map((r) => valueOf(r, this.vatInc()));
+    const todays = this.pricesAcrossToday();
     if (todays.length) {
       const min = Math.min(...todays);
       const max = Math.max(...todays);
