@@ -82,7 +82,43 @@ test('backoff escalates on repeated penalties and resets after a clean success',
 test('core debt is bounded so it cannot starve live/best indefinitely', () => {
   const bucket = new TokenBucket(() => 0);
   for (let i = 0; i < 100; i += 1) bucket.acquire('core');
-  assert.equal(bucket.snapshot().tokens, -6, 'debt is floored at -capacity');
+  // Bounded to the reserved core-debt floor (tighter than -capacity) so live/best
+  // recover within ~2 tokens of refill after a core burst, not ~6.
+  assert.equal(bucket.snapshot().tokens, -2, 'debt is floored at the core-debt floor');
+});
+
+test('per-priority admission counters are recorded, identifier-free', () => {
+  setBudgetClock(() => 0);
+  const bucket = getBucket('A-COUNT'); // fresh: 6 tokens
+  bucket.acquire('core'); bucket.acquire('core'); // core bounded-debt: tokens 6 -> 4
+  for (let i = 0; i < 4; i += 1) bucket.acquire('live'); // tokens 4 -> 0
+  bucket.acquire('live'); // denied — empty
+  bucket.acquire('best'); // denied — empty
+  const c = bucket.getCounters();
+  assert.equal(c.coreAdmitted, 2);
+  assert.equal(c.liveAdmitted, 4);
+  assert.equal(c.liveDenied, 1);
+  assert.equal(c.bestDenied, 1);
+  const diag = budgetDiagnostics();
+  assert.ok(diag.counters.coreAdmitted >= 2 && diag.counters.liveDenied >= 1);
+  assert.equal(JSON.stringify(diag).includes('A-COUNT'), false, 'no account identifiers leak');
+});
+
+test('a simulated account stays within ~90 admitted non-core calls over one hour (051h)', () => {
+  // System-level budget check: with a virtual clock advanced across an hour, a
+  // steady stream of live/best pollers (well above budget) is throttled to the
+  // sustained refill ceiling (~90/hr), protecting the shared account rate limit.
+  const clock = { t: 0 };
+  const bucket = new TokenBucket(() => clock.t);
+  let admitted = 0;
+  // Attempt a live call every 10 s for an hour (360 attempts) — far above budget.
+  for (let i = 0; i < 360; i += 1) {
+    if (bucket.acquire('live')) admitted += 1;
+    clock.t += 10_000;
+  }
+  // Sustained admissions ≈ initial burst (6) + refill over ~1h (~90). Never far above.
+  assert.ok(admitted <= 100, `admitted ${admitted} should be ~<=100 (burst + ~90/hr)`);
+  assert.ok(admitted >= 80, `admitted ${admitted} should approach the ~90/hr ceiling`);
 });
 
 test('buckets are isolated per account key', () => {

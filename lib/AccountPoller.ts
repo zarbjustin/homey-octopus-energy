@@ -15,6 +15,8 @@ export abstract class AccountPoller {
 
   private timer: NodeJS.Timeout | null = null;
 
+  private startTimer: NodeJS.Timeout | null = null;
+
   private polling = false;
 
   protected abstract readonly intervalMs: number;
@@ -23,15 +25,31 @@ export abstract class AccountPoller {
     this.app = app;
   }
 
+  /** Randomised delay (ms) before the FIRST poll, so Account/Dispatch/SavingSessions
+   *  pollers plus device initial refreshes do not stampede the shared Kraken budget
+   *  on app boot. Overridable in tests for determinism. */
+  protected firstPollDelayMs(): number {
+    return Math.floor(Math.random() * 15_000); // 0–15 s
+  }
+
   start(): void {
     this.stop();
-    this.runPoll();
-    this.timer = this.app.homey.setInterval(() => {
+    // Jittered first poll (not an immediate synchronous call) to avoid a boot
+    // stampede; the steady interval starts only after the first poll is scheduled.
+    this.startTimer = this.app.homey.setTimeout(() => {
+      this.startTimer = null;
       this.runPoll();
-    }, this.intervalMs);
+      this.timer = this.app.homey.setInterval(() => {
+        this.runPoll();
+      }, this.intervalMs);
+    }, this.firstPollDelayMs());
   }
 
   stop(): void {
+    if (this.startTimer) {
+      this.app.homey.clearTimeout(this.startTimer);
+      this.startTimer = null;
+    }
     if (this.timer) {
       this.app.homey.clearInterval(this.timer);
       this.timer = null;

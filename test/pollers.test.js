@@ -41,6 +41,10 @@ function fakeApp(accounts) {
       clock: { getTimezone: () => 'Europe/London' },
       setInterval: () => 1,
       clearInterval() {},
+      timeouts: [],
+      cleared: [],
+      setTimeout(fn, ms) { this.timeouts.push({ fn, ms, id: this.timeouts.length + 1 }); return this.timeouts.length; },
+      clearTimeout(id) { this.cleared.push(id); },
     },
   };
 }
@@ -49,6 +53,32 @@ class ProbePoller extends AccountPoller {
   getAccounts() { return this.accounts(); }
   async poll() {}
 }
+
+test('start() jitters the first poll instead of stampeding on boot; stop() cancels it', () => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  let polls = 0;
+  class JitterProbe extends AccountPoller {
+    firstPollDelayMs() { return 7000; } // deterministic
+    async poll() { polls += 1; }
+  }
+  const poller = new JitterProbe(app);
+  poller.start();
+  // No synchronous first poll — it is scheduled, not called.
+  assert.equal(polls, 0, 'first poll is deferred, not immediate');
+  assert.equal(app.homey.timeouts.length, 1, 'a startup timer was scheduled');
+  assert.equal(app.homey.timeouts[0].ms, 7000, 'scheduled with the jitter delay');
+
+  // Firing the startup timer runs the first poll and starts the interval.
+  app.homey.timeouts[0].fn();
+  assert.equal(polls, 1, 'the deferred first poll runs when the timer fires');
+
+  // A stop() before the timer fires cancels the pending startup poll.
+  const poller2 = new JitterProbe(app);
+  poller2.start();
+  const pendingId = app.homey.timeouts.length;
+  poller2.stop();
+  assert.ok(app.homey.cleared.includes(pendingId), 'stop() clears the pending startup timer');
+});
 
 test('account pollers deduplicate devices while retaining distinct accounts', () => {
   const app = fakeApp([

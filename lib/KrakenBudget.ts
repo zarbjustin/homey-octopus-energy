@@ -41,11 +41,27 @@ export interface BudgetSnapshot {
   penalties: number;
 }
 
+/** Identifier-free per-priority admission counters (for settings diagnostics). */
+export interface BudgetCounters {
+  coreAdmitted: number;
+  liveAdmitted: number;
+  bestAdmitted: number;
+  liveDenied: number;
+  bestDenied: number;
+  gatedDenied: number;
+}
+
 type Clock = () => number;
 
 const CAPACITY = 6; // burst
 const REFILL_PER_SEC = 90 / 3600; // ~0.025 tokens/s => <= 90/hour sustained
 const MAX_BACKOFF_MS = 15 * 60_000;
+// Bounded core debt: core is never blocked (outside a 429 gate), but its debt to
+// the shared pool is capped so a core burst cannot starve live/best for longer
+// than one refill of this reserve. Kept small (< CAPACITY) so live/best recover
+// within ~CORE_DEBT_FLOOR/refill seconds after a core burst; sustained core rate
+// is held well under budget by request coalescing/caching, not by blocking core.
+const CORE_DEBT_FLOOR = -2;
 
 /**
  * A refilling token bucket with an account-level backoff gate for HTTP 429.
@@ -63,10 +79,15 @@ export class TokenBucket {
 
   private penalties = 0;
 
+  private readonly counters: BudgetCounters = {
+    coreAdmitted: 0, liveAdmitted: 0, bestAdmitted: 0, liveDenied: 0, bestDenied: 0, gatedDenied: 0,
+  };
+
   constructor(
     private readonly now: Clock = Date.now,
     private readonly capacity: number = CAPACITY,
     private readonly refillPerSec: number = REFILL_PER_SEC,
+    private readonly coreDebtFloor: number = CORE_DEBT_FLOOR,
   ) {
     this.tokens = capacity;
     this.lastRefill = now();
@@ -92,17 +113,24 @@ export class TokenBucket {
    */
   acquire(priority: KrakenPriority): boolean {
     this.refill();
-    if (this.gated) return false;
+    if (this.gated) {
+      this.counters.gatedDenied += 1;
+      return false;
+    }
     if (priority === 'core') {
-      // Core is never blocked (outside a 429 gate) but its debt is bounded so a
-      // rare burst cannot starve live/best for longer than one refill of capacity.
-      this.tokens = Math.max(this.tokens - 1, -this.capacity);
+      // Core is never blocked (outside a 429 gate) but its debt is bounded to
+      // CORE_DEBT_FLOOR so a rare burst cannot starve live/best for longer than
+      // that reserve's refill window.
+      this.tokens = Math.max(this.tokens - 1, this.coreDebtFloor);
+      this.counters.coreAdmitted += 1;
       return true;
     }
     if (this.tokens >= 1) {
       this.tokens -= 1;
+      if (priority === 'live') this.counters.liveAdmitted += 1; else this.counters.bestAdmitted += 1;
       return true;
     }
+    if (priority === 'live') this.counters.liveDenied += 1; else this.counters.bestDenied += 1;
     return false;
   }
 
@@ -129,6 +157,11 @@ export class TokenBucket {
   snapshot(): BudgetSnapshot {
     this.refill();
     return { tokens: Math.floor(this.tokens), gated: this.gated, penalties: this.penalties };
+  }
+
+  /** Identifier-free per-priority admission counters (cumulative since creation). */
+  getCounters(): BudgetCounters {
+    return { ...this.counters };
   }
 }
 
@@ -157,15 +190,29 @@ export function getBucket(accountKey: string): TokenBucket {
 }
 
 /** Aggregate, identifier-free snapshot for diagnostics. */
-export function budgetDiagnostics(): { accounts: number; gated: number; minTokens: number | null } {
+export function budgetDiagnostics(): {
+  accounts: number; gated: number; minTokens: number | null; counters: BudgetCounters;
+  } {
   let gated = 0;
   let minTokens: number | null = null;
+  const counters: BudgetCounters = {
+    coreAdmitted: 0, liveAdmitted: 0, bestAdmitted: 0, liveDenied: 0, bestDenied: 0, gatedDenied: 0,
+  };
   for (const bucket of registry.values()) {
     const snap = bucket.snapshot();
     if (snap.gated) gated += 1;
     minTokens = minTokens === null ? snap.tokens : Math.min(minTokens, snap.tokens);
+    const c = bucket.getCounters();
+    counters.coreAdmitted += c.coreAdmitted;
+    counters.liveAdmitted += c.liveAdmitted;
+    counters.bestAdmitted += c.bestAdmitted;
+    counters.liveDenied += c.liveDenied;
+    counters.bestDenied += c.bestDenied;
+    counters.gatedDenied += c.gatedDenied;
   }
-  return { accounts: registry.size, gated, minTokens };
+  return {
+    accounts: registry.size, gated, minTokens, counters,
+  };
 }
 
 /** Drop a single account's bucket (credential change) or reset all (tests). */
