@@ -216,6 +216,14 @@ fetched those rows and threw them away.**
 **Still OPEN — IOG field-verification gate.** Ship v1.0.21 → Test, then Darren's next
 log confirms via `halfHourlyRowCount`/`halfHourlyCoversNow`. Do not close until confirmed.
 
+**Release status (v1.0.21):** commit `d1faa86` pushed to `main`; CI, Validate, CodeQL,
+Create GitHub Release (tag `v1.0.21`) and the "Publish Homey App" workflow all passed;
+**Build 21 / version 1.0.21** uploaded to the developer account on 21 July 2026.
+**Remaining manual steps:** (1) promote Build 21 to the **Test** channel at
+https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/21; (2) post the
+reply in `docs/handover/darren-iog-reply-v1.0.21.md` to community 156860 and ask Darren for
+one fresh log. Confirm via the new census fields, then close the gate.
+
 ## Post-v1.0.18 roadmap (Sprints 50–58) + S50 delivered
 
 A tri-model (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) read-only evaluation of the whole app
