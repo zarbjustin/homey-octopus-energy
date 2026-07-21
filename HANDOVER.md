@@ -216,6 +216,18 @@ fetched those rows and threw them away.**
 **Still OPEN — IOG field-verification gate.** Ship v1.0.21 → Test, then Darren's next
 log confirms via `halfHourlyRowCount`/`halfHourlyCoversNow`. Do not close until confirmed.
 
+> **RESOLVED 21 Jul 2026 — gate CLOSED.** Darren confirmed on v1.0.21 (log `c0da5fef`):
+> stdout shows `Price-gap recovery: pricing from the account HalfHourly agreement rows
+> (authoritative)` and his message "I think its working :)". The IOG "day rate blank"
+> incident (community 156860) is fixed. **One follow-up question** from Darren: he expected
+> **"Next price"** to be the IOG 23:30→05:30 cheap window — but `octopus_price_next` is the
+> next **half-hour slot** (`rateAt(rates, now+30min)`), so it correctly shows the day rate
+> during the day and flips to the ~7p rate in the half-hour before 23:30. Whether his
+> half-hourly rows encode the overnight rate is visible in `octopus_price_min_today` vs
+> `_max_today` (ask Darren). A dedicated "next cheap-window" indicator for IOG is a possible
+> future UX enhancement (innovation catalogue). Reply drafted in
+> `docs/handover/darren-iog-reply-confirmed.md`.
+
 **Release status (v1.0.21):** commit `d1faa86` pushed to `main`; CI, Validate, CodeQL,
 Create GitHub Release (tag `v1.0.21`) and the "Publish Homey App" workflow all passed;
 **Build 21 / version 1.0.21** uploaded to the developer account on 21 July 2026.
