@@ -76,8 +76,8 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   }
 
   /** After consumption, update the smart-charge window and carbon capabilities. */
-  protected async refreshExtra(): Promise<void> {
-    await super.refreshExtra();
+  protected async refreshExtra(generation: number): Promise<void> {
+    await super.refreshExtra(generation);
     await this.updateSmartCharge();
     await this.updateNightRate();
     await this.refreshDispatching().catch((err) => this.error('Dispatch refresh failed:', err));

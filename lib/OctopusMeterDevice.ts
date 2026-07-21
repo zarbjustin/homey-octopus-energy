@@ -144,6 +144,16 @@ export class OctopusMeterDevice extends Homey.Device {
   /** Epoch ms when the current refresh began, for the stuck-lock watchdog. */
   private refreshStartedAt = 0;
 
+  /** Monotonic refresh generation. Bumped for every NEW refresh, including a
+   *  watchdog-forced replacement of a stuck one. A superseded (stale) refresh
+   *  compares its captured generation against this to fence off its writes so it
+   *  can never overwrite fresher data (notably the cumulative meter). */
+  private refreshGeneration = 0;
+
+  /** Serialises cumulative-meter commits so overlapping refreshes cannot
+   *  interleave the read-modify-write and double-count. See commitCumulative. */
+  private cumulativeCommit: Promise<void> = Promise.resolve();
+
   private lastTariffCheck = 0;
 
   /** Epoch ms of the last forced price-gap recovery (rediscovery + variant),
@@ -487,10 +497,14 @@ export class OctopusMeterDevice extends Homey.Device {
       this.error('Refresh lock stuck > 90s — forcing reset.');
       this.refreshPromise = null;
       this.refreshing = false;
+      // Fall through to start a new generation; the stuck refresh is superseded
+      // and its in-flight writes are fenced off by the generation bump below.
     }
     this.refreshing = true;
     this.refreshStartedAt = Date.now();
-    const promise = this.runRefresh()
+    // A new generation supersedes any prior (stuck) refresh still settling.
+    const generation = ++this.refreshGeneration;
+    const promise = this.runRefresh(generation)
       .finally(() => {
         // A watchdog replacement may now own the lock; an older refresh must
         // not clear the newer generation when it eventually settles.
@@ -503,7 +517,13 @@ export class OctopusMeterDevice extends Homey.Device {
     return promise;
   }
 
-  private async runRefresh(): Promise<void> {
+  /** Whether `generation` has been superseded by a newer refresh (e.g. after a
+   *  watchdog-forced reset). Superseded refreshes must not persist their results. */
+  protected isStaleRefresh(generation: number): boolean {
+    return generation !== this.refreshGeneration;
+  }
+
+  private async runRefresh(generation: number): Promise<void> {
     let ok = false;
     let priceOk = false;
     let firstErr: unknown = null;
@@ -533,7 +553,11 @@ export class OctopusMeterDevice extends Homey.Device {
       run('Standing-charge refresh', 'standing_charge', () => this.refreshStandingCharge()),
       run('Balance refresh', 'balance', () => this.refreshBalance()),
     ]);
-    await run('Extra refresh', 'meter_data', () => this.refreshExtra());
+    await run('Extra refresh', 'meter_data', () => this.refreshExtra(generation));
+    // Fence: if the watchdog started a newer refresh while this one was in
+    // flight, stop before the non-critical reporting writes so this superseded
+    // generation cannot overwrite fresher data.
+    if (this.isStaleRefresh(generation)) return;
     // Non-critical reporting: failures here do not affect device health.
     await this.runReporting('Price-stats refresh', 'price_stats', () => this.refreshPriceStats());
     await this.runReporting('Monthly-cost refresh', 'monthly_cost', () => this.refreshMonthlyCost());
@@ -763,9 +787,10 @@ export class OctopusMeterDevice extends Homey.Device {
     }
   }
 
-  /** Hook for subclasses to add fuel-specific refresh work (e.g. consumption). */
-  protected async refreshExtra(): Promise<void> {
-    await this.refreshConsumption();
+  /** Hook for subclasses to add fuel-specific refresh work (e.g. consumption).
+   *  `generation` is the refresh generation for stale-write fencing (BL-08). */
+  protected async refreshExtra(generation: number): Promise<void> {
+    await this.refreshConsumption(generation);
   }
 
   /**
@@ -775,7 +800,7 @@ export class OctopusMeterDevice extends Homey.Device {
    *  - a monotonic cumulative total for Homey Energy (meter_power).
    * Octopus consumption typically lags real time by up to ~24 hours.
    */
-  protected async refreshConsumption(): Promise<void> {
+  protected async refreshConsumption(generation: number): Promise<void> {
     const s = this.store();
     if (!s.mpxn || !s.serial) return;
     const hasUsage = this.hasCapability('octopus_usage_today');
@@ -836,20 +861,58 @@ export class OctopusMeterDevice extends Homey.Device {
     }
 
     if (hasMeter) {
-      // Re-read the cursor immediately before the read-modify-write to stay
-      // correct; write the cursor before the total so an interrupted write
-      // under-counts (loses a delta) rather than double-counting.
+      await this.commitCumulative(sorted, meterCap as string, generation);
+    }
+  }
+
+  /**
+   * Serialise the cumulative-meter read-modify-write so overlapping refreshes
+   * (e.g. after a watchdog-forced reset) can never interleave and double-count.
+   *
+   * Correctness rests on two things, not on timing:
+   *  - a per-device commit queue (`cumulativeCommit`) runs commits strictly one
+   *    at a time, so there is no interleaving between the cursor read and the
+   *    awaited writes; and
+   *  - the cursor and prior total are re-read INSIDE the critical section, so a
+   *    later commit always sees an earlier one's advance and adds only genuinely
+   *    new records (an already-applied window collapses to a no-op).
+   *
+   * The generation check is a cheap early-out for a superseded refresh; the
+   * re-read guarantees no double-count even if it slips through. The cursor is
+   * written before the total so an interrupted commit under-counts (loses a
+   * delta, recovered next cycle) rather than double-counting.
+   *
+   * Liveness vs correctness (deliberate): the commit is STRICTLY serialised and
+   * not force-released on a timeout. Homey store/capability writes cannot be
+   * cancelled, so releasing the queue while a write is still pending would let a
+   * delayed write land after a newer commit and corrupt a billing-relevant
+   * monotonic meter. We therefore favour write-order correctness. This is safe
+   * in practice because the realistic hang vector is the NETWORK consumption
+   * fetch, which happens BEFORE this mutex and is already bounded by the refresh
+   * watchdog; the writes inside the mutex are local persistence and settle
+   * immediately. A (theoretical) hung local write would pause only cumulative
+   * updates — never corrupt them.
+   */
+  private commitCumulative(sorted: ConsumptionRecord[], meterCap: string, generation: number): Promise<void> {
+    const run = async (): Promise<void> => {
+      if (this.isStaleRefresh(generation)) return;
       const persistedEnd: string | null = this.getStoreValue('lastConsumptionEnd');
       const priorCumulative = Number(this.getStoreValue('cumulativeMeter')) || 0;
       const update = computeCumulativeUpdate(sorted, persistedEnd, priorCumulative, (raw) => this.toMeterUnit(raw));
       if (update) {
         await this.setStoreValue('lastConsumptionEnd', update.cursorIso);
         await this.setStoreValue('cumulativeMeter', update.cumulative);
-        await this.setCapabilityValue(meterCap as string, update.cumulative).catch(this.error);
+        await this.setCapabilityValue(meterCap, update.cumulative).catch(this.error);
       } else if (this.getStoreValue('cumulativeMeter') != null) {
-        await this.setCapabilityValue(meterCap as string, Number(this.getStoreValue('cumulativeMeter'))).catch(this.error);
+        await this.setCapabilityValue(meterCap, Number(this.getStoreValue('cumulativeMeter'))).catch(this.error);
       }
-    }
+    };
+    // Chain onto the queue (running on both fulfil and reject so one failed
+    // commit does not block the next), and keep the stored tail non-rejecting.
+    const queue = this.cumulativeCommit ?? Promise.resolve();
+    const next = queue.then(run, run);
+    this.cumulativeCommit = next.catch(() => {});
+    return next;
   }
 
   /**

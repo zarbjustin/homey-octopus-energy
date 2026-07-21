@@ -48,8 +48,8 @@ module.exports = class GasDevice extends OctopusMeterDevice {
   }
 
   /** After consumption, estimate embedded carbon from gas usage (kWh × factor). */
-  protected async refreshExtra(): Promise<void> {
-    await super.refreshExtra();
+  protected async refreshExtra(generation: number): Promise<void> {
+    await super.refreshExtra(generation);
     if (this.hasCapability('measure_gas_carbon') && this.hasCapability('octopus_usage_today')) {
       const usageKwh = Number(this.getCapabilityValue('octopus_usage_today')) || 0;
       const kg = (usageKwh * GAS_CARBON_G_PER_KWH) / 1000;
