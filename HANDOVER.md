@@ -139,6 +139,15 @@ typename his account uses — and `rawAgreementCount`/`serverActiveCount` will s
 whether it's a client, `active:true`, or genuinely-upstream issue. Only then update
 `docs/handover/darren-iog-reply.md` and close the field-verification gate.
 
+**Release status:** shipped as **v1.0.20** — commits `e9a37b2` (fix) + `04c1d68`
+(release bump) + `d552420` (brace-expansion audit fix) pushed to `main` (tag
+`v1.0.20` + GitHub release auto-created by the release workflow). CI, Validate,
+CodeQL and the "Publish Homey App" workflow all passed; **Build 20 / version
+1.0.20** uploaded to the Homey developer account on 21 July 2026.
+**Remaining manual step:** promote Build 20 to the **Test** channel at
+https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/20, then
+share the Test link with Darren and ask for one fresh diagnostic log.
+
 ## Post-v1.0.18 roadmap (Sprints 50–58) + S50 delivered
 
 A tri-model (Opus 4.8 + GPT-5.5 + GPT-5.6 Sol) read-only evaluation of the whole app
