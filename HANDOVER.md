@@ -257,7 +257,7 @@ Prioritised from the blueprint (`docs/blueprint/`): BL-01/02/03 + BL-10 + BL-11.
 Tri-model reviewed (Opus 4.8 + GPT-5.6 Sol + GPT-5.5); three blocking issues (repair budget reset/burst,
 account-change stranding, migration not pruning) fixed at root cause; final verdict no-blocker. 382 tests
 pass; tsc + eslint + `homey validate --level publish` + `npm audit` clean.
-**Remaining manual step:** promote Build 22 → Test.
+**App Store submission (in progress):** Build 22 (v1.0.22) is being promoted to Test then submitted for certification → Live via the Homey Developer dashboard (chosen 21 Jul 2026: straight to certification/Live). Supersedes Build 21.
 **Deferred (tracked):** true reserved-core rate ceiling (051b); the cache-generation guard for stale
 in-flight writes (blueprint BL-08/R-004); a full app-level Kraken budget integration sim.
 
