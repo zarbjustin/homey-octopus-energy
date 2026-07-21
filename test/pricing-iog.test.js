@@ -9,6 +9,7 @@ const assert = require('node:assert/strict');
 
 const {
   iogUnitRatesToRates, synthesiseIogDayNightRates,
+  isFlatUnitRates, distinctIncVatValues, iogFlatDayRate,
 } = require('../.homeybuild/lib/pricing/iogSchedule.js');
 const { isRecoverablePriceGapError } = require('../.homeybuild/lib/pricing/priceGap.js');
 const { rateAt } = require('../.homeybuild/lib/rates.js');
@@ -80,4 +81,73 @@ test('isRecoverablePriceGapError matches the "no rate covering now" shapes and r
   assert.equal(isRecoverablePriceGapError(new Error('fetch failed')), false);
   assert.equal(isRecoverablePriceGapError(null), false);
   assert.equal(isRecoverablePriceGapError(undefined), false);
+});
+
+// --- Flat-series detection + configured-night-rate synthesis (community 156860,
+//     "Darren": his IOG HalfHourly feed publishes ONLY the 28.86p day rate, so
+//     everything priced flat. These pin the helpers that let the day/night rate
+//     be restored from the user-configured night rate without regressing genuine
+//     multi-band half-hourly accounts). --------------------------------------
+
+test('distinctIncVatValues counts distinct inc-VAT bands and ignores float dust', () => {
+  assert.deepEqual(
+    distinctIncVatValues([
+      { validFrom: 'a', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49 },
+      { validFrom: 'b', validTo: null, valueIncVat: 28.8600001, valuePreVat: 27.49 },
+    ]).sort(),
+    [28.86],
+  );
+  assert.equal(
+    distinctIncVatValues([
+      { validFrom: 'a', validTo: null, valueIncVat: 6.9, valuePreVat: 6.57 },
+      { validFrom: 'b', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49 },
+    ]).length,
+    2,
+  );
+});
+
+test('isFlatUnitRates: a single-value IOG series is flat; a genuine two-band series is not; empty is not flat', () => {
+  assert.equal(isFlatUnitRates([
+    { validFrom: 'a', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49 },
+    { validFrom: 'b', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49 },
+  ]), true);
+  assert.equal(isFlatUnitRates([
+    { validFrom: 'a', validTo: null, valueIncVat: 6.9, valuePreVat: 6.57 },
+    { validFrom: 'b', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49 },
+  ]), false);
+  assert.equal(isFlatUnitRates([]), false); // no base to synthesise from → not "flat"
+});
+
+test('iogFlatDayRate returns the single base pair for a flat series, else null', () => {
+  assert.deepEqual(
+    iogFlatDayRate([{ validFrom: 'a', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49 }]),
+    { inc: 28.86, exc: 27.49 },
+  );
+  assert.equal(
+    iogFlatDayRate([
+      { validFrom: 'a', validTo: null, valueIncVat: 6.9, valuePreVat: 6.57 },
+      { validFrom: 'b', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49 },
+    ]),
+    null,
+  );
+});
+
+test('synthesising from a flat day base + configured night rate yields the real two-band schedule', () => {
+  // The exact composition the device performs for Darren: day = flat base
+  // (28.86p), night = configured 6.90p across the guaranteed 23:30–05:30 window.
+  const base = iogFlatDayRate([{ validFrom: 'a', validTo: null, valueIncVat: 28.86, valuePreVat: 27.49 }]);
+  const from = Date.UTC(2026, 6, 21, 0, 0);
+  const to = Date.UTC(2026, 6, 22, 0, 0);
+  const isNight = (d) => { const h = d.getUTCHours() + d.getUTCMinutes() / 60; return h < 5.5 || h >= 23.5; };
+  const rates = synthesiseIogDayNightRates(
+    { dayRate: base.inc, nightRate: 6.9, preVatDayRate: base.exc, preVatNightRate: 6.57 },
+    from, to, isNight,
+  );
+  const overnight = rateAt(rates, new Date('2026-07-21T02:00:00Z'));
+  const midday = rateAt(rates, new Date('2026-07-21T12:00:00Z'));
+  assert.equal(overnight.value_inc_vat, 6.9, 'overnight prices at the configured night rate');
+  assert.equal(midday.value_inc_vat, 28.86, 'daytime keeps the flat base day rate');
+  // Lowest != Highest across the day — the regression that made every tile 28.86p.
+  const values = rates.map((r) => r.value_inc_vat);
+  assert.notEqual(Math.min(...values), Math.max(...values));
 });

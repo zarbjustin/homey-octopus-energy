@@ -44,6 +44,49 @@ export function iogUnitRatesToRates(unitRates: IogUnitRate[]): Rate[] {
 }
 
 /**
+ * The distinct inc-VAT values carried by a HalfHourlyTariff's `unitRates`.
+ *
+ * Intelligent Octopus Go is frequently published as a HalfHourlyTariff whose
+ * `unitRates` carry ONLY the single standard/day rate (e.g. 28.86p) — the
+ * guaranteed 23:30–05:30 off-peak band (e.g. 6.90p) is delivered via the
+ * account's day/night schedule and smart-charge dispatches, NOT as distinct
+ * settlement rows here. Counting distinct values lets the caller tell a genuine
+ * multi-band half-hourly series apart from that flat single-rate case so it does
+ * not price the whole day at the standard rate. Values are rounded to 4 dp to
+ * avoid float dust producing spurious "distinct" bands.
+ */
+export function distinctIncVatValues(unitRates: IogUnitRate[]): number[] {
+  const seen = new Set<number>();
+  for (const r of unitRates) {
+    if (typeof r.valueIncVat === 'number' && Number.isFinite(r.valueIncVat)) {
+      seen.add(Number(r.valueIncVat.toFixed(4)));
+    }
+  }
+  return [...seen];
+}
+
+/**
+ * True when a HalfHourlyTariff's `unitRates` carry a single distinct rate (the
+ * flat IOG case above). An empty series is NOT flat — there is simply no base to
+ * synthesise from, so the caller must not treat it as flat.
+ */
+export function isFlatUnitRates(unitRates: IogUnitRate[]): boolean {
+  return distinctIncVatValues(unitRates).length === 1;
+}
+
+/**
+ * The single base (day) rate pair from a flat HalfHourly series, or null when
+ * the series is not flat / has no finite rows. Used as the DAY band when
+ * synthesising a two-band schedule from a configured night rate.
+ */
+export function iogFlatDayRate(unitRates: IogUnitRate[]): { inc: number; exc: number } | null {
+  if (!isFlatUnitRates(unitRates)) return null;
+  const row = unitRates.find((r) => Number.isFinite(r.valueIncVat) && Number.isFinite(r.valuePreVat));
+  if (!row) return null;
+  return { inc: row.valueIncVat, exc: row.valuePreVat };
+}
+
+/**
  * Synthesise a half-hourly day/night `Rate[]` across `[fromMs, toMs)` from an
  * authoritative two-band IOG agreement, using `isNight` to pick the band for
  * each slot start. Only valid when the agreement's schedule is trusted

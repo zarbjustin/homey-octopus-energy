@@ -260,17 +260,34 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     if (!this.flexPlannedInflight.has(accountNumber)) {
       const request = (async () => {
         const devices = await this.getCachedDevices(apiKey, accountNumber);
-        const candidates = devices.filter((d) => d.participating || d.category === 'EV' || d.category === 'CHARGE_POINT');
         const client = this.getKrakenClient(apiKey, accountNumber);
         if (!devices.length) {
-          // No smart-flex device at all: preserve legacy account-scoped behaviour.
+          // No smart-flex device at all: preserve the legacy account-scoped
+          // behaviour (the only case where the account feed is authoritative).
           const legacy = await client.getPlannedDispatches(accountNumber);
           return legacy.map((d) => ({
             deviceId: 'account', start: d.start, end: d.end, kind: 'unknown' as const,
           }));
         }
-        const perDevice = await Promise.all(candidates.map((d) => client.getFlexPlannedDispatches(d.deviceId)));
-        return perDevice.flat();
+        const candidates = devices.filter((d) => d.participating || d.category === 'EV' || d.category === 'CHARGE_POINT');
+        // Query each candidate independently so one healthy device's plan is not
+        // lost to another's transient error. BUT a per-device failure must never
+        // publish a PARTIAL snapshot: the poller/reconciler treats a successful
+        // result as authoritative and would cancel the failed device's still-
+        // future windows (false dispatch_cancelled/ended). So if ANY candidate
+        // rejects, fail closed (throw) — the caller retains prior state. Only an
+        // all-success poll is authoritative (an all-empty result is a genuine
+        // "no planned dispatches").
+        const settled = await Promise.allSettled(
+          candidates.map((d) => client.getFlexPlannedDispatches(d.deviceId)),
+        );
+        const rejected = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+        if (rejected) {
+          throw rejected.reason instanceof Error ? rejected.reason : new Error(String(rejected.reason));
+        }
+        return settled
+          .filter((r): r is PromiseFulfilledResult<PlannedInput[]> => r.status === 'fulfilled')
+          .flatMap((r) => r.value);
       })()
         .then((value) => {
           this.flexPlannedCache.set(accountNumber, { value, ts: Date.now() });

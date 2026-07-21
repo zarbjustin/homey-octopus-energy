@@ -101,6 +101,41 @@ test('getFlexPlanned queries an idle-but-linked EV for its future dispatches', a
   assert.equal(planned.length, 1);
 });
 
+test('getFlexPlanned fails closed when any candidate device errors (never publishes a partial snapshot)', async (t) => {
+  // A per-device failure must not return the healthy device's plan as
+  // authoritative — reconcile would then cancel the failed device's still-future
+  // windows. The whole poll must throw so prior state is retained.
+  t.mock.method(KrakenClient.prototype, 'getDevices', async () => ([
+    { deviceId: 'ev-good', typename: 'SmartFlexVehicle', category: 'EV', controlState: 'IDLE', participating: false },
+    { deviceId: 'ev-bad', typename: 'SmartFlexVehicle', category: 'EV', controlState: 'IDLE', participating: false },
+  ]));
+  t.mock.method(KrakenClient.prototype, 'getFlexPlannedDispatches', async (deviceId) => {
+    if (deviceId === 'ev-bad') throw new Error('Unable to fetch planned dispatches.');
+    return [{ deviceId, start: '2026-01-01T23:30:00Z', end: '2026-01-02T05:30:00Z', kind: 'SMART' }];
+  });
+  let legacyCalled = false;
+  t.mock.method(KrakenClient.prototype, 'getPlannedDispatches', async () => { legacyCalled = true; return []; });
+  const app = new OctopusEnergyApp();
+
+  await assert.rejects(app.getFlexPlanned('key', 'A-ONE'), /Unable to fetch planned dispatches/);
+  assert.equal(legacyCalled, false, 'a device-bearing account never falls back to the account feed (would risk false cancels)');
+});
+
+test('getFlexPlanned uses the account-scoped feed only when there is no linked device', async (t) => {
+  t.mock.method(KrakenClient.prototype, 'getDevices', async () => ([]));
+  let legacyCalled = false;
+  t.mock.method(KrakenClient.prototype, 'getPlannedDispatches', async () => {
+    legacyCalled = true;
+    return [{ start: '2026-01-01T23:30:00Z', end: '2026-01-02T05:30:00Z' }];
+  });
+  const app = new OctopusEnergyApp();
+
+  const planned = await app.getFlexPlanned('key', 'A-ONE');
+  assert.equal(legacyCalled, true, 'a device-less account uses the account feed');
+  assert.equal(planned.length, 1);
+  assert.equal(planned[0].deviceId, 'account');
+});
+
 test('IOG tariff cache: 6h reuse for a resolved value, exponential backoff for null', async (t) => {
   let calls = 0;
   const real = { tariffType: 'DayNightTariff', resolvedVia: 'exact', validTo: null, tariffCode: 'E-1R-IOG-X-C', productCode: 'IOG-X', dayRate: 30, nightRate: 8, preVatDayRate: 29, preVatNightRate: 7, evDevicePeakRate: null, evDeviceOffPeakRate: null, preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 40 };

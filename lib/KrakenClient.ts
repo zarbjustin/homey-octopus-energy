@@ -263,6 +263,7 @@ export class KrakenClient {
     auth = true,
     url = this.url,
     priority: KrakenPriority = 'best',
+    allowPartial?: (data: unknown) => boolean,
   ): Promise<T> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (auth) headers.Authorization = await this.getToken();
@@ -276,10 +277,23 @@ export class KrakenClient {
         this.token = null;
         headers.Authorization = await this.getToken();
         const retryJson = await this.post<T>(headers, query, variables, url, priority);
-        if (retryJson.errors?.length) throw new Error(retryJson.errors[0].message);
+        if (retryJson.errors?.length && !(allowPartial?.(retryJson.data) ?? false)) {
+          throw new Error(retryJson.errors[0].message);
+        }
         return retryJson.data as T;
       }
-      throw new Error(json.errors[0].message);
+      // By default any GraphQL error is fatal (a caller relying on a nested field
+      // must not silently receive a null/£0 — e.g. account balance). A caller may
+      // OPT IN to partial success via `allowPartial` when a specific nullable
+      // nested resolver is known to fail independently (e.g. a device's
+      // provider-backed `status { currentState }`, "Device status could not be
+      // fetched"), returning the still-usable rest of the payload. When the
+      // requested field itself nulls out (e.g. "Unable to fetch planned
+      // dispatches") the validator rejects it, so we throw and the caller retains
+      // prior state / falls back.
+      if (!(allowPartial?.(json.data) ?? false)) {
+        throw new Error(json.errors[0].message);
+      }
     }
     return json.data as T;
   }
@@ -949,7 +963,15 @@ export class KrakenClient {
           status { currentState }
         }
       }`;
-    const data = await this.query<{ devices?: unknown }>(query, { accountNumber }, true, this.url, 'live');
+    // `status { currentState }` is a provider-backed nullable field that can fail
+    // on its own ("Device status could not be fetched") while the device list is
+    // still returned. Opt in to partial success so that error does not sink the
+    // whole dispatch poll; the device is kept (status → null) and classified by
+    // category. Any other shape (devices null/absent) still throws.
+    const data = await this.query<{ devices?: unknown }>(
+      query, { accountNumber }, true, this.url, 'live',
+      (d) => Array.isArray((d as { devices?: unknown } | null)?.devices),
+    );
     return normaliseDevices(data);
   }
 

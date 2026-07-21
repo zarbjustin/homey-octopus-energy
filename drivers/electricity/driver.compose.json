@@ -184,6 +184,19 @@
       }
     },
     {
+      "id": "iog_night_rate",
+      "type": "number",
+      "label": {
+        "en": "IOG off-peak (night) rate (p/kWh inc VAT)"
+      },
+      "value": 0,
+      "min": 0,
+      "max": 200,
+      "hint": {
+        "en": "Intelligent Octopus Go only: your guaranteed 23:30–05:30 off-peak rate (inc VAT), from the Octopus app. Some IOG accounts publish only the day rate to the API, which makes every price tile show the day rate and hides the cheap window. Set this to restore correct day/night pricing. 0 = leave as published by Octopus."
+      }
+    },
+    {
       "id": "night_start",
       "type": "text",
       "label": {

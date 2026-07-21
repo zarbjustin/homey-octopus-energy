@@ -33,7 +33,9 @@ import {
 import { redactSecrets, maskAccount as maskAccountId } from './redact';
 import { DeviceScheduler } from './DeviceScheduler';
 import { refreshHealthDecision, RefreshHealthDecision } from './health';
-import { iogUnitRatesToRates, synthesiseIogDayNightRates } from './pricing/iogSchedule';
+import {
+  iogUnitRatesToRates, synthesiseIogDayNightRates, isFlatUnitRates, iogFlatDayRate,
+} from './pricing/iogSchedule';
 import { isRecoverablePriceGapError } from './pricing/priceGap';
 import { computeCumulativeUpdate } from './consumption/cumulative';
 import {
@@ -1085,6 +1087,31 @@ export class OctopusMeterDevice extends Homey.Device {
       if (tariff.unitRates && tariff.unitRates.length) {
         const rows: Rate[] = iogUnitRatesToRates(tariff.unitRates);
         if (rateAt(rows)) {
+          // IOG is commonly published as a HalfHourlyTariff whose `unitRates`
+          // carry ONLY the single standard/day rate (e.g. 28.86p) — the
+          // guaranteed 23:30–05:30 off-peak band (e.g. 6.90p) is NOT a distinct
+          // settlement row here. Promoting a flat single-rate series to the
+          // authoritative price series flattens every tile (Lowest/Highest/
+          // Average, Next price, off-peak cost) and blinds the local
+          // cheapest-window planner (community 156860). When the user has
+          // configured their IOG night rate, synthesise a proper day/night
+          // series over the guaranteed window instead of pricing the day flat.
+          const dayBase = isFlatUnitRates(tariff.unitRates) ? iogFlatDayRate(tariff.unitRates) : null;
+          const override = dayBase ? this.iogNightRateOverride() : null;
+          if (dayBase && override && override.inc !== dayBase.inc) {
+            const { from, to } = this.iogScheduleWindow();
+            const synthesised = synthesiseIogDayNightRates(
+              {
+                dayRate: dayBase.inc,
+                nightRate: override.inc,
+                preVatDayRate: dayBase.exc,
+                preVatNightRate: override.exc,
+              },
+              from, to, (slotStart) => this.isIogNightTime(slotStart),
+            );
+            this.log('Price-gap recovery: HalfHourly rows are flat; synthesising day/night from the configured IOG night rate.');
+            return synthesised;
+          }
           this.log('Price-gap recovery: pricing from the account HalfHourly agreement rows (authoritative).');
           return rows;
         }
@@ -1113,8 +1140,7 @@ export class OctopusMeterDevice extends Homey.Device {
         this.log('Price-gap recovery: adopted the live IOG code; deferring rates to REST (untrusted schedule shape).');
         return null;
       }
-      const from = this.localMidnight(-2).getTime();
-      const to = this.localMidnight(3).getTime();
+      const { from, to } = this.iogScheduleWindow();
       return synthesiseIogDayNightRates(tariff, from, to, (slotStart) => this.isIogNightTime(slotStart));
     } catch (err) {
       this.log('Intelligent Octopus Go account-rate fallback was unavailable.');
@@ -1238,6 +1264,31 @@ export class OctopusMeterDevice extends Homey.Device {
     const code = `${this.store().productCode ?? ''}`.toUpperCase();
     return /(^|-)IOG(-|$)/.test(code)
       || (/^INTELLI-/.test(code) && !/^INTELLI-FLUX-/.test(code));
+  }
+
+  /**
+   * The user-configured IOG off-peak (night) rate, as an inc-VAT + exc-VAT pair,
+   * or null when unset/invalid. IOG's guaranteed 23:30–05:30 band is often absent
+   * from the account's HalfHourly settlement rows, so this optional setting lets a
+   * user restore correct two-band pricing without depending on an unverified
+   * upstream schema. exc-VAT is derived using the standard 5% UK domestic
+   * electricity VAT rate so it stays consistent with the settlement rows.
+   */
+  private iogNightRateOverride(): { inc: number; exc: number } | null {
+    const raw = Number(this.getSetting('iog_night_rate'));
+    if (!Number.isFinite(raw) || raw <= 0) return null;
+    return { inc: raw, exc: Number((raw / 1.05).toFixed(4)) };
+  }
+
+  /**
+   * The horizon over which the IOG day/night schedule is synthesised into
+   * `this.rates`. It reaches well back because month-to-date and billing-period
+   * cost price IOG history against `this.rates` when the public REST feed is
+   * empty (see `costRatesForWindow`); a short window would leave older records
+   * unpriced (£0) and undercount the month. Still bounded (a few thousand slots).
+   */
+  private iogScheduleWindow(): { from: number; to: number } {
+    return { from: this.localMidnight(-45).getTime(), to: this.localMidnight(3).getTime() };
   }
 
   private isIogNightTime(at: Date): boolean {
@@ -2330,7 +2381,7 @@ export class OctopusMeterDevice extends Homey.Device {
     if (changedKeys.some((k) => [
       'vat', 'cheap_threshold', 'expensive_threshold', 'smart_charge_hours',
       'smart_charge_by', 'smart_charge_max_price', 'night_start', 'night_end',
-      'carbon_region', 'gas_units', 'gas_cv',
+      'carbon_region', 'gas_units', 'gas_cv', 'iog_night_rate',
     ].includes(k))) {
       this.homey.setTimeout(() => this.refresh().catch((err) => this.error(err)), 200);
     }

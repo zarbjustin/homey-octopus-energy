@@ -4,9 +4,33 @@ Last updated: 21 July 2026
 
 ## Current state
 
+- **v1.0.26 (21 Jul 2026) — IOG night-rate + planned-dispatch fixes (community 156860, Darren).**
+  Darren confirmed via screenshots his IOG tariff is a genuine two-rate **Night 6.90p (23:30–05:30)
+  / Day 28.86p**, but Octopus's half-hourly API feed for his account publishes only the 28.86p day
+  rate — so the app (which promoted those flat HalfHourly `unitRates` to the authoritative price
+  series) priced everything at 28.86p, showed Off-peak cost £0, and blinded the local cheapest-
+  window charge planner (Cheap-charge window "No" / Next planned charge slot "—"). **Bug A fix:** a
+  new optional device setting **`iog_night_rate`** (p/kWh inc VAT); when set and the HalfHourly rows
+  are flat (single distinct value, via `isFlatUnitRates`/`iogFlatDayRate` in `lib/pricing/
+  iogSchedule.ts`), `intelligentGoBaseRates` synthesises a proper day/night series over the
+  guaranteed window (`synthesiseIogDayNightRates` + `isIogNightTime`). Fails closed (unchanged) when
+  unset; genuine multi-band half-hourly accounts untouched. The synthesis horizon is now a shared
+  `iogScheduleWindow()` (−45..+3 days) so month/billing cost prices history correctly instead of
+  undercounting older records to £0 (also improves the existing trusted DayNight path). **Bug B fix
+  (dispatch poll):** `KrakenClient.query()` gained an opt-in `allowPartial` predicate so a nullable
+  provider-backed `status{currentState}` error ("Device status could not be fetched") no longer
+  sinks the whole `getDevices`/dispatch read — only `getDevices` opts in; every other caller
+  (balance, agreements, dispatches) stays strict-throw/fail-closed. `app.ts getFlexPlanned` now uses
+  `Promise.allSettled` and fails closed (throws, retains prior state, never falsely cancels) if any
+  candidate device errors; the account-scoped legacy feed is reserved for device-less accounts.
+  Tri-model process: investigation (GPT-5.6 Sol + GPT-5.5 + Opus 4.8) → implementation → review (all
+  three) → Opus re-review, all green. 457 tests pass, tsc + lint clean, publish-level validate green,
+  `npm audit` clean. Drafted community reply: `docs/handover/darren-iog-night-rate-reply.md`.
+  **Manual step remaining:** promote the v1.0.26 build to Test/Live and ask Darren to set his night
+  rate to 6.90 and re-test around the 23:30 changeover.
 - Repository: `zarbjustin/homey-octopus-energy` (public), default branch `main`.
 - App ID: `uk.co.zarb.octopusenergy`.
-- Current source version: `1.0.25`; release tag: `v1.0.25` (GitHub release published). Homey
+- Prior source version: `1.0.25`; release tag: `v1.0.25` (GitHub release published). Homey
   **Build (v1.0.25)** uploaded to the App Store on 21 July 2026 (publish run `29871078184`,
   green). This build batches the internal safety/hardening work: **BL-08** (cumulative energy-meter
   writer is stale-write-safe — generation fence + serialized commit queue with inside-lock

@@ -859,3 +859,68 @@ test('a failed token fetch is not memoised and the next attempt retries (S51 sin
   await client.getBalance('A-ONE');
   assert.equal(tokenRequests, 2, 'the rejected token was not cached; the retry fetched again');
 });
+
+// --- Partial GraphQL data tolerance (community 156860): Kraken returns `data`
+//     alongside a field-level error when a nullable nested resolver fails. The
+//     device `status { currentState }` field is provider-backed and often errors
+//     ("Device status could not be fetched"); that must NOT sink the whole
+//     dispatch poll. But when the requested field itself nulls out ("Unable to
+//     fetch planned dispatches"), we still fail closed. ------------------------
+
+test('getDevices tolerates a nullable device status field error (returns the device, no throw)', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse({
+      data: { devices: [{ __typename: 'SmartFlexVehicle', id: 'synthetic-ev-1', deviceType: 'EV', status: null }] },
+      errors: [{ message: 'Device status could not be fetched.' }],
+    });
+  });
+
+  const devices = await new KrakenClient('api-key').getDevices('A-ONE');
+  assert.equal(devices.length, 1, 'the device survives a status sub-field error');
+  assert.equal(devices[0].deviceId, 'synthetic-ev-1');
+  assert.equal(devices[0].category, 'EV');
+  assert.equal(devices[0].controlState, null); // status nulled, but device kept
+});
+
+test('getPlannedDispatches still fails closed on a field-level error (does not opt in to partial data)', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse({
+      data: { plannedDispatches: null },
+      errors: [{ message: 'Unable to fetch planned dispatches.' }],
+    });
+  });
+
+  await assert.rejects(
+    new KrakenClient('api-key').getPlannedDispatches('A-ONE'),
+    /Unable to fetch planned dispatches/,
+    'a field-level dispatch error must throw so the caller retains prior state',
+  );
+});
+
+test('getBalance fails closed on a partial error (never caches a false £0)', async (t) => {
+  // A non-opted-in caller with a nulled nested field must throw, not degrade to 0.
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse({
+      data: { account: { balance: null } },
+      errors: [{ message: 'Balance could not be fetched.' }],
+    });
+  });
+
+  await assert.rejects(
+    new KrakenClient('api-key').getBalance('A-ONE'),
+    /Balance could not be fetched/,
+    'a nulled balance field must throw, not silently return £0',
+  );
+});
