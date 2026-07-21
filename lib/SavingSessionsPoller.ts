@@ -4,6 +4,7 @@ import { AccountPoller } from './AccountPoller';
 import { SavingSession } from './KrakenClient';
 import { isBudgetError } from './KrakenBudget';
 import { opaqueKey, opaqueKeyMigrating } from './diagnosticsKey';
+import { redactSecrets, maskAccount as maskAccountId } from './redact';
 
 interface PollerState {
   known: string[];
@@ -167,12 +168,10 @@ export class SavingSessionsPoller extends AccountPoller {
   }
 
   private errorMessage(err: unknown, secret: string): string {
-    const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
-    return message.replaceAll(secret, '[redacted]').replace(/\s+/g, ' ').slice(0, 240);
+    return redactSecrets(err, [secret]);
   }
 
   private maskAccount(accountNumber: string): string {
-    if (accountNumber.length <= 4) return accountNumber;
-    return `${accountNumber.slice(0, 2)}***${accountNumber.slice(-2)}`;
+    return maskAccountId(accountNumber);
   }
 }

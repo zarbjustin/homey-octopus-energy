@@ -7,6 +7,7 @@ import {
 } from './dispatch/reconcile';
 import { DispatchView, DispatchFinalised } from './dispatch/types';
 import { isBudgetError } from './KrakenBudget';
+import { redactSecrets } from './redact';
 
 interface DispatchApp extends Homey.App {
   getFlexPlanned(apiKey: string, accountNumber: string): Promise<PlannedInput[]>;
@@ -198,8 +199,7 @@ export class DispatchPoller extends AccountPoller {
   }
 
   private redact(err: unknown, secret: string): string {
-    const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
-    return message.replaceAll(secret, '[redacted]').replace(/\s+/g, ' ').slice(0, 240);
+    return redactSecrets(err, [secret]);
   }
 
   /** Aggregate, identifier-free diagnostics (no account numbers or device ids). */
