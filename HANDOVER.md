@@ -21,9 +21,13 @@ Last updated: 21 July 2026
   stability & privacy hardening), v1.0.23 (IOG price-today tiles fix). Phase 2 (S52 god-object
   decomposition, BL-07) in progress: slice 1 landed `lib/timezone.ts` + `lib/redact.ts` (commit
   `7604646`); slice 2 landed `lib/DeviceScheduler.ts` (the three refresh timers) + `lib/health.ts`
-  (pure `refreshHealthDecision`), commit `30b7acc` — `OctopusMeterDevice` now 2291 LOC (from 2399),
-  zero user-visible change, 403 tests green. Next decomposition slice per
-  `docs/blueprint/16-implementation-plan.md` §2.1: extract `TariffService` + `PriceService`.
+  (pure `refreshHealthDecision`), commit `30b7acc`; slice 3 landed `lib/pricing/iogSchedule.ts`
+  (`iogUnitRatesToRates` + `synthesiseIogDayNightRates`) + `lib/pricing/priceGap.ts`
+  (`isRecoverablePriceGapError`), commit `a647d39` — `OctopusMeterDevice` now 2274 LOC (from 2399),
+  zero user-visible change, 408 tests green. Next decomposition slice per
+  `docs/blueprint/16-implementation-plan.md` §2.1: extract `ConsumptionService` (single cumulative
+  cursor/store writer), then `ReportingService` + a thin `PlanningFacade`, then BL-08
+  generation/cancellation safety.
 - `main` HEAD is `9990cb4`. The v1.0.23 ship is commits `4fb83a3` (fix) + `9990cb4`
   (release bump). All pushed directly to `main` (owner bypass of the
   PR rule); CI, Validate, CodeQL, Create GitHub Release, and Publish Homey App all green.
