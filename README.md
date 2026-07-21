@@ -47,7 +47,7 @@ homey app run        # run on a connected Homey
 
 ## Current release
 
-Source version `1.0.24` (Homey Build pending Test). Sprints 42–47
+Source version `1.0.25` (Homey Build pending Test). Sprints 42–47
 are merged under this line: a shared Kraken request
 budget and live-data poller, a device-aware dispatch truth model, a billing-period
 summary, live-energy presentation and provenance badges, an opt-in estimated

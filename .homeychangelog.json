@@ -73,5 +73,8 @@
   },
   "1.0.24": {
     "en": "Fix: on Intelligent Octopus Go the cost tiles (Off-peak cost today, Peak cost today, Cost yesterday and the monthly/billing figures) could show £0 because your tariff publishes no public price rows. They now price your usage from the same live rates as the current-price tile, so the cost figures populate instead of showing zero."
+  },
+  "1.0.25": {
+    "en": "Reliability & security hardening: the cumulative energy-meter total is now protected against a rare double-count when data refreshes overlap; the Octopus connection token is renewed based on its own expiry (fewer needless reconnects); and all account requests are pinned to Octopus's servers. No changes to how the app looks or the tiles you see."
   }
 }
