@@ -103,13 +103,19 @@ test('tariff comparison uses one-register codes for candidates from an Economy 7
   device.vatInc = () => true;
   device.error = () => {};
 
-  await device.compareTariffs(30);
+  const result = await device.compareTariffs(30);
 
   assert.deepEqual(candidateTariffs, [
     'E-1R-AGILE-A',
     'E-1R-GO-A',
     'E-1R-FLEXIBLE-A',
   ]);
+  // BL-19: honest, estimate-framed result — never a bare "best", with confidence + note.
+  assert.ok(typeof result.best_product === 'string');
+  assert.match(result.best_product, /estimated cheapest|already cheapest/);
+  assert.ok(['high', 'medium', 'low'].includes(result.confidence));
+  assert.match(result.note, /[Ee]stimate/);
+  assert.match(result.note, /not a guaranteed saving/);
 });
 
 test('zoned tariff boundaries preserve 23-hour and 25-hour UK DST days', () => {

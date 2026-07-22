@@ -43,6 +43,9 @@ import {
   iogHouseholdBands, iogRateTypeSummary,
 } from './pricing/iogSchedule';
 import { evaluateTargetRate, TargetRateResult } from './planning/targetRate';
+import {
+  rankTariffs, TariffCandidateInput, TariffVolatility,
+} from './compare/tariffComparison';
 import { isRecoverablePriceGapError } from './pricing/priceGap';
 import { computeCumulativeUpdate } from './consumption/cumulative';
 import {
@@ -2111,6 +2114,8 @@ export class OctopusMeterDevice extends Homey.Device {
     current_annual: number;
     best_annual: number;
     annual_saving: number;
+    confidence: string;
+    note: string;
   } | null> {
     const s = this.store();
     if (!s.productCode || !s.tariffCode || !s.mpxn || !s.serial) return null;
@@ -2123,8 +2128,13 @@ export class OctopusMeterDevice extends Homey.Device {
     const records = await this.client.consumption(s.fuel, s.mpxn, s.serial, { ...window, order_by: 'period' });
     if (!records.length) return null;
 
-    const candidates: Array<{ name: string; productCode: string; tariffCode: string }> = [
-      { name: 'Current', productCode: s.productCode, tariffCode: s.tariffCode },
+    const candidates: Array<{ name: string; productCode: string; tariffCode: string; volatility: TariffVolatility }> = [
+      {
+        name: 'Current',
+        productCode: s.productCode,
+        tariffCode: s.tariffCode,
+        volatility: /AGILE|TRACKER/i.test(s.productCode) ? 'variable' : 'stable',
+      },
     ];
     if (s.fuel === 'electricity') {
       for (const [label, frag] of [['Agile', 'agile'], ['Go', 'go'], ['Flexible', 'flexible']]) {
@@ -2135,12 +2145,16 @@ export class OctopusMeterDevice extends Homey.Device {
           // register/payment-method naming convention.
           // eslint-disable-next-line no-await-in-loop
           const tariffCode = await this.client.tariffCodeForProduct(code, 'electricity', region, 1);
-          if (tariffCode) candidates.push({ name: label, productCode: code, tariffCode });
+          if (tariffCode) {
+            candidates.push({
+              name: label, productCode: code, tariffCode, volatility: label === 'Agile' ? 'variable' : 'stable',
+            });
+          }
         }
       }
     }
 
-    const results: Array<{ name: string; annual: number }> = [];
+    const inputs: TariffCandidateInput[] = [];
     for (const c of candidates) {
       try {
         if (isTwoRegister(c.tariffCode)) {
@@ -2150,7 +2164,12 @@ export class OctopusMeterDevice extends Homey.Device {
             this.client.registerUnitRates('night', c.productCode, c.tariffCode, window),
             this.client.standingCharges(s.fuel, c.productCode, c.tariffCode, window),
           ]);
-          if (!dayRates.length && !nightRates.length) continue;
+          if (!dayRates.length && !nightRates.length) {
+            inputs.push({
+              name: c.name, annual: null, volatility: c.volatility, reason: 'no published rates for your region',
+            });
+            continue;
+          }
           let pence = 0;
           for (const r of records) {
             const rate = this.rateForRecord(r.interval_start, dayRates, nightRates);
@@ -2159,32 +2178,48 @@ export class OctopusMeterDevice extends Homey.Device {
           const sc = rateAt(standing) ?? standing[0];
           const standingPence = sc ? valueOf(sc, this.vatInc()) : 0;
           const days = daysSpanned(records);
-          results.push({ name: c.name, annual: (((pence + standingPence * days) / days) * 365) / 100 });
+          inputs.push({
+            name: c.name, volatility: c.volatility, annual: (((pence + standingPence * days) / days) * 365) / 100,
+          });
         } else {
           // eslint-disable-next-line no-await-in-loop
           const [rates, standing] = await Promise.all([
             this.client.standardUnitRates(s.fuel, c.productCode, c.tariffCode, window),
             this.client.standingCharges(s.fuel, c.productCode, c.tariffCode, window),
           ]);
-          if (!rates.length) continue;
+          if (!rates.length) {
+            inputs.push({
+              name: c.name, annual: null, volatility: c.volatility, reason: 'no published rates for your region',
+            });
+            continue;
+          }
           const sc = rateAt(standing) ?? standing[0];
           const standingPence = sc ? valueOf(sc, this.vatInc()) : 0;
-          results.push({ name: c.name, annual: estimateAnnualCost(records, rates, standingPence, this.vatInc()) });
+          inputs.push({
+            name: c.name, volatility: c.volatility, annual: estimateAnnualCost(records, rates, standingPence, this.vatInc()),
+          });
         }
       } catch (err) {
         this.error(`Tariff comparison failed for ${c.name}:`, err);
+        inputs.push({
+          name: c.name, annual: null, volatility: c.volatility, reason: 'could not be priced',
+        });
       }
     }
-    if (!results.length) return null;
+    if (!inputs.some((i) => typeof i.annual === 'number')) return null;
 
-    const current = results.find((r) => r.name === 'Current');
-    const best = results.reduce((a, b) => (b.annual < a.annual ? b : a));
-    const currentAnnual = current ? current.annual : best.annual;
+    const comparison = rankTariffs(inputs, 'Current', { daysOfData: daysSpanned(records) });
+    const cheapestName = comparison.currentIsCheapest || !comparison.cheapestEstimateName
+      ? 'Your current tariff (already cheapest)'
+      : `${comparison.cheapestEstimateName} (estimated cheapest)`;
     return {
-      best_product: best.name === 'Current' ? 'Current tariff (already cheapest)' : best.name,
-      current_annual: Number(currentAnnual.toFixed(2)),
-      best_annual: Number(best.annual.toFixed(2)),
-      annual_saving: Number((currentAnnual - best.annual).toFixed(2)),
+      // Token IDs preserved for Flow compatibility; VALUES are now honest.
+      best_product: cheapestName,
+      current_annual: Number((comparison.current ?? 0).toFixed(2)),
+      best_annual: Number((comparison.cheapestEstimateAnnual ?? comparison.current ?? 0).toFixed(2)),
+      annual_saving: comparison.estimatedAnnualSaving,
+      confidence: comparison.confidence,
+      note: `${comparison.confidenceReason}. Estimate from your recent usage — not a guaranteed saving; review your own usage before switching.`,
     };
   }
 

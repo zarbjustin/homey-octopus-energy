@@ -1298,7 +1298,7 @@
         "en": "Compare my tariff over the last [[days]] days"
       },
       "hint": {
-        "en": "Estimates the cheapest Octopus product for your usage and the annual saving versus your current tariff."
+        "en": "Estimates a cheaper Octopus product from your recent usage. This is an ESTIMATE, not advice or a guaranteed saving — forward prices vary and eligibility (e.g. an EV tariff needs an EV). Review your own usage before switching."
       },
       "args": [
         {
@@ -1320,17 +1320,17 @@
           "name": "best_product",
           "type": "string",
           "title": {
-            "en": "Best product"
+            "en": "Cheapest estimate"
           },
           "example": {
-            "en": "Agile"
+            "en": "Agile (estimated cheapest)"
           }
         },
         {
           "name": "annual_saving",
           "type": "number",
           "title": {
-            "en": "Annual saving (£)"
+            "en": "Estimated annual saving (£)"
           },
           "example": 120.5
         },
@@ -1338,7 +1338,7 @@
           "name": "current_annual",
           "type": "number",
           "title": {
-            "en": "Current annual cost (£)"
+            "en": "Current annual cost (£, estimate)"
           },
           "example": 980
         },
@@ -1346,9 +1346,29 @@
           "name": "best_annual",
           "type": "number",
           "title": {
-            "en": "Best annual cost (£)"
+            "en": "Cheapest estimate annual cost (£)"
           },
           "example": 859.5
+        },
+        {
+          "name": "confidence",
+          "type": "string",
+          "title": {
+            "en": "Confidence (high/medium/low)"
+          },
+          "example": {
+            "en": "medium"
+          }
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "title": {
+            "en": "Note"
+          },
+          "example": {
+            "en": "based on 30 days of your usage. Estimate — not a guaranteed saving."
+          }
         }
       ]
     },

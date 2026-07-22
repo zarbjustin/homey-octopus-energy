@@ -20,7 +20,7 @@ interface ElectricityDevice extends Homey.Device {
   getCarbon(): number | null;
   getCarbonLevel(): string | null;
   isGreenestNow(hours?: number): boolean;
-  compareTariffs(days: number): Promise<{ best_product: string; current_annual: number; best_annual: number; annual_saving: number } | null>;
+  compareTariffs(days: number): Promise<{ best_product: string; current_annual: number; best_annual: number; annual_saving: number; confidence: string; note: string } | null>;
   planCharge(neededKwh: number, chargeRateKw: number, by: string): { count: number; first_start: string; price: number; cost: number } | null;
   planGreenCharge(neededKwh: number, chargeRateKw: number, by: string, greenness: number): { count: number; first_start: string; price: number; carbon: number } | null;
   findExtremeSlotAdvanced(kind: 'import' | 'export', within: number, duration: number, tie: string, seed: string): {
