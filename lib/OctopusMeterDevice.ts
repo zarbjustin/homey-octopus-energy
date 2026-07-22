@@ -530,6 +530,14 @@ export class OctopusMeterDevice extends Homey.Device {
     return generation !== this.refreshGeneration;
   }
 
+  /** Whether a superseding refresh started while this reporting method was doing
+   *  its own (slow) network fetch — checked immediately before its writes so a
+   *  stale generation cannot overwrite a newer summary. An undefined generation
+   *  (direct/test calls) is never treated as superseded. */
+  private supersededDuringReporting(generation?: number): boolean {
+    return generation !== undefined && this.isStaleRefresh(generation);
+  }
+
   private async runRefresh(generation: number): Promise<void> {
     let ok = false;
     let priceOk = false;
@@ -567,8 +575,8 @@ export class OctopusMeterDevice extends Homey.Device {
     if (this.isStaleRefresh(generation)) return;
     // Non-critical reporting: failures here do not affect device health.
     await this.runReporting('Price-stats refresh', 'price_stats', () => this.refreshPriceStats());
-    await this.runReporting('Monthly-cost refresh', 'monthly_cost', () => this.refreshMonthlyCost());
-    await this.runReporting('Billing-summary refresh', 'billing_summary', () => this.refreshBillingSummary());
+    await this.runReporting('Monthly-cost refresh', 'monthly_cost', () => this.refreshMonthlyCost(generation));
+    await this.runReporting('Billing-summary refresh', 'billing_summary', () => this.refreshBillingSummary(generation));
     await this.runReporting('Points refresh', 'points', () => this.refreshPoints());
     await this.runReporting('Tariff-change check', 'tariff', () => this.checkTariffChange());
 
@@ -2051,7 +2059,7 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   /** Compute month-to-date and projected monthly cost (incl. standing charge). */
-  protected async refreshMonthlyCost(): Promise<void> {
+  protected async refreshMonthlyCost(generation?: number): Promise<void> {
     const monthCap = this.monthCostCapability();
     if (!this.hasCapability(monthCap)) return;
     const s = this.store();
@@ -2075,6 +2083,9 @@ export class OctopusMeterDevice extends Homey.Device {
         : Promise.resolve([] as typeof this.standingRates),
     ]);
     if (!records.length) return;
+    // A superseding refresh may have started during the fetch above; do not let
+    // this stale generation overwrite a newer summary (BL-08 / S60 step 3).
+    if (this.supersededDuringReporting(generation)) return;
 
     // For IOG (and any single-register import meter whose public REST feed is
     // empty), price history from the authoritative live series instead of £0.
@@ -2100,7 +2111,7 @@ export class OctopusMeterDevice extends Homey.Device {
       await this.setCapabilityValue(projectedCap, Number(projected.toFixed(2))).catch(this.error);
     }
 
-    await this.refreshDayBreakdown(records, dayRatesForCost, nightRates, standingHistory);
+    await this.refreshDayBreakdown(records, dayRatesForCost, nightRates, standingHistory, generation);
     this.lastMonthlyRefresh = Date.now();
   }
 
@@ -2111,7 +2122,7 @@ export class OctopusMeterDevice extends Homey.Device {
    * authoritative; the value is a pure recomputation (restart-safe), not an
    * accumulator. No new capabilities or Flow IDs; no version bump.
    */
-  protected async refreshBillingSummary(): Promise<void> {
+  protected async refreshBillingSummary(generation?: number): Promise<void> {
     const s = this.store();
     if (s.fuel !== 'electricity' || s.isExport) return; // import electricity only
     if (!s.mpxn || !s.serial || !s.productCode || !s.tariffCode) return;
@@ -2137,6 +2148,9 @@ export class OctopusMeterDevice extends Homey.Device {
     // IOG parity: price history from the authoritative live series when the
     // public REST feed is empty, so the billing summary never shows £0 usage.
     const dayRatesForCost = this.costRatesForWindow(dayRates, twoRegister);
+    // A superseding refresh may have started during the fetch above; do not let
+    // this stale generation overwrite a newer summary (S60 step 3).
+    if (this.supersededDuringReporting(generation)) return;
     if (!records.length) {
       // No settled data for the current period yet — persist a current-period
       // placeholder so the settings surface never shows the previous period.
@@ -2156,6 +2170,8 @@ export class OctopusMeterDevice extends Homey.Device {
 
     const settledThrough = contiguousSettledThrough(records) ?? records[0].interval_end;
     const exportInput = await this.exportBillingInput(window).catch(() => undefined);
+    // Re-check after the export fetch (another network round-trip) before persist.
+    if (this.supersededDuringReporting(generation)) return;
     const summary = computeBillingSummary({
       period,
       settledThrough,
@@ -2230,7 +2246,9 @@ export class OctopusMeterDevice extends Homey.Device {
   /** Calendar-yesterday cost and today's peak/off-peak split (from month data). */
   protected async refreshDayBreakdown(
     records: ConsumptionRecord[], dayRates: Rate[], nightRates: Rate[], standingHistory: Rate[] = [],
+    generation?: number,
   ): Promise<void> {
+    if (this.supersededDuringReporting(generation)) return;
     const opts = this.costOptions(this.isTwoRegisterTariff());
 
     if (this.hasCapability('octopus_cost_yesterday')) {

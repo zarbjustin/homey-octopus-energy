@@ -96,6 +96,42 @@ test('refreshMonthlyCost is a no-op when there are no settled records (fails clo
   assert.equal(calls.octopus_cost_month, undefined, 'no records → no cost written (not a misleading £0)');
 });
 
+test('refreshMonthlyCost does not write when its generation is superseded (stale-write fence)', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: FIXED_NOW });
+  const records = [
+    { interval_start: '2026-07-10T10:00:00Z', interval_end: '2026-07-10T10:30:00Z', consumption: 1 },
+  ];
+  const { device, calls } = makeDevice({
+    records, dayRates: [rate(20)], standing: [rate(50)],
+    caps: ['octopus_cost_month', 'octopus_cost_projected'],
+  });
+  device.refreshDayBreakdown = async () => {};
+  device.refreshGeneration = 5; // a newer refresh superseded generation 1 during the fetch
+
+  await device.refreshMonthlyCost(1);
+
+  assert.equal(calls.octopus_cost_month, undefined, 'a superseded generation must not overwrite a newer summary');
+  assert.equal(device.lastMonthlyRefresh, 0, 'the throttle is not advanced, so the current generation re-runs');
+});
+
+test('refreshMonthlyCost writes when its generation is still current', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: FIXED_NOW });
+  const records = [
+    { interval_start: '2026-07-10T10:00:00Z', interval_end: '2026-07-10T10:30:00Z', consumption: 1 },
+    { interval_start: '2026-07-10T10:30:00Z', interval_end: '2026-07-10T11:00:00Z', consumption: 1 },
+  ];
+  const { device, calls } = makeDevice({
+    records, dayRates: [rate(20)], standing: [rate(50)],
+    caps: ['octopus_cost_month', 'octopus_cost_projected'],
+  });
+  device.refreshDayBreakdown = async () => {};
+  device.refreshGeneration = 3;
+
+  await device.refreshMonthlyCost(3); // matches → not superseded
+
+  assert.equal(calls.octopus_cost_month, 7.9, 'a current generation writes normally');
+});
+
 test('refreshDayBreakdown writes golden yesterday / peak / off-peak costs', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: FIXED_NOW });
 
