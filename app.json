@@ -131,7 +131,7 @@
       {
         "id": "cost_today_above",
         "title": {
-          "en": "Today's cost rises above ..."
+          "en": "Cost (24h) rises above ..."
         },
         "titleFormatted": {
           "en": "Cost (24h) of [[device]] rises above £[[amount]]"
@@ -559,7 +559,7 @@
       {
         "id": "usage_today_above",
         "title": {
-          "en": "Today's usage rises above ..."
+          "en": "Usage (24h) rises above ..."
         },
         "titleFormatted": {
           "en": "Usage (24h) of [[device]] rises above [[amount]] kWh"

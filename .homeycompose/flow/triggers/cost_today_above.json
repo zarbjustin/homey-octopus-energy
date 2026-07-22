@@ -1,7 +1,7 @@
 {
   "id": "cost_today_above",
   "title": {
-    "en": "Today's cost rises above ..."
+    "en": "Cost (24h) rises above ..."
   },
   "titleFormatted": {
     "en": "Cost (24h) of [[device]] rises above £[[amount]]"

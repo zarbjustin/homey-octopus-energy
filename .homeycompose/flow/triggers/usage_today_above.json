@@ -1,7 +1,7 @@
 {
   "id": "usage_today_above",
   "title": {
-    "en": "Today's usage rises above ..."
+    "en": "Usage (24h) rises above ..."
   },
   "titleFormatted": {
     "en": "Usage (24h) of [[device]] rises above [[amount]] kWh"
