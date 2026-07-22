@@ -4,6 +4,18 @@ Last updated: 21 July 2026
 
 ## Current state
 
+- **S64 (BL-24a) — dispatch-control verification spike DONE (read-only; unreleased, on main `56f477d`).**
+  De-risked the marquee dispatch-control feature *read-first*. Verified against the live Kraken schema
+  that IOG boost control is `updateBoostCharge(input:{ deviceId, action: BOOST|CANCEL })` —
+  **device-scoped**, returns `SmartFlexDeviceInterface`; boost state is
+  `devices.status.currentState === 'BOOSTING'`. **Bug surfaced:** the shipped `triggerBoostCharge`
+  mutation is bogus/account-scoped, so the live `bump_charge` action has never worked (fails closed) —
+  S65 fixes it. **Shipped read-only:** `DispatchView.boostingNow`, `DispatchPoller.isBoosting()`
+  (fail-closed on stale), Flow condition `ev_boost_active`. Spec:
+  `docs/handover/sprint-s64-dispatch-control-spike.md`. 536 tests pass, all gates green. **Decision
+  pending:** ship S64 read-only now (v1.0.32) or bundle with the S65 write. **S65 (BL-24b) next:**
+  consent-gated `updateBoostCharge` write (opt-in default OFF), reference-verified on a live IOG
+  account.
 - **v1.0.31 (22 Jul 2026) — SHIPPED: Power Up automation + accessibility (S63); Phase 3 complete.**
   Release commit `a535119`, publish run `29925835310` (green — App Store build uploaded). **BL-21**
   — Power Up (Free Electricity) automation parity, reusing the saving-session poller machinery (no
