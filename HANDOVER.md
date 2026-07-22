@@ -48,8 +48,15 @@ Last updated: 21 July 2026
   BL-18a added the budget/overspend triggers. The only remaining incremental value is a **REST
   `group_by` historical daily breakdown** (backfills what Homey Insights can't, since Insights only
   records forward from install). That's a scoped UI slice needing one design steer: placement
-  (summary widget vs new widget vs settings), range (7/30 days), and usage-only (`group_by` is
-  consumption-only) vs cost (needs bounded raw half-hours + rates via `lib/reporting/cost.ts`).
+  **BL-18b DONE (settled history):** `getSettledDailyUsage(days)` — REST `group_by=day` settled daily
+  kWh over a bounded window (3h cache, partial current day excluded, fails closed to []),
+  consumption-only (`group_by` aggregates away the half-hour shape). Rendered as a "Last 7 days
+  (settled)" breakdown in the summary widget — backfills what Homey Insights can't (it only records
+  forward from install). **S60 sequence BL-15 → BL-18a → BL-18b COMPLETE.** Remaining S60 items are
+  the deferred façade cleanup (optional) and the additive BL-31 calendar "today so far" tile (Phase
+  4). Next-release changelog should cover: Flow-trigger "24h" rename (BL-17), the `data_source_stale`
+  condition + per-source freshness badges (BL-15), the monthly/projected budget triggers + condition
+  (BL-18a), and the 7-day settled usage breakdown (BL-18b).
   settled insights + budget Flows (REST `group_by` is consumption-only; cost/peak from bounded raw
   half-hours + rates; settled-vs-estimate discipline per the spec). Reporting seam (`lib/reporting/`)
   is ready for BL-18's `SettledInsightsService` to reuse.

@@ -27,6 +27,14 @@ module.exports = {
     } catch (e) {
       effectivePrice = null;
     }
+    let breakdown = null;
+    try {
+      if (typeof device.getSettledDailyUsage === 'function') {
+        breakdown = await device.getSettledDailyUsage(7);
+      }
+    } catch (e) {
+      breakdown = null;
+    }
     return {
       name: device.getName(),
       freshness: typeof device.getDataFreshness === 'function' ? device.getDataFreshness() : null,
@@ -34,6 +42,8 @@ module.exports = {
       dispatch: typeof device.getDispatchView === 'function' ? device.getDispatchView() : null,
       // S44: opt-in estimated effective rate (confidence-tagged). Null unless IOG.
       effectivePrice,
+      // BL-18b: settled 7-day usage history (backfills what Homey Insights can't).
+      breakdown,
       balance: cap('measure_octopus_balance'),
       usage: cap('octopus_usage_today'),
       cost: cap('octopus_cost_today'),

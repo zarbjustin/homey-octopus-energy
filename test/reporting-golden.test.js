@@ -287,3 +287,45 @@ test('isMonthlyCostAbove compares the settled month-to-date capability', () => {
   device.hasCapability = () => false;
   assert.equal(device.isMonthlyCostAbove(1), false, 'no capability → false');
 });
+
+// --- BL-18b: settled daily usage breakdown (group_by=day, backfills Insights) --
+
+test('getSettledDailyUsage returns settled daily kWh, excludes the partial current day, and caches', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: FIXED_NOW }); // now = 2026-07-15T12:00Z
+  let calls = 0;
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({ fuel: 'electricity', mpxn: '1', serial: 's' });
+  device.dailyUsageCache = null;
+  const params = [];
+  device.client = {
+    consumption: async (_fuel, _mpxn, _serial, p) => {
+      calls += 1; params.push(p);
+      return [
+        { interval_start: '2026-07-13T00:00:00Z', interval_end: '2026-07-14T00:00:00Z', consumption: 8.2 },
+        { interval_start: '2026-07-14T00:00:00Z', interval_end: '2026-07-15T00:00:00Z', consumption: 7.1 },
+        // Current day (15 Jul) — interval_end is in the FUTURE → partial, must be dropped.
+        { interval_start: '2026-07-15T00:00:00Z', interval_end: '2026-07-16T00:00:00Z', consumption: 3.0 },
+      ];
+    },
+  };
+
+  const out = await device.getSettledDailyUsage(7);
+  assert.equal(params[0].group_by, 'day', 'uses the consumption group_by=day feed');
+  assert.deepEqual(out, [
+    { date: '2026-07-13T00:00:00Z', kWh: 8.2 },
+    { date: '2026-07-14T00:00:00Z', kWh: 7.1 },
+  ], 'settled full days only; partial current day excluded');
+
+  await device.getSettledDailyUsage(7);
+  assert.equal(calls, 1, 'a 3h cache avoids refetching on every widget open');
+});
+
+test('getSettledDailyUsage fails closed to the last cache / empty on error', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: FIXED_NOW });
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({ fuel: 'electricity', mpxn: '1', serial: 's' });
+  device.dailyUsageCache = null;
+  device.client = { consumption: async () => { throw new Error('boom'); } };
+  const out = await device.getSettledDailyUsage(7);
+  assert.deepEqual(out, [], 'no data → empty array, never a misleading value');
+});

@@ -70,6 +70,12 @@ export interface MeterSettings {
   expensive_threshold: number;
 }
 
+/** One settled day of usage for the history breakdown (BL-18b). */
+export interface DailyUsage {
+  date: string;
+  kWh: number;
+}
+
 /** Freshness of a single data source: its state, when it last succeeded, and its
  *  age. `unknown` = never fetched (no last value); `stale` = a last value exists
  *  but is older than the source's expected refresh window; `current` = fresh. */
@@ -158,6 +164,8 @@ export class OctopusMeterDevice extends Homey.Device {
   private previousMonthCost: number | null = null;
 
   private previousProjectedCost: number | null = null;
+
+  private dailyUsageCache: { ts: number; days: number; value: DailyUsage[] } | null = null;
 
   private previousStanding: number | null = null;
 
@@ -359,6 +367,38 @@ export class OctopusMeterDevice extends Homey.Device {
     if (!this.hasCapability('octopus_cost_month')) return false;
     const cost = Number(this.getCapabilityValue('octopus_cost_month'));
     return Number.isFinite(cost) && cost > amount;
+  }
+
+  /**
+   * Settled daily usage (kWh) for the last `days` COMPLETE local days, from the
+   * REST `group_by=day` feed (bounded window + 3h cache). Backfills history that
+   * Homey Insights cannot show (Insights only record forward from install).
+   * Consumption-only by design: `group_by` aggregates away the half-hour shape,
+   * so this is usage — not cost (which needs raw settled half-hours + rates).
+   * The partial current day is excluded; fails closed to the last cache / [].
+   */
+  async getSettledDailyUsage(days = 7): Promise<DailyUsage[]> {
+    const s = this.store();
+    if (!s.mpxn || !s.serial) return [];
+    const n = Math.max(1, Math.min(31, Math.floor(days)));
+    const cached = this.dailyUsageCache;
+    if (cached && cached.days === n && Date.now() - cached.ts < 3 * 3600_000) return cached.value;
+    try {
+      const now = Date.now();
+      const from = new Date(now - (n + 1) * 86400_000);
+      const records = await this.client.consumption(s.fuel, s.mpxn, s.serial, {
+        period_from: from.toISOString(), period_to: new Date(now).toISOString(), group_by: 'day', order_by: 'period',
+      });
+      const value: DailyUsage[] = records
+        // Drop the incomplete current-day bucket so a partial day is never shown as settled.
+        .filter((r) => Number.isFinite(Date.parse(r.interval_end)) && Date.parse(r.interval_end) <= now)
+        .map((r) => ({ date: r.interval_start, kWh: Number(this.toEnergyUnit(r.consumption).toFixed(2)) }))
+        .slice(-n);
+      this.dailyUsageCache = { ts: now, days: n, value };
+      return value;
+    } catch (err) {
+      return this.dailyUsageCache?.value ?? [];
+    }
   }
 
   /** Whether a data source is stale (a last value exists but is past its refresh
