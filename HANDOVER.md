@@ -4,24 +4,29 @@ Last updated: 21 July 2026
 
 ## Current state
 
-- **Sprint S60 "Trust & Money" — IN PROGRESS (unreleased, on `main`).** Spec:
-  `docs/handover/sprint-s60-trust-and-money-spec.md` (three-lens consolidated plan: extract a
-  narrow, BL-18-scoped `ReportingService` seam + generation-safe reporting, THEN ship BL-15 → BL-17
-  → BL-18; defer the full `PlanningFacade`/device-façade). Landed so far (version still 1.0.27, no
-  new build): **Step 1** golden/characterization tests pinning `refreshMonthlyCost`/
-  `refreshDayBreakdown` (commit `220d005`); **Step 2** pure cost calculators extracted to
-  `lib/reporting/cost.ts` (`rateForRecord`, `consumptionCostPence`, `windowCostPence`,
-  `standingChargePence`, `peakOffPeakCostPence`) with the device delegating via `costOptions()` —
-  behaviour-preserving, golden green (commit `6347e11`); **Step 3 (part)** the `settledThrough`
-  correctness fix — `lib/reporting/settlement.ts` `contiguousSettledThrough` replaces
-  `max(interval_end)` so a data gap no longer overstates settlement (commit `9d244b2`). 478 tests
-  pass, tsc + lint clean; CI/Validate/CodeQL green; Create-Release correctly skipped (v1.0.27 tag
-  exists). **Next in S60:** generation-safe reporting (thread the refresh generation into reporting
-  writes; keep BL-08's serialized cumulative writer as final authority — don't cancel it) → thin
-  device delegation cleanup → **BL-15** per-source freshness → **BL-17** `usage_today` local-day fix
-  → **BL-18a** typed `group_by` + `SettledInsightsService` → **BL-18b** budget Flows/widget. See the
-  spec for the trust non-negotiables (settled vs estimate, "settled through" mandatory, no "best",
-  REST-only, group_by is consumption-only).
+- **Sprint S60 "Trust & Money" — FOUNDATION COMPLETE (steps 1–3), feature phase next (unreleased, on
+  `main`).** Spec: `docs/handover/sprint-s60-trust-and-money-spec.md`. **Done (version still 1.0.27,
+  no new build; CI/Validate/CodeQL green on each push):**
+  **Step 1** golden/characterization tests for `refreshMonthlyCost`/`refreshDayBreakdown` (`220d005`);
+  **Step 2** pure cost calculators → `lib/reporting/cost.ts` (`rateForRecord`, `consumptionCostPence`,
+  `windowCostPence`, `standingChargePence`, `peakOffPeakCostPence`), device delegates via
+  `costOptions()`, behaviour-preserving (`6347e11`); **Step 3** two correctness fixes —
+  `contiguousSettledThrough` (`lib/reporting/settlement.ts`) replaces the `settledThrough =
+  max(interval_end)` gap-overstatement (`9d244b2`), and **generation-safe reporting** (`444c0de`):
+  `refreshMonthlyCost`/`refreshBillingSummary`/`refreshDayBreakdown` now take the refresh generation
+  and re-check `supersededDuringReporting()` after each network fetch and before every write, so a
+  refresh superseded mid-fetch can't overwrite a newer summary (BL-08 cumulative writer untouched).
+  **480 tests pass, tsc + lint clean.**
+  **Next in S60 — FEATURE PHASE (each needs a product decision, do not autopilot):**
+  **Step 4** thin device-façade cleanup is DEFERRED per plan (optional). **BL-17** (`usage_today`):
+  BB-08 flags this as a **compatibility contract** — `octopus_usage_today`/`octopus_cost_today` sum
+  the rolling last-48 records but are labelled "today"; the ~24h Octopus data lag means true
+  local-day would read ~0 for much of the day, so the report says relabel/provenance FIRST, migrate
+  calc only with release notes + tests (needs the product call on relabel-vs-migrate).
+  **BL-15** per-source freshness + stale-aware tokens (trust substrate for BL-18). **BL-18a/b**
+  settled insights + budget Flows (REST `group_by` is consumption-only; cost/peak from bounded raw
+  half-hours + rates; settled-vs-estimate discipline per the spec). Reporting seam (`lib/reporting/`)
+  is ready for BL-18's `SettledInsightsService` to reuse.
 - **v1.0.27 (21 Jul 2026) — IOG automatic day/night from `rateType` (community 156860, Darren).**
   Follow-up to v1.0.26 after Darren reported the price still didn't flip to 6.90p at 23:30 (he was on
   the pre-fix build). **Public Kraken schema introspection** (`https://api.octopus.energy/v1/graphql/`)
