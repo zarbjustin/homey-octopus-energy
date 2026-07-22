@@ -4,6 +4,19 @@ Last updated: 21 July 2026
 
 ## Current state
 
+- **v1.0.33 (22 Jul 2026) — SHIPPED: internationalisation (BL-28); Phase 5 committed items COMPLETE.**
+  Publish run `29940317544` (green — Build 33). Runtime i18n infrastructure (`/locales/en.json` +
+  `nl.json`); all user-facing push notifications + boost-control error messages resolve via
+  `homey.__()`. Static Dutch for the app store description, the 3 device (driver) names, and all 30
+  value (capability) titles. Locale-parity test guards key/placeholder parity. Exhaustive Flow-card
+  translation is a **deferred incremental community task** (infra is in place). Release commit
+  `f084183`. 546 tests pass, all gates green. **Manual step:** promote Build 33 → Test/Live.
+- **Phase 5 — COMPLETE (committed scope).** BL-24 (dispatch control, v1.0.32) + BL-28 (i18n,
+  v1.0.33) delivered. Remaining across the whole blueprint is now **optional only**: Phase 4
+  leftovers (BL-25 optimiser, BL-26/27 new surfaces, BL-31 calendar tiles) and the
+  innovation-catalogue picks in `docs/blueprint/19-future-ideas-innovation-catalogue.md` (whose
+  flagship ideas — target-rate, dispatch control, budget guardrails, settled insights, comparison
+  2.0 — are already shipped). The core multi-model roadmap (Phases 1–5) is delivered.
 - **v1.0.32 (22 Jul 2026) — SHIPPED: Intelligent Octopus Go dispatch control (S64 + S65).**
   Publish run `29933694280` (green — Build 32 uploaded). **S64 read-only:** `ev_boost_active` Flow
   condition, `DispatchView.boostingNow`, `DispatchPoller.isBoosting()` (fail-closed on stale).
