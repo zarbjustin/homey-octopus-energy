@@ -1,0 +1,45 @@
+{
+  "id": "projected_cost_above",
+  "title": {
+    "en": "Projected monthly cost rises above ..."
+  },
+  "titleFormatted": {
+    "en": "Projected month cost of [[device]] rises above £[[amount]]"
+  },
+  "hint": {
+    "en": "Early warning: triggers once when the PROJECTED end-of-month cost (an estimate from your month-to-date spend) first crosses this budget, so you can act before you overspend. Resets each month."
+  },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "capabilities=octopus_cost_projected",
+      "title": {
+        "en": "Device"
+      }
+    },
+    {
+      "type": "number",
+      "name": "amount",
+      "min": 0,
+      "max": 100000,
+      "step": 1,
+      "placeholder": {
+        "en": "80"
+      },
+      "title": {
+        "en": "Budget (£)"
+      }
+    }
+  ],
+  "tokens": [
+    {
+      "name": "projected",
+      "type": "number",
+      "title": {
+        "en": "Projected month cost (£, estimate)"
+      },
+      "example": 84.0
+    }
+  ]
+}

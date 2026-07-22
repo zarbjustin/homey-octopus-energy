@@ -347,6 +347,96 @@
         ]
       },
       {
+        "id": "monthly_cost_above",
+        "title": {
+          "en": "Monthly cost rises above ..."
+        },
+        "titleFormatted": {
+          "en": "Cost this month of [[device]] rises above £[[amount]]"
+        },
+        "hint": {
+          "en": "Triggers once when your settled month-to-date electricity cost first crosses this budget. Uses settled consumption (not an estimate); resets each month."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "capabilities=octopus_cost_month",
+            "title": {
+              "en": "Device"
+            }
+          },
+          {
+            "type": "number",
+            "name": "amount",
+            "min": 0,
+            "max": 100000,
+            "step": 1,
+            "placeholder": {
+              "en": "80"
+            },
+            "title": {
+              "en": "Budget (£)"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "cost",
+            "type": "number",
+            "title": {
+              "en": "Cost this month (£)"
+            },
+            "example": 82.5
+          }
+        ]
+      },
+      {
+        "id": "projected_cost_above",
+        "title": {
+          "en": "Projected monthly cost rises above ..."
+        },
+        "titleFormatted": {
+          "en": "Projected month cost of [[device]] rises above £[[amount]]"
+        },
+        "hint": {
+          "en": "Early warning: triggers once when the PROJECTED end-of-month cost (an estimate from your month-to-date spend) first crosses this budget, so you can act before you overspend. Resets each month."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "capabilities=octopus_cost_projected",
+            "title": {
+              "en": "Device"
+            }
+          },
+          {
+            "type": "number",
+            "name": "amount",
+            "min": 0,
+            "max": 100000,
+            "step": 1,
+            "placeholder": {
+              "en": "80"
+            },
+            "title": {
+              "en": "Budget (£)"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "projected",
+            "type": "number",
+            "title": {
+              "en": "Projected month cost (£, estimate)"
+            },
+            "example": 84
+          }
+        ]
+      },
+      {
         "id": "saving_session_announced",
         "title": {
           "en": "A Saving Session was announced"
@@ -1729,6 +1819,38 @@
                 }
               }
             ]
+          }
+        ]
+      },
+      {
+        "id": "monthly_cost_above",
+        "title": {
+          "en": "Monthly cost !{{is|isn't}} above ..."
+        },
+        "titleFormatted": {
+          "en": "Cost this month !{{is|isn't}} above £[[amount]]"
+        },
+        "hint": {
+          "en": "True when the settled month-to-date electricity cost is above the amount."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "amount",
+            "min": 0,
+            "max": 100000,
+            "step": 1,
+            "placeholder": {
+              "en": "80"
+            },
+            "title": {
+              "en": "Amount (£)"
+            }
           }
         ]
       },

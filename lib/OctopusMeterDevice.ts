@@ -155,6 +155,10 @@ export class OctopusMeterDevice extends Homey.Device {
 
   private previousCostToday: number | null = null;
 
+  private previousMonthCost: number | null = null;
+
+  private previousProjectedCost: number | null = null;
+
   private previousStanding: number | null = null;
 
   private scheduler: DeviceScheduler | null = null;
@@ -349,6 +353,14 @@ export class OctopusMeterDevice extends Homey.Device {
     billing: 'billing_summary',
   };
 
+  /** Whether the settled month-to-date cost exceeds an amount (£). Backs the
+   *  `monthly_cost_above` condition. */
+  isMonthlyCostAbove(amount: number): boolean {
+    if (!this.hasCapability('octopus_cost_month')) return false;
+    const cost = Number(this.getCapabilityValue('octopus_cost_month'));
+    return Number.isFinite(cost) && cost > amount;
+  }
+
   /** Whether a data source is stale (a last value exists but is past its refresh
    *  window). `any` is true when ANY monitored source is stale. Backs the
    *  `data_source_stale` Flow condition. */
@@ -510,6 +522,8 @@ export class OctopusMeterDevice extends Homey.Device {
     this.currentBalance = null;
     this.previousUsage = null;
     this.previousCostToday = null;
+    this.previousMonthCost = null;
+    this.previousProjectedCost = null;
     this.previousStanding = null;
     this.lastTariffCheck = 0;
     this.lastForcedRecoveryAt = 0;
@@ -2172,14 +2186,35 @@ export class OctopusMeterDevice extends Homey.Device {
       pence += standingChargePence(standingHistory, noons, this.vatInc());
     }
     const cost = pence / 100;
-    await this.setCapabilityValue(monthCap, Number(cost.toFixed(2))).catch(this.error);
+    const roundedCost = Number(cost.toFixed(2));
+    await this.setCapabilityValue(monthCap, roundedCost).catch(this.error);
+    // Budget automation (BL-18a): fire a crossing-gated trigger on the SETTLED
+    // month-to-date cost. Month cost resets at the month boundary, so a Flow
+    // "monthly cost rises above [budget]" fires once per month naturally. Import
+    // electricity only (earnings/export use a different capability).
+    if (monthCap === 'octopus_cost_month' && typeof this.previousMonthCost === 'number'
+      && roundedCost !== this.previousMonthCost) {
+      this.fireAppTrigger('monthly_cost_above', { cost: roundedCost }, {
+        deviceId: this.getData().id, cost: roundedCost, previous: this.previousMonthCost,
+      });
+    }
+    if (monthCap === 'octopus_cost_month') this.previousMonthCost = roundedCost;
 
     const projectedCap = this.monthProjectedCapability();
     if (this.hasCapability(projectedCap)) {
       const elapsed = this.elapsedLocalMonthDays(now);
       const daysInMonth = this.daysInLocalMonth(now);
       const projected = (cost / elapsed) * daysInMonth;
-      await this.setCapabilityValue(projectedCap, Number(projected.toFixed(2))).catch(this.error);
+      const roundedProjected = Number(projected.toFixed(2));
+      await this.setCapabilityValue(projectedCap, roundedProjected).catch(this.error);
+      // Early-warning trigger on the PROJECTED month cost (always an estimate).
+      if (projectedCap === 'octopus_cost_projected' && typeof this.previousProjectedCost === 'number'
+        && roundedProjected !== this.previousProjectedCost) {
+        this.fireAppTrigger('projected_cost_above', { projected: roundedProjected }, {
+          deviceId: this.getData().id, projected: roundedProjected, previous: this.previousProjectedCost,
+        });
+      }
+      if (projectedCap === 'octopus_cost_projected') this.previousProjectedCost = roundedProjected;
     }
 
     await this.refreshDayBreakdown(records, dayRatesForCost, nightRates, standingHistory, generation);

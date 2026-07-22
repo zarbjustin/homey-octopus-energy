@@ -35,6 +35,7 @@ interface ElectricityDevice extends Homey.Device {
   analysePriceDay(which: 'today' | 'tomorrow'): Record<string, string | number> | null;
   currentPriceBand(): string | null;
   isDataSourceStale(source: string): boolean;
+  isMonthlyCostAbove(amount: number): boolean;
 }
 
 type Args<T> = T & { device: ElectricityDevice };
@@ -86,6 +87,8 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<unknown>) => args.device.isNightRate());
     flow.getConditionCard('data_source_stale')
       .registerRunListener(async (args: Args<{ source: string }>) => args.device.isDataSourceStale(args.source));
+    flow.getConditionCard('monthly_cost_above')
+      .registerRunListener(async (args: Args<{ amount: number }>) => args.device.isMonthlyCostAbove(args.amount));
     flow.getConditionCard('renewables_above')
       .registerRunListener(async (args: Args<{ percent: number }>) => {
         const r = args.device.getRenewablePercent();

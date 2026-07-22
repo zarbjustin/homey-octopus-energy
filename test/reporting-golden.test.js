@@ -234,3 +234,56 @@ test('refreshBillingSummary does not persist when its generation is superseded',
   assert.equal(settings.get('billing_summary_v1'), undefined, 'a superseded generation persists nothing');
   assert.equal(device.lastBillingRefresh, 0, 'throttle not advanced, so the current generation re-runs');
 });
+
+// --- BL-18a: budget automation on the settled month-to-date cost -------------
+
+test('refreshMonthlyCost fires monthly_cost_above with a crossing-ready state when the cost changes', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: FIXED_NOW });
+  const records = [
+    { interval_start: '2026-07-10T10:00:00Z', interval_end: '2026-07-10T10:30:00Z', consumption: 1 },
+    { interval_start: '2026-07-10T10:30:00Z', interval_end: '2026-07-10T11:00:00Z', consumption: 1 },
+  ];
+  const { device, calls } = makeDevice({
+    records, dayRates: [rate(20)], standing: [rate(50)],
+    caps: ['octopus_cost_month', 'octopus_cost_projected'],
+  });
+  device.refreshDayBreakdown = async () => {};
+  device.getData = () => ({ id: 'm1' });
+  device.previousMonthCost = 5.0; // below → crossing to 7.90 this cycle
+  const fired = [];
+  device.fireAppTrigger = (id, tokens, state) => { fired.push({ id, tokens, state }); };
+
+  await device.refreshMonthlyCost();
+
+  assert.equal(calls.octopus_cost_month, 7.9);
+  const t1 = fired.find((f) => f.id === 'monthly_cost_above');
+  assert.ok(t1, 'the monthly budget trigger fires');
+  assert.equal(t1.tokens.cost, 7.9);
+  assert.equal(t1.state.cost, 7.9);
+  assert.equal(t1.state.previous, 5.0, 'previous value is passed so the run listener can gate the crossing');
+  assert.equal(t1.state.deviceId, 'm1');
+});
+
+test('refreshMonthlyCost does not fire the budget trigger on the first observation (no previous value)', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: FIXED_NOW });
+  const records = [{ interval_start: '2026-07-10T10:00:00Z', interval_end: '2026-07-10T10:30:00Z', consumption: 1 }];
+  const { device } = makeDevice({
+    records, dayRates: [rate(20)], standing: [rate(50)], caps: ['octopus_cost_month'],
+  });
+  device.refreshDayBreakdown = async () => {};
+  const fired = [];
+  device.fireAppTrigger = (id) => { fired.push(id); };
+  // previousMonthCost is unset (undefined) → must not fire on first run.
+  await device.refreshMonthlyCost();
+  assert.equal(fired.length, 0, 'no trigger without a previous value to cross from');
+});
+
+test('isMonthlyCostAbove compares the settled month-to-date capability', () => {
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.hasCapability = (c) => c === 'octopus_cost_month';
+  device.getCapabilityValue = () => 82.5;
+  assert.equal(device.isMonthlyCostAbove(80), true);
+  assert.equal(device.isMonthlyCostAbove(85), false);
+  device.hasCapability = () => false;
+  assert.equal(device.isMonthlyCostAbove(1), false, 'no capability → false');
+});

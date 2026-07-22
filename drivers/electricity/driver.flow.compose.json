@@ -749,6 +749,33 @@
           ]
         }
       ]
+    },
+    {
+      "id": "monthly_cost_above",
+      "title": {
+        "en": "Monthly cost !{{is|isn't}} above ..."
+      },
+      "titleFormatted": {
+        "en": "Cost this month !{{is|isn't}} above £[[amount]]"
+      },
+      "hint": {
+        "en": "True when the settled month-to-date electricity cost is above the amount."
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "amount",
+          "min": 0,
+          "max": 100000,
+          "step": 1,
+          "placeholder": {
+            "en": "80"
+          },
+          "title": {
+            "en": "Amount (£)"
+          }
+        }
+      ]
     }
   ],
   "actions": [

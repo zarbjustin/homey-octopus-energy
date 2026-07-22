@@ -34,7 +34,15 @@ Last updated: 21 July 2026
   All 6 widget `api.js` already forward `getDataFreshness()`, so the per-source data flows to every
   widget for free. **SLICE 2 (next):** render per-source stale badges in the 6 widget frontends
   (show last-updated age; never blank) — todo `s60-bl15-badges`. Next-release changelog should note
-  the new stale-data Flow condition + per-source freshness. **BL-18a/b** (settled insights + budget
+  the new stale-data Flow condition + per-source freshness. **BL-18a DONE (budget Flows):**
+  `monthly_cost_above` trigger (crossing-gated via `crossedAbove` on the SETTLED month-to-date
+  `octopus_cost_month`, fires once per month naturally), `projected_cost_above` trigger
+  (estimate-labelled early warning on `octopus_cost_projected`), and a `monthly_cost_above` condition
+  — budget is a Flow arg (no new setting), mirroring the community BottlecapDave numeric_state
+  pattern natively. Fired from `refreshMonthlyCost`; `app.ts` run listeners gate the crossing;
+  import-electricity only. **BL-18b (next):** settled-consumption insights via REST `group_by`
+  (bounded, `group_by` is consumption-only — cost/peak from raw settled half-hours + rates), Homey
+  Insights + a breakdown widget, mandatory "settled through &lt;date&gt;", no "best"/savings.
   settled insights + budget Flows (REST `group_by` is consumption-only; cost/peak from bounded raw
   half-hours + rates; settled-vs-estimate discipline per the spec). Reporting seam (`lib/reporting/`)
   is ready for BL-18's `SettledInsightsService` to reuse.

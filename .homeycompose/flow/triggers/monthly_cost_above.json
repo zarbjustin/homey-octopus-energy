@@ -1,0 +1,45 @@
+{
+  "id": "monthly_cost_above",
+  "title": {
+    "en": "Monthly cost rises above ..."
+  },
+  "titleFormatted": {
+    "en": "Cost this month of [[device]] rises above £[[amount]]"
+  },
+  "hint": {
+    "en": "Triggers once when your settled month-to-date electricity cost first crosses this budget. Uses settled consumption (not an estimate); resets each month."
+  },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "capabilities=octopus_cost_month",
+      "title": {
+        "en": "Device"
+      }
+    },
+    {
+      "type": "number",
+      "name": "amount",
+      "min": 0,
+      "max": 100000,
+      "step": 1,
+      "placeholder": {
+        "en": "80"
+      },
+      "title": {
+        "en": "Budget (£)"
+      }
+    }
+  ],
+  "tokens": [
+    {
+      "name": "cost",
+      "type": "number",
+      "title": {
+        "en": "Cost this month (£)"
+      },
+      "example": 82.5
+    }
+  ]
+}
