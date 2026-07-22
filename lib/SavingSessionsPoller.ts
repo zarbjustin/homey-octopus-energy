@@ -10,6 +10,7 @@ interface PollerState {
   known: string[];
   started: string[];
   ended: string[];
+  startingSoon?: string[];
   feStarted?: string[];
   feEnded?: string[];
 }
@@ -74,6 +75,7 @@ export class SavingSessionsPoller extends AccountPoller {
       || { known: [], started: [], ended: [] };
     state.feStarted = state.feStarted ?? [];
     state.feEnded = state.feEnded ?? [];
+    state.startingSoon = state.startingSoon ?? [];
     const now = Date.now();
 
     for (const s of sessions) {
@@ -89,7 +91,15 @@ export class SavingSessionsPoller extends AccountPoller {
       if (now < start) {
         const minutesUntil = Math.round((start - now) / 60_000);
         if (minutesUntil <= 245) {
-          this.fire('saving_session_starting_soon', tokens, { minutesUntil });
+          // De-dup: fire at most once per session per 15-minute bucket. This
+          // preserves the per-Flow lead-time window (listener gates on
+          // minutesUntil) while suppressing duplicate fires from an extra poll
+          // or app restart landing inside the same window.
+          const soonKey = `${s.id}:${Math.floor(minutesUntil / 15)}`;
+          if (!state.startingSoon.includes(soonKey)) {
+            state.startingSoon.push(soonKey);
+            this.fire('saving_session_starting_soon', tokens, { minutesUntil });
+          }
         }
       }
       if (now >= start && now < end && !state.started.includes(s.id)) {
@@ -137,6 +147,7 @@ export class SavingSessionsPoller extends AccountPoller {
       known: trim(state.known),
       started: trim(state.started),
       ended: trim(state.ended),
+      startingSoon: trim(state.startingSoon),
       feStarted: trim(state.feStarted),
       feEnded: trim(state.feEnded),
     };

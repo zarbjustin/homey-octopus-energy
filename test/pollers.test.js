@@ -165,6 +165,27 @@ test('Saving Session API failures are logged once and retained for diagnostics',
   assert.ok(diagnostics[k].lastAttempt);
 });
 
+test('Saving Session starting_soon fires once per session per 15-minute bucket (BL-20)', async (t) => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  // Session starts ~30 minutes out — inside the 245-minute "soon" window.
+  const start = new Date(Date.now() + 30 * 60_000).toISOString();
+  const end = new Date(Date.now() + 90 * 60_000).toISOString();
+  t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => [{
+    id: 'soon-id', startAt: start, endAt: end, rewardPerKwh: 100,
+  }]);
+  t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => []);
+
+  const poller = new SavingSessionsPoller(app);
+  await poller.poll();
+  await poller.poll(); // second poll in the same 15-minute bucket must not re-fire
+
+  const soonFires = app.fired.filter((e) => e.id === 'saving_session_starting_soon');
+  assert.equal(soonFires.length, 1, 'starting_soon de-dupes within the same bucket / across restarts');
+  const k = opaqueKey(app.homey, 'A-ONE');
+  const state = app.homey.settings.get('saving_sessions_state_v2');
+  assert.ok(state[k].startingSoon.some((key) => key.startsWith('soon-id:')), 'startingSoon key is persisted');
+});
+
 test('Saving Session diagnostics redact the API key from errors', async (t) => {
   const app = fakeApp([{ apiKey: 'secret-key', accountNumber: 'A-ONE' }]);
   t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => {
