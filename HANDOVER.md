@@ -4,8 +4,15 @@ Last updated: 21 July 2026
 
 ## Current state
 
-- **Sprint S61 "Automation for power users" — COMPLETE (unreleased, on `main`).** Tri-model reconciled
-  plan (Sol/Opus/5.5); the delta over the existing planner is a **price cap + push trigger +
+- **v1.0.29 (22 Jul 2026) — SHIPPED: target-rate automation + dispatch-aware Flows (S61).**
+  Release commit `2113a1b`, publish run `29919586047` (green — App Store build uploaded). BL-22
+  target-rate condition/trigger/action (cheapest N hours under a price cap before a deadline, push
+  trigger, `target_met` result; pure `lib/planning/targetRate.ts`) + BL-23 dispatch-awareness
+  (`dispatch_starts_within` + `get_next_dispatch`, `DispatchView` freshness with fail-closed
+  automations). Zero new requests. Flow cookbook: `docs/flow-cookbook-target-rate.md`. **Manual
+  step:** promote v1.0.29 to Test/Live at
+  https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy.
+- **Sprint S61 "Automation for power users" — COMPLETE.** Tri-model reconciled plan (Sol/Opus/5.5);
   branchable `target_met`**, not a new engine. Shipped: **BL-22** — pure `lib/planning/targetRate.ts`
   (`evaluateTargetRate`: cheapest N half-hours ≤ cap by a deadline, fail-closed on incomplete horizon,
   cap-not-met as a first-class result, floors `now` so an in-progress slot counts) + Flow cards
