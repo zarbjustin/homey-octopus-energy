@@ -1,0 +1,5 @@
+{
+  "id": "free_electricity_active",
+  "title": { "en": "A Free Electricity (Power Up) session !{{is|is not}} active" },
+  "hint": { "en": "Whether an Octopus Power Up free-electricity session is running right now." }
+}

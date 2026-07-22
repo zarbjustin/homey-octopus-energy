@@ -443,10 +443,25 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     this.liveDemand?.stopAll();
   }
 
-  /** App-level Saving Session Flow triggers. */
+  /** App-level Saving Session + Power Up (Free Electricity) Flow cards. */
   private registerSavingSessionCards(): void {
     this.homey.flow.getTriggerCard('saving_session_starting_soon')
       .registerRunListener(async (args: { lead: number }, state: { minutesUntil: number }) => state.minutesUntil <= args.lead && state.minutesUntil > args.lead - 15);
+    this.homey.flow.getTriggerCard('free_electricity_starting_soon')
+      .registerRunListener(async (args: { lead: number }, state: { minutesUntil: number }) => state.minutesUntil <= args.lead && state.minutesUntil > args.lead - 15);
+    this.homey.flow.getConditionCard('free_electricity_active')
+      .registerRunListener(async () => this.isFreeElectricityActive());
+  }
+
+  /**
+   * True when any account currently has a running Power Up (Free Electricity)
+   * window. Reads the poller-maintained state only (no Kraken request), and
+   * fails closed (false) when there is no data yet.
+   */
+  private isFreeElectricityActive(): boolean {
+    const all = (this.homey.settings.get('saving_sessions_state_v2') || {}) as Record<string, { feActiveUntil?: number }>;
+    const now = Date.now();
+    return Object.values(all).some((entry) => typeof entry.feActiveUntil === 'number' && entry.feActiveUntil > now);
   }
 
   /** App-level Intelligent Octopus Go dispatch condition. */

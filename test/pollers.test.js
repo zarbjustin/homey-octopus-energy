@@ -186,6 +186,63 @@ test('Saving Session starting_soon fires once per session per 15-minute bucket (
   assert.ok(state[k].startingSoon.some((key) => key.startsWith('soon-id:')), 'startingSoon key is persisted');
 });
 
+test('Power Up (Free Electricity) fires announced once and starting_soon de-dupes per bucket (BL-21)', async (t) => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  const start = new Date(Date.now() + 30 * 60_000).toISOString();
+  const end = new Date(Date.now() + 90 * 60_000).toISOString();
+  t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => []);
+  t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => [{
+    id: 'pu-1', startAt: start, endAt: end, rewardPerKwh: 0, eventType: 'TURN_UP',
+  }]);
+
+  const poller = new SavingSessionsPoller(app);
+  await poller.poll();
+  await poller.poll();
+
+  const announced = app.fired.filter((e) => e.id === 'free_electricity_announced');
+  const soon = app.fired.filter((e) => e.id === 'free_electricity_starting_soon');
+  assert.equal(announced.length, 1, 'announced fires once per session');
+  assert.equal(soon.length, 1, 'starting_soon de-dupes within the same bucket / across restarts');
+});
+
+test('Power Up marks feActiveUntil while running and clears once it ends (BL-21 condition support)', async (t) => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  const notes = [];
+  app.homey.notifications.createNotification = async (n) => { notes.push(n); };
+  const start = new Date(Date.now() - 10 * 60_000).toISOString(); // active now
+  const end = new Date(Date.now() + 20 * 60_000).toISOString();
+  t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => []);
+  t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => [{
+    id: 'pu-active', startAt: start, endAt: end, rewardPerKwh: 0, eventType: 'TURN_UP',
+  }]);
+
+  await new SavingSessionsPoller(app).poll();
+
+  const k = opaqueKey(app.homey, 'A-ONE');
+  const state = app.homey.settings.get('saving_sessions_state_v2');
+  assert.ok(state[k].feActiveUntil > Date.now(), 'feActiveUntil is set while the session runs');
+  assert.equal(app.fired.filter((e) => e.id === 'free_electricity_started').length, 1);
+  assert.equal(notes.length, 1, 'a reminder notification is sent by default');
+});
+
+test('Power Up reminder is suppressed when notify_free_electricity is off (BL-21)', async (t) => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  const notes = [];
+  app.homey.notifications.createNotification = async (n) => { notes.push(n); };
+  app.homey.settings.set('notify_free_electricity', false);
+  const start = new Date(Date.now() - 5 * 60_000).toISOString();
+  const end = new Date(Date.now() + 25 * 60_000).toISOString();
+  t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => []);
+  t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => [{
+    id: 'pu-quiet', startAt: start, endAt: end, rewardPerKwh: 0, eventType: 'TURN_UP',
+  }]);
+
+  await new SavingSessionsPoller(app).poll();
+
+  assert.equal(app.fired.filter((e) => e.id === 'free_electricity_started').length, 1, 'trigger still fires');
+  assert.equal(notes.length, 0, 'notification is suppressed when the toggle is off');
+});
+
 test('Saving Session diagnostics redact the API key from errors', async (t) => {
   const app = fakeApp([{ apiKey: 'secret-key', accountNumber: 'A-ONE' }]);
   t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => {

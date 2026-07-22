@@ -1,0 +1,9 @@
+{
+  "id": "free_electricity_announced",
+  "title": { "en": "A Free Electricity (Power Up) session was announced" },
+  "hint": { "en": "Triggers once when a new Octopus Power Up free-electricity session appears for your account." },
+  "tokens": [
+    { "name": "start", "type": "string", "title": { "en": "Start" }, "example": { "en": "Sun 13:00" } },
+    { "name": "end", "type": "string", "title": { "en": "End" }, "example": { "en": "Sun 14:00" } }
+  ]
+}

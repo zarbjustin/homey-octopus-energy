@@ -11,8 +11,11 @@ interface PollerState {
   started: string[];
   ended: string[];
   startingSoon?: string[];
+  feKnown?: string[];
+  feStartingSoon?: string[];
   feStarted?: string[];
   feEnded?: string[];
+  feActiveUntil?: number;
 }
 
 interface PollDiagnostics {
@@ -75,6 +78,8 @@ export class SavingSessionsPoller extends AccountPoller {
       || { known: [], started: [], ended: [] };
     state.feStarted = state.feStarted ?? [];
     state.feEnded = state.feEnded ?? [];
+    state.feKnown = state.feKnown ?? [];
+    state.feStartingSoon = state.feStartingSoon ?? [];
     state.startingSoon = state.startingSoon ?? [];
     const now = Date.now();
 
@@ -124,18 +129,46 @@ export class SavingSessionsPoller extends AccountPoller {
     try {
       const fe = await client.getFreeElectricitySessions(creds.accountNumber);
       freeElectricityCount = fe.length;
+      let feActiveUntil = 0;
       for (const s of fe) {
         const start = new Date(s.startAt).getTime();
         const end = new Date(s.endAt).getTime();
+        const feTokens = { start: this.fmt(s.startAt), end: this.fmt(s.endAt) };
+        if (now >= start && now < end) feActiveUntil = Math.max(feActiveUntil, end);
+
+        if (!state.feKnown.includes(s.id)) {
+          state.feKnown.push(s.id);
+          this.fire('free_electricity_announced', feTokens);
+        }
+        if (now < start) {
+          const minutesUntil = Math.round((start - now) / 60_000);
+          if (minutesUntil <= 245) {
+            // Same per-15-minute-bucket de-dup as saving sessions (see BL-20):
+            // preserves per-Flow lead times while suppressing restart/extra-poll
+            // duplicates.
+            const soonKey = `${s.id}:${Math.floor(minutesUntil / 15)}`;
+            if (!state.feStartingSoon.includes(soonKey)) {
+              state.feStartingSoon.push(soonKey);
+              this.fire('free_electricity_starting_soon', feTokens, { minutesUntil });
+            }
+          }
+        }
         if (now >= start && now < end && !state.feStarted.includes(s.id)) {
           state.feStarted.push(s.id);
           this.fire('free_electricity_started', { end: this.fmt(s.endAt) });
+          const enabled = this.app.homey.settings.get('notify_free_electricity');
+          if (enabled === undefined || enabled === null || enabled) {
+            this.app.homey.notifications.createNotification({
+              excerpt: '🐙 Octopus Power Up (free electricity) has started — run appliances now to use free power.',
+            }).catch((err) => this.app.error('Notification failed:', err));
+          }
         }
         if (now >= end && !state.feEnded.includes(s.id)) {
           state.feEnded.push(s.id);
           this.fire('free_electricity_ended', {});
         }
       }
+      state.feActiveUntil = feActiveUntil;
     } catch (err) {
       // Free Electricity is not enabled for every account; retain the status for diagnostics.
       freeElectricityLastError = this.errorMessage(err, creds.apiKey);
@@ -148,8 +181,11 @@ export class SavingSessionsPoller extends AccountPoller {
       started: trim(state.started),
       ended: trim(state.ended),
       startingSoon: trim(state.startingSoon),
+      feKnown: trim(state.feKnown),
+      feStartingSoon: trim(state.feStartingSoon),
       feStarted: trim(state.feStarted),
       feEnded: trim(state.feEnded),
+      feActiveUntil: state.feActiveUntil,
     };
     this.app.homey.settings.set('saving_sessions_state_v2', allState);
     this.updateDiagnostics(creds.accountNumber, {

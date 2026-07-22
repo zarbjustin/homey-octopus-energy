@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -48,6 +48,9 @@
   </div>
   <div class="field">
     <label><input type="checkbox" id="notify_saving_sessions" /> Saving Sessions starting</label>
+  </div>
+  <div class="field">
+    <label><input type="checkbox" id="notify_free_electricity" /> Power Ups (Free Electricity) starting</label>
   </div>
   <div class="field">
     <label><input type="checkbox" id="notify_dispatch" /> Smart-charge dispatches starting</label>
@@ -113,8 +116,8 @@
 
   <script type="text/javascript">
     function onHomeyReady(Homey) {
-      const checks = ['notify_plunge', 'notify_saving_sessions', 'notify_dispatch', 'notify_low_balance', 'effective_rate_estimate'];
-      const defaults = { notify_plunge: true };
+      const checks = ['notify_plunge', 'notify_saving_sessions', 'notify_free_electricity', 'notify_dispatch', 'notify_low_balance', 'effective_rate_estimate'];
+      const defaults = { notify_plunge: true, notify_saving_sessions: true, notify_free_electricity: true };
 
       checks.forEach((key) => {
         const el = document.getElementById(key);
