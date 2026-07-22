@@ -1,4 +1,7 @@
 {
+  "1.0.31": {
+    "en": "Power Ups (Free Electricity) now support full automation: get advance 'announced' and 'starting soon' Flow triggers (set your own lead time), an 'is a Power Up active' condition, and an optional reminder when free power begins — so you can pre-load appliances automatically. Plus an accessibility pass across all widgets and settings (screen-reader labels and higher-contrast status text)."
+  },
   "1.0.30": {
     "en": "Honest tariff comparison: the 'find best tariff' Flow now ranks tariffs with eligibility checks and a confidence level instead of implying a single winner. Saving-session 'starting soon' Flows no longer fire duplicate notifications after an app restart."
   },
