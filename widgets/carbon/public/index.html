@@ -36,15 +36,22 @@
     }
     function provenanceBadge(label, cls) { return '<span class="prov-badge ' + cls + '">' + esc(label) + '</span>'; }
     function estimatedBadge(label) { return provenanceBadge(label || 'Estimated', 'b-estimated'); }
-    function freshnessHtml(d, sourceLabel) {
+    function freshnessHtml(d, sourceLabel, sourceKey) {
       var f = d && d.freshness;
+      var src = (f && f.sources && sourceKey) ? f.sources[sourceKey] : null;
       var state = 'Unknown';
       var cls = 'b-unknown';
       var message = 'Freshness is not yet known.';
-      if (f && f.updatedAt && !f.stale && !f.problem) { state = 'Current'; cls = 'b-current'; message = ''; }
+      var readAt = f ? f.updatedAt : null;
+      if (src) {
+        readAt = src.updatedAt;
+        if (src.state === 'current') { state = 'Current'; cls = 'b-current'; message = ''; }
+        else if (src.state === 'stale') { state = 'Stale'; cls = 'b-stale'; message = (f && f.problem) ? 'Connection issue; showing the last available data.' : 'Data may be out of date.'; }
+        else { message = 'No data yet.'; }
+      } else if (f && f.updatedAt && !f.stale && !f.problem) { state = 'Current'; cls = 'b-current'; message = ''; }
       else if (f && f.updatedAt) { state = 'Stale'; cls = 'b-stale'; message = f.problem ? 'Connection issue; showing the last available data.' : 'Data may be out of date.'; }
       else if (f && f.problem) { message = 'Connection issue; current data is unavailable.'; }
-      var age = (typeof ageText === 'function' && f) ? ageText(f.updatedAt) : '';
+      var age = (typeof ageText === 'function') ? ageText(readAt) : '';
       var label = (sourceLabel || 'Device refresh') + ' \u00b7 ' + state + (age ? ' \u00b7 ' + age : '');
       return '<div class="prov-row" role="status">' + provenanceBadge(label, cls)
         + (message ? '<span class="prov-msg">' + esc(message) + '</span>' : '') + '</div>';
@@ -66,7 +73,7 @@
         ? d.level : 'moderate';
       const label = level.replace('_', ' ');
       let html = '<div class="name">' + esc(d.name || 'Carbon intensity') + '</div>';
-      html += freshnessHtml(d, 'Device refresh');
+      html += freshnessHtml(d, 'Carbon', 'carbon');
       html += '<div class="big">' + Math.round(d.carbon) + ' <small>gCO₂/kWh</small></div>';
       html += '<span class="badge ' + level + '">' + label + '</span>';
       if (d.greenest) html += '<div class="green">🌱 Greenest half-hour right now' + estimatedBadge('Estimated forecast') + '</div>';

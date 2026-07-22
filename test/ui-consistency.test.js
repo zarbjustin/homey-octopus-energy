@@ -31,12 +31,21 @@ function extractFn(src, name) {
 for (const w of WIDGETS) {
   test(`${w} widget renders the shared provenance convention`, () => {
     const src = html(w);
-    assert.match(src, /function freshnessHtml\(d, sourceLabel\)/, 'canonical freshnessHtml signature');
+    assert.match(src, /function freshnessHtml\(d, sourceLabel, sourceKey\)/, 'canonical freshnessHtml signature (per-source aware)');
     assert.match(src, /class="prov-badge /, 'namespaced provenance badge (no .badge collision)');
     assert.match(src, /'b-current'/, 'current state');
     assert.match(src, /'b-stale'/, 'stale state');
     assert.match(src, /'b-unknown'/, 'unknown state');
-    assert.match(src, /freshnessHtml\(d, 'Device refresh'\)/, 'render passes an honest device-scoped source label');
+    assert.match(src, /freshnessHtml\(d, '[^']+'/, 'render passes an honest source label');
+  });
+}
+
+// Domain widgets badge their OWN source's freshness (BL-15), not just the
+// device-wide flag; summary/timeline remain device-scoped.
+const SOURCE_WIDGETS = { price: 'prices', agile: 'prices', carbon: 'carbon', export: 'prices' };
+for (const [w, key] of Object.entries(SOURCE_WIDGETS)) {
+  test(`${w} widget badges its own data source (${key})`, () => {
+    assert.match(html(w), new RegExp(`freshnessHtml\\(d, '[^']+', '${key}'\\)`), `${w} passes its per-source key`);
   });
 }
 
