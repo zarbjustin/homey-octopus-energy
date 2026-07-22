@@ -43,6 +43,13 @@ Last updated: 21 July 2026
   import-electricity only. **BL-18b (next):** settled-consumption insights via REST `group_by`
   (bounded, `group_by` is consumption-only — cost/peak from raw settled half-hours + rates), Homey
   Insights + a breakdown widget, mandatory "settled through &lt;date&gt;", no "best"/savings.
+  **BL-18b ASSESSMENT:** its CORE is already delivered — `octopus_cost_month`/`_yesterday`/`_today`
+  and `octopus_usage_today` all have `insights: true` (Homey auto-charts the settled series), and
+  BL-18a added the budget/overspend triggers. The only remaining incremental value is a **REST
+  `group_by` historical daily breakdown** (backfills what Homey Insights can't, since Insights only
+  records forward from install). That's a scoped UI slice needing one design steer: placement
+  (summary widget vs new widget vs settings), range (7/30 days), and usage-only (`group_by` is
+  consumption-only) vs cost (needs bounded raw half-hours + rates via `lib/reporting/cost.ts`).
   settled insights + budget Flows (REST `group_by` is consumption-only; cost/peak from bounded raw
   half-hours + rates; settled-vs-estimate discipline per the spec). Reporting seam (`lib/reporting/`)
   is ready for BL-18's `SettledInsightsService` to reuse.
