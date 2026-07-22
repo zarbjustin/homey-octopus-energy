@@ -16,6 +16,7 @@ import { computeBillingSummary } from './billing/aggregate';
 import {
   consumptionCostPence, windowCostPence, standingChargePence, peakOffPeakCostPence, CostOptions,
 } from './reporting/cost';
+import { contiguousSettledThrough } from './reporting/settlement';
 import { DispatchView } from './dispatch/types';
 import {
   computeEffectiveRate, EffectiveDispatchKind, EffectiveRateResult,
@@ -2153,10 +2154,7 @@ export class OctopusMeterDevice extends Homey.Device {
       return;
     }
 
-    const settledThrough = records.reduce(
-      (max, r) => (r.interval_end > max ? r.interval_end : max),
-      records[0].interval_end,
-    );
+    const settledThrough = contiguousSettledThrough(records) ?? records[0].interval_end;
     const exportInput = await this.exportBillingInput(window).catch(() => undefined);
     const summary = computeBillingSummary({
       period,
