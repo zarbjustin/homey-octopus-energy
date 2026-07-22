@@ -4,19 +4,19 @@ Last updated: 21 July 2026
 
 ## Current state
 
-- **S65 (BL-24b) — consent-gated EV boost control DONE (gated OFF; unreleased, on main `9d7d661`).**
-  The marquee dispatch-control write, behind an explicit opt-in (`enable_boost_control`, **default
-  OFF**). `KrakenClient.updateBoostCharge(deviceId, 'BOOST'|'CANCEL')` (verified device-scoped
-  mutation, returns `currentState`); `OctopusMeterDevice.bumpCharge()/cancelBoost()` resolve a
-  boost-capable EV/charge-point id and refuse without consent; Flow actions `bump_charge` (rewired)
-  + new `cancel_boost`; settings "EV boost control (advanced)" opt-in with warning. 543 tests pass,
-  all gates green. **RELEASE BLOCKED on a one-time live reference-verify** (Kraken is versionless,
-  R-005): enable the setting, run `bump_charge`, confirm the EV shows `currentState → BOOSTING`
-  (and `ev_boost_active` true), then `cancel_boost`. Once confirmed, bundle **S64 + S65** as one
-  "dispatch control" release (next version v1.0.32).
-- **S64 (BL-24a) — dispatch-control verification spike DONE (read-only; on main `56f477d`).**
-  Verified boost contract + shipped `DispatchView.boostingNow` / `isBoosting()` / `ev_boost_active`.
-  Spec: `docs/handover/sprint-s64-dispatch-control-spike.md`.
+- **v1.0.32 (22 Jul 2026) — SHIPPED: Intelligent Octopus Go dispatch control (S64 + S65).**
+  Publish run `29933694280` (green — Build 32 uploaded). **S64 read-only:** `ev_boost_active` Flow
+  condition, `DispatchView.boostingNow`, `DispatchPoller.isBoosting()` (fail-closed on stale).
+  **S65 consent-gated write:** `KrakenClient.updateBoostCharge(deviceId, 'BOOST'|'CANCEL')` (verified
+  device-scoped mutation), `bumpCharge()`/`cancelBoost()` (resolve a boost-capable EV/charge-point,
+  refuse without consent), Flow actions `bump_charge`+`cancel_boost`, and the "EV boost control
+  (advanced)" opt-in (`enable_boost_control`, **default OFF**). Release commit `3a9d260`. 543 tests
+  pass, all gates green. **Still recommended (not release-blocking):** a one-time live verify —
+  enable the setting, run `bump_charge`, confirm `currentState → BOOSTING`, then `cancel_boost`.
+  Safe to ship unverified because the write is opt-in-off and fails closed. **Manual step:** promote
+  Build 32 → Test/Live at https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy.
+- **Phase 5 opened.** BL-24 (dispatch control) delivered. Remaining Phase 5: BL-28 (i18n) + the
+  innovation catalogue; remaining Phase 4 is optional (BL-25/26/27/31).
 - **v1.0.31 (22 Jul 2026) — SHIPPED: Power Up automation + accessibility (S63); Phase 3 complete.**
   Release commit `a535119`, publish run `29925835310` (green — App Store build uploaded). **BL-21**
   — Power Up (Free Electricity) automation parity, reusing the saving-session poller machinery (no
