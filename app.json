@@ -1975,6 +1975,38 @@
         ]
       },
       {
+        "id": "dispatch_starts_within",
+        "title": {
+          "en": "A smart-charge dispatch !{{starts|doesn't start}} within ..."
+        },
+        "titleFormatted": {
+          "en": "A smart-charge dispatch !{{starts|doesn't start}} within [[minutes]] min"
+        },
+        "hint": {
+          "en": "For Intelligent Octopus Go: true when Octopus has a planned dispatch (cheap smart-charge window) starting within the given minutes. Lets a target-rate Flow defer to the car's own schedule. Fails closed (false) if the dispatch data is stale."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "minutes",
+            "min": 1,
+            "max": 1440,
+            "step": 1,
+            "placeholder": {
+              "en": "60"
+            },
+            "title": {
+              "en": "Within (minutes)"
+            }
+          }
+        ]
+      },
+      {
         "id": "is_peak_export_now",
         "title": {
           "en": "Now !{{is|is not}} the best time to export"
@@ -2336,6 +2368,72 @@
               "en": "Number of half-hours"
             },
             "example": 6
+          }
+        ]
+      },
+      {
+        "id": "get_next_dispatch",
+        "title": {
+          "en": "Get the next planned smart-charge dispatch"
+        },
+        "hint": {
+          "en": "For Intelligent Octopus Go: returns the next planned dispatch (cheap smart-charge window) as tokens. Fails if there is none or the data is stale. Planned dispatches are intent and can change."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          }
+        ],
+        "tokens": [
+          {
+            "name": "start",
+            "type": "string",
+            "title": {
+              "en": "Start"
+            },
+            "example": {
+              "en": "2026-07-21T23:30:00Z"
+            }
+          },
+          {
+            "name": "end",
+            "type": "string",
+            "title": {
+              "en": "End"
+            },
+            "example": {
+              "en": "2026-07-22T05:30:00Z"
+            }
+          },
+          {
+            "name": "type",
+            "type": "string",
+            "title": {
+              "en": "Type"
+            },
+            "example": {
+              "en": "SMART"
+            }
+          },
+          {
+            "name": "confidence",
+            "type": "string",
+            "title": {
+              "en": "Confidence"
+            },
+            "example": {
+              "en": "medium"
+            }
+          },
+          {
+            "name": "minutes_until",
+            "type": "number",
+            "title": {
+              "en": "Minutes until start"
+            },
+            "example": 45
           }
         ]
       },

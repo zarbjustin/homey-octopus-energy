@@ -1,5 +1,7 @@
 'use strict';
 
+import { FreshnessState } from '../freshness';
+
 /**
  * Sprint 43 — Intelligent Octopus Go dispatch "truth model" types.
  *
@@ -81,4 +83,10 @@ export interface DispatchView {
   active: DispatchViewWindow[];
   next: DispatchViewWindow | null;
   recentFinalised: DispatchFinalised[];
+  /** ISO time of the last SUCCESSFUL dispatch poll (null if never). */
+  observedAt: string | null;
+  /** Freshness of the dispatch data: `current` | `stale` | `unknown`. A window is
+   *  retained across a failed poll (fail-closed, no false cancel), so automations
+   *  must treat `stale` as "don't act" — the view carries this so they can. */
+  freshness: FreshnessState;
 }

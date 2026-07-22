@@ -452,6 +452,37 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   /**
+   * BL-23: whether a planned smart-charge dispatch STARTS within `minutes` from
+   * now. FAILS CLOSED — returns false when the dispatch data is missing or STALE
+   * (retained across a failed poll), so a Flow never acts on out-of-date intent.
+   */
+  dispatchStartsWithin(minutes: number): boolean {
+    const view = this.getDispatchView() as DispatchView | null;
+    if (!view || view.freshness !== 'current' || !view.next) return false;
+    const startMs = Date.parse(view.next.start);
+    if (!Number.isFinite(startMs)) return false;
+    const untilMin = (startMs - Date.now()) / 60_000;
+    return untilMin > 0 && untilMin <= minutes;
+  }
+
+  /** BL-23: tokens for the next planned dispatch (read-only intent), or null when
+   *  there is none or the data is stale. */
+  getNextDispatch(): {
+    start: string; end: string; type: string; confidence: string; minutes_until: number;
+  } | null {
+    const view = this.getDispatchView() as DispatchView | null;
+    if (!view || view.freshness !== 'current' || !view.next) return null;
+    const startMs = Date.parse(view.next.start);
+    return {
+      start: view.next.start,
+      end: view.next.end,
+      type: String(view.next.kind),
+      confidence: String(view.next.confidence),
+      minutes_until: Number.isFinite(startMs) ? Math.max(0, Math.round((startMs - Date.now()) / 60_000)) : 0,
+    };
+  }
+
+  /**
    * Structured half-hourly Agile data for today and tomorrow, used by the Agile
    * prices widget. Slots are timezone-aware and flagged for the current slot and
    * the cheapest `cheapestCount` slots of each day ("best times to use power").

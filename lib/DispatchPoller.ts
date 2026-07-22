@@ -6,6 +6,7 @@ import {
   reconcile, ReconcileState, PlannedInput, CompletedInput,
 } from './dispatch/reconcile';
 import { DispatchView, DispatchFinalised } from './dispatch/types';
+import { FreshnessState } from './freshness';
 import { isBudgetError } from './KrakenBudget';
 import { redactSecrets } from './redact';
 
@@ -30,6 +31,9 @@ export class DispatchPoller extends AccountPoller {
   protected readonly intervalMs = 5 * 60_000;
 
   private states = new Map<string, ReconcileState>();
+
+  /** Time (ms) of the last SUCCESSFUL poll per account, for view freshness. */
+  private lastObservedAt = new Map<string, number>();
 
   private seeded = new Set<string>();
 
@@ -75,11 +79,18 @@ export class DispatchPoller extends AccountPoller {
     const finalised = [...(this.recentCompleted.get(accountNumber) ?? [])]
       .sort((a, b) => new Date(b.end).getTime() - new Date(a.end).getTime())
       .slice(0, 5);
+    const observedMs = this.lastObservedAt.get(accountNumber);
+    // Retained-across-failure windows must not read as fresh: mark stale after
+    // ~2.5 poll cycles so automations can fail closed on the freshness field.
+    let freshness: FreshnessState = 'unknown';
+    if (observedMs) freshness = now - observedMs > this.intervalMs * 2.5 ? 'stale' : 'current';
     return {
       activeNow: active.length > 0,
       active,
       next: planned[0] ?? null,
       recentFinalised: finalised,
+      observedAt: observedMs ? new Date(observedMs).toISOString() : null,
+      freshness,
     };
   }
 
@@ -184,7 +195,10 @@ export class DispatchPoller extends AccountPoller {
       anyActive: result.anyActive,
       lastCompletedEnd: result.lastCompletedEnd,
     });
-    if (ok) this.lastError.delete(creds.accountNumber);
+    if (ok) {
+      this.lastError.delete(creds.accountNumber);
+      this.lastObservedAt.set(creds.accountNumber, Date.now());
+    }
   }
 
   private logErrorOnce(creds: { apiKey: string; accountNumber: string }, err: unknown): void {

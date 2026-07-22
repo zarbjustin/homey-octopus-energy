@@ -42,6 +42,10 @@ interface ElectricityDevice extends Homey.Device {
     start: string; end: string; average_price: number; max_slot_price: number;
     target_met: boolean; cheapest_available: number; slots: number;
   } | null;
+  dispatchStartsWithin(minutes: number): boolean;
+  getNextDispatch(): {
+    start: string; end: string; type: string; confidence: string; minutes_until: number;
+  } | null;
 }
 
 type Args<T> = T & { device: ElectricityDevice };
@@ -103,6 +107,8 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ duration: number; by: string; max_price: number }>) => (
         args.device.isInTargetRateWindow(args.duration, args.by, args.max_price)
       ));
+    flow.getConditionCard('dispatch_starts_within')
+      .registerRunListener(async (args: Args<{ minutes: number }>) => args.device.dispatchStartsWithin(args.minutes));
     flow.getConditionCard('renewables_above')
       .registerRunListener(async (args: Args<{ percent: number }>) => {
         const r = args.device.getRenewablePercent();
@@ -154,6 +160,12 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ duration: number; by: string; max_price: number }>) => {
         const result = args.device.getTargetRatePlan(args.duration, args.by, args.max_price);
         if (!result) throw new Error('No upcoming rates are available yet.');
+        return result;
+      });
+    flow.getActionCard('get_next_dispatch')
+      .registerRunListener(async (args: Args<unknown>) => {
+        const result = args.device.getNextDispatch();
+        if (!result) throw new Error('No fresh planned dispatch is available.');
         return result;
       });
     flow.getActionCard('find_best_tariff')
