@@ -4,7 +4,8 @@ import Homey from 'homey';
 import { OctopusClient, FuelType } from './OctopusClient';
 import { KrakenClient, AccountIogTariff, IogResolveDiagnostic } from './KrakenClient';
 import { isBudgetError } from './KrakenBudget';
-import { opaqueKeyMigrating } from './diagnosticsKey';
+import { opaqueKeyMigrating, opaqueKey } from './diagnosticsKey';
+import { FreshnessState } from './freshness';
 import {
   Rate, rateAt, valueOf, sumConsumption, cheapestRate, cheapestWindow,
   isCheapestSlotNow, priceLevel, PriceLevel, cheapestSlots, rateCovers, ratesInWindow,
@@ -69,10 +70,24 @@ export interface MeterSettings {
   expensive_threshold: number;
 }
 
+/** Freshness of a single data source: its state, when it last succeeded, and its
+ *  age. `unknown` = never fetched (no last value); `stale` = a last value exists
+ *  but is older than the source's expected refresh window; `current` = fresh. */
+export interface SourceFreshness {
+  state: FreshnessState;
+  updatedAt: string | null;
+  ageMs: number | null;
+}
+
 export interface DataFreshness {
   updatedAt: string | null;
   stale: boolean;
   problem: boolean;
+  /** Per-source freshness (price, consumption, carbon, balance, billing, …) so a
+   *  widget or Flow can tell that ONE domain is stale even when the device last
+   *  refreshed OK overall (R-017/BB-06). Derived from each area's `lastSuccess`
+   *  diagnostic; the last known value is always retained (never blanked). */
+  sources: Record<string, SourceFreshness>;
 }
 
 interface IntegrationDiagnostic {
@@ -285,7 +300,63 @@ export class OctopusMeterDevice extends Homey.Device {
         : null,
       stale: !this.lastHealthyRefreshAt || Date.now() - this.lastHealthyRefreshAt > maxAgeMs,
       problem: alarm,
+      sources: this.perSourceFreshness(maxAgeMs),
     };
+  }
+
+  /**
+   * Per-source freshness derived from each area's persisted `lastSuccess`
+   * diagnostic (overlaid with the current, not-yet-flushed refresh cycle). A
+   * source that stops succeeding while others keep updating ages independently,
+   * so one stale domain is no longer masked by the device-wide timestamp
+   * (R-017/BB-06). Read-only: uses the non-mutating opaque key.
+   */
+  private perSourceFreshness(maxAgeMs: number): Record<string, SourceFreshness> {
+    let persisted: Record<string, { lastSuccess?: string }> = {};
+    try {
+      const all = (this.homey.settings.get('integration_diagnostics_v1') || {}) as
+        Record<string, Record<string, { lastSuccess?: string }>>;
+      persisted = all[opaqueKey(this.homey, String(this.getData().id))] ?? {};
+    } catch (err) {
+      persisted = {};
+    }
+    const merged: Record<string, { lastSuccess?: string }> = { ...persisted };
+    for (const [area, d] of Object.entries(this.diagnosticUpdates ?? {})) {
+      // A failed/skipped cycle carries no fresh lastSuccess — keep the persisted one.
+      merged[area] = { lastSuccess: d.lastSuccess ?? merged[area]?.lastSuccess };
+    }
+    const now = Date.now();
+    const out: Record<string, SourceFreshness> = {};
+    for (const [area, d] of Object.entries(merged)) {
+      const readAt = d.lastSuccess ?? null;
+      const parsed = readAt ? Date.parse(readAt) : NaN;
+      const ageMs = Number.isFinite(parsed) ? now - parsed : null;
+      // Direct age comparison against maxAgeMs, consistent with the device-level
+      // `stale` flag (do NOT reuse isStale(), which doubles the cadence).
+      let state: FreshnessState = 'unknown';
+      if (ageMs !== null) state = ageMs > maxAgeMs ? 'stale' : 'current';
+      out[area] = { state, updatedAt: readAt, ageMs };
+    }
+    return out;
+  }
+
+  /** Friendly Flow-source id → internal diagnostic area. */
+  private static readonly SOURCE_AREA: Record<string, string> = {
+    price: 'prices',
+    consumption: 'meter_data',
+    carbon: 'carbon',
+    balance: 'balance',
+    billing: 'billing_summary',
+  };
+
+  /** Whether a data source is stale (a last value exists but is past its refresh
+   *  window). `any` is true when ANY monitored source is stale. Backs the
+   *  `data_source_stale` Flow condition. */
+  isDataSourceStale(source: string): boolean {
+    const { sources } = this.getDataFreshness();
+    if (source === 'any') return Object.values(sources).some((s) => s.state === 'stale');
+    const area = OctopusMeterDevice.SOURCE_AREA[source] ?? source;
+    return sources[area]?.state === 'stale';
   }
 
   /**

@@ -720,6 +720,35 @@
           }
         }
       ]
+    },
+    {
+      "id": "data_source_stale",
+      "title": {
+        "en": "Octopus data !{{is|isn't}} stale ..."
+      },
+      "titleFormatted": {
+        "en": "[[source]] data !{{is|isn't}} stale"
+      },
+      "hint": {
+        "en": "True when the selected Octopus data source hasn't refreshed within its expected window (the last known value is kept, not blanked). Use to warn when prices, consumption, carbon, balance or cost/billing data goes stale."
+      },
+      "args": [
+        {
+          "type": "dropdown",
+          "name": "source",
+          "title": {
+            "en": "Source"
+          },
+          "values": [
+            { "id": "any", "label": { "en": "Any data source" } },
+            { "id": "price", "label": { "en": "Price" } },
+            { "id": "consumption", "label": { "en": "Consumption" } },
+            { "id": "carbon", "label": { "en": "Carbon intensity" } },
+            { "id": "balance", "label": { "en": "Account balance" } },
+            { "id": "billing", "label": { "en": "Cost / billing" } }
+          ]
+        }
+      ]
     }
   ],
   "actions": [

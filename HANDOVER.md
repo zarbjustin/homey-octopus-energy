@@ -26,7 +26,15 @@ Last updated: 21 July 2026
   true "today so far" tile is a Phase-4 ADDITIVE enhancement (**BL-31**), not a fix. Full rationale +
   evidence in `docs/handover/sprint-s60-trust-and-money-spec.md` (BL-17 decision). **Next release
   changelog** should note the Flow-trigger rename.
-  **BL-15** per-source freshness + stale-aware tokens (trust substrate for BL-18). **BL-18a/b**
+  **BL-15** — SLICE 1 DONE (per-source freshness): `getDataFreshness()` now returns a `sources` map
+  (`current`/`stale`/`unknown` per area, with `updatedAt`+`ageMs`, last value retained not blanked —
+  the R-018 antidote), derived from persisted per-area `lastSuccess` via the non-mutating
+  `opaqueKey`; new `isDataSourceStale(source)` + a **`data_source_stale` Flow condition** (source
+  dropdown: any/price/consumption/carbon/balance/billing). Reuses `lib/freshness.ts` `FreshnessState`.
+  All 6 widget `api.js` already forward `getDataFreshness()`, so the per-source data flows to every
+  widget for free. **SLICE 2 (next):** render per-source stale badges in the 6 widget frontends
+  (show last-updated age; never blank) — todo `s60-bl15-badges`. Next-release changelog should note
+  the new stale-data Flow condition + per-source freshness. **BL-18a/b** (settled insights + budget
   settled insights + budget Flows (REST `group_by` is consumption-only; cost/peak from bounded raw
   half-hours + rates; settled-vs-estimate discipline per the spec). Reporting seam (`lib/reporting/`)
   is ready for BL-18's `SettledInsightsService` to reuse.
