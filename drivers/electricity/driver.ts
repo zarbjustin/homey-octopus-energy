@@ -36,6 +36,12 @@ interface ElectricityDevice extends Homey.Device {
   currentPriceBand(): string | null;
   isDataSourceStale(source: string): boolean;
   isMonthlyCostAbove(amount: number): boolean;
+  isInTargetRateWindow(durationHours: number, byTime: string, maxPrice?: number): boolean;
+  targetRateStartedNow(durationHours: number, byTime: string, maxPrice?: number): boolean;
+  getTargetRatePlan(durationHours: number, byTime: string, maxPrice?: number): {
+    start: string; end: string; average_price: number; max_slot_price: number;
+    target_met: boolean; cheapest_available: number; slots: number;
+  } | null;
 }
 
 type Args<T> = T & { device: ElectricityDevice };
@@ -62,6 +68,10 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       ));
     flow.getDeviceTriggerCard('cheapest_slot_started')
       .registerRunListener(async (args: Args<{ hours: number }>) => args.device.isCheapestNow(args.hours));
+    flow.getDeviceTriggerCard('target_rate_window_started')
+      .registerRunListener(async (args: Args<{ duration: number; by: string; max_price: number }>) => (
+        args.device.targetRateStartedNow(args.duration, args.by, args.max_price)
+      ));
     flow.getDeviceTriggerCard('carbon_below')
       .registerRunListener(async (args: Args<{ threshold: number }>, state: { carbon: number; previous: number | null }) => (
         crossedBelow(state.carbon, state.previous, args.threshold)
@@ -89,6 +99,10 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ source: string }>) => args.device.isDataSourceStale(args.source));
     flow.getConditionCard('monthly_cost_above')
       .registerRunListener(async (args: Args<{ amount: number }>) => args.device.isMonthlyCostAbove(args.amount));
+    flow.getConditionCard('in_target_rate_window')
+      .registerRunListener(async (args: Args<{ duration: number; by: string; max_price: number }>) => (
+        args.device.isInTargetRateWindow(args.duration, args.by, args.max_price)
+      ));
     flow.getConditionCard('renewables_above')
       .registerRunListener(async (args: Args<{ percent: number }>) => {
         const r = args.device.getRenewablePercent();
@@ -133,6 +147,12 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
     flow.getActionCard('find_cheapest_hours')
       .registerRunListener(async (args: Args<{ duration: number; by: string }>) => {
         const result = args.device.findCheapestHours(args.duration, args.by);
+        if (!result) throw new Error('No upcoming rates are available yet.');
+        return result;
+      });
+    flow.getActionCard('get_target_rate_plan')
+      .registerRunListener(async (args: Args<{ duration: number; by: string; max_price: number }>) => {
+        const result = args.device.getTargetRatePlan(args.duration, args.by, args.max_price);
         if (!result) throw new Error('No upcoming rates are available yet.');
         return result;
       });

@@ -325,6 +325,9 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
         }
       }
       this.trigger('cheapest_slot_started', { price: value }, {});
+      // Target-rate (BL-22): candidate on the half-hour price edge; the run
+      // listener does the per-Flow rising-edge check (no timer, no polling).
+      this.trigger('target_rate_window_started', { price: value }, {});
       if (levelNow && levelNow !== this.previousLevel) {
         this.trigger('price_level_changed', {
           level: levelNow,

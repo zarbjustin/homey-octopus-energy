@@ -42,6 +42,7 @@ import {
   iogUnitRatesToRates, synthesiseIogDayNightRates, isFlatUnitRates, iogFlatDayRate,
   iogHouseholdBands, iogRateTypeSummary,
 } from './pricing/iogSchedule';
+import { evaluateTargetRate, TargetRateResult } from './planning/targetRate';
 import { isRecoverablePriceGapError } from './pricing/priceGap';
 import { computeCumulativeUpdate } from './consumption/cumulative';
 import {
@@ -1815,6 +1816,59 @@ export class OctopusMeterDevice extends Homey.Device {
   /** Is `at` inside the cheapest plan for the given duration/deadline? */
   isInCheapestPlan(durationHours: number, byTime: string, maxPrice?: number, at: Date = new Date()): boolean {
     return this.getCheapestPlan(durationHours, byTime, maxPrice).some((r) => rateCovers(r, at));
+  }
+
+  /**
+   * Target-rate (BL-22): the cheapest `durationHours` of half-hours AT OR UNDER
+   * `maxPrice` (p/kWh; 0/undefined = no cap) before `byTime`, over the current
+   * rates snapshot. Pure, stateless, zero new requests — recomputed on demand.
+   * Cap-not-met and an incomplete horizon are first-class results (see
+   * `lib/planning/targetRate.ts`). Forward prices are always estimates.
+   */
+  getTargetRateView(durationHours: number, byTime: string, maxPrice?: number, at: Date = new Date()): TargetRateResult {
+    const cap = Number(maxPrice);
+    return evaluateTargetRate(this.rates, {
+      now: at,
+      deadline: this.nextLocalTime(byTime),
+      durationSlots: Math.max(1, Math.round(Number(durationHours) * 2)),
+      maxPrice: Number.isFinite(cap) && cap > 0 ? cap : undefined,
+      incVat: this.vatInc(),
+    });
+  }
+
+  /** Whether now is inside a satisfiable target-rate window (backs the condition). */
+  isInTargetRateWindow(durationHours: number, byTime: string, maxPrice?: number): boolean {
+    return this.getTargetRateView(durationHours, byTime, maxPrice).activeNow;
+  }
+
+  /** Rising edge: a target-rate slot is active now but was NOT one half-hour ago
+   *  — backs the start trigger, evaluated on the existing half-hour price path
+   *  (no timer). */
+  targetRateStartedNow(durationHours: number, byTime: string, maxPrice?: number): boolean {
+    const now = new Date();
+    if (!this.getTargetRateView(durationHours, byTime, maxPrice, now).activeNow) return false;
+    const before = this.getTargetRateView(durationHours, byTime, maxPrice, new Date(now.getTime() - 30 * 60_000));
+    return !before.activeNow;
+  }
+
+  /** Plan tokens for the `get_target_rate_plan` action; null only when there is
+   *  no data to evaluate (a cap-not-met result still returns tokens with
+   *  `target_met:false` so a Flow can branch instead of failing). */
+  getTargetRatePlan(durationHours: number, byTime: string, maxPrice?: number): {
+    start: string; end: string; average_price: number; max_slot_price: number;
+    target_met: boolean; cheapest_available: number; slots: number;
+  } | null {
+    const v = this.getTargetRateView(durationHours, byTime, maxPrice);
+    if (!v.available) return null;
+    return {
+      start: v.start ?? '',
+      end: v.end ?? '',
+      average_price: v.averagePrice ?? 0,
+      max_slot_price: v.maxSlotPrice ?? 0,
+      target_met: v.met,
+      cheapest_available: v.cheapestAvailablePrice ?? 0,
+      slots: v.slots.length,
+    };
   }
 
   /** A configured price cap (p/kWh) for the smart-charge window, or undefined. */

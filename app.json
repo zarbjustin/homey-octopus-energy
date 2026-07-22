@@ -692,6 +692,71 @@
         ]
       },
       {
+        "id": "target_rate_window_started",
+        "title": {
+          "en": "A target-rate window started ..."
+        },
+        "titleFormatted": {
+          "en": "A cheapest [[duration]] h window under [[max_price]] p/kWh before [[by]] started"
+        },
+        "hint": {
+          "en": "Fires when a cheap window (the cheapest half-hours up to your price cap before the deadline) begins. Forward prices are estimates; won't fire if the cap can't be met or rates aren't published yet."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "duration",
+            "min": 0.5,
+            "max": 12,
+            "step": 0.5,
+            "placeholder": {
+              "en": "3"
+            },
+            "title": {
+              "en": "Duration (hours)"
+            }
+          },
+          {
+            "type": "text",
+            "name": "by",
+            "placeholder": {
+              "en": "07:00"
+            },
+            "title": {
+              "en": "By time (HH:MM)"
+            }
+          },
+          {
+            "type": "number",
+            "name": "max_price",
+            "min": 0,
+            "max": 200,
+            "step": 0.5,
+            "placeholder": {
+              "en": "0 = no cap"
+            },
+            "title": {
+              "en": "Max price (p/kWh, 0 = no cap)"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "price",
+            "type": "number",
+            "title": {
+              "en": "Current price (p/kWh)"
+            },
+            "example": 6.9
+          }
+        ]
+      },
+      {
         "id": "price_changed",
         "title": {
           "en": "The unit rate changed"
@@ -1855,6 +1920,61 @@
         ]
       },
       {
+        "id": "in_target_rate_window",
+        "title": {
+          "en": "Now !{{is|isn't}} in a target-rate window ..."
+        },
+        "titleFormatted": {
+          "en": "Now !{{is|isn't}} in the cheapest [[duration]] h under [[max_price]] p/kWh before [[by]]"
+        },
+        "hint": {
+          "en": "True when now is one of the cheapest half-hours (up to your price cap) before the deadline. Forward prices are estimates; fails closed (false) if rates aren't published far enough ahead or the cap can't be met."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "duration",
+            "min": 0.5,
+            "max": 12,
+            "step": 0.5,
+            "placeholder": {
+              "en": "3"
+            },
+            "title": {
+              "en": "Duration (hours)"
+            }
+          },
+          {
+            "type": "text",
+            "name": "by",
+            "placeholder": {
+              "en": "07:00"
+            },
+            "title": {
+              "en": "By time (HH:MM)"
+            }
+          },
+          {
+            "type": "number",
+            "name": "max_price",
+            "min": 0,
+            "max": 200,
+            "step": 0.5,
+            "placeholder": {
+              "en": "0 = no cap"
+            },
+            "title": {
+              "en": "Max price (p/kWh, 0 = no cap)"
+            }
+          }
+        ]
+      },
+      {
         "id": "is_peak_export_now",
         "title": {
           "en": "Now !{{is|is not}} the best time to export"
@@ -2099,6 +2219,123 @@
               "en": "Saving vs average (%)"
             },
             "example": 38
+          }
+        ]
+      },
+      {
+        "id": "get_target_rate_plan",
+        "title": {
+          "en": "Get the target-rate plan (cheapest hours under a cap)"
+        },
+        "titleFormatted": {
+          "en": "Get the cheapest [[duration]] h under [[max_price]] p/kWh before [[by]]"
+        },
+        "hint": {
+          "en": "Returns the cheapest half-hours (up to your price cap) before the deadline as tokens. If the cap can't be met, 'Target met' is false and 'Cheapest available' tells you the price you'd have to accept. Forward prices are estimates."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "duration",
+            "min": 0.5,
+            "max": 12,
+            "step": 0.5,
+            "placeholder": {
+              "en": "3"
+            },
+            "title": {
+              "en": "Duration (hours)"
+            }
+          },
+          {
+            "type": "text",
+            "name": "by",
+            "placeholder": {
+              "en": "07:00"
+            },
+            "title": {
+              "en": "By time (HH:MM)"
+            }
+          },
+          {
+            "type": "number",
+            "name": "max_price",
+            "min": 0,
+            "max": 200,
+            "step": 0.5,
+            "placeholder": {
+              "en": "0 = no cap"
+            },
+            "title": {
+              "en": "Max price (p/kWh, 0 = no cap)"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "target_met",
+            "type": "boolean",
+            "title": {
+              "en": "Target met"
+            },
+            "example": true
+          },
+          {
+            "name": "start",
+            "type": "string",
+            "title": {
+              "en": "Window start"
+            },
+            "example": {
+              "en": "2026-07-21T23:30:00Z"
+            }
+          },
+          {
+            "name": "end",
+            "type": "string",
+            "title": {
+              "en": "Window end"
+            },
+            "example": {
+              "en": "2026-07-22T02:30:00Z"
+            }
+          },
+          {
+            "name": "average_price",
+            "type": "number",
+            "title": {
+              "en": "Average price (p/kWh, estimate)"
+            },
+            "example": 6.9
+          },
+          {
+            "name": "max_slot_price",
+            "type": "number",
+            "title": {
+              "en": "Dearest slot (p/kWh, estimate)"
+            },
+            "example": 6.9
+          },
+          {
+            "name": "cheapest_available",
+            "type": "number",
+            "title": {
+              "en": "Cheapest available (p/kWh, estimate)"
+            },
+            "example": 6.9
+          },
+          {
+            "name": "slots",
+            "type": "number",
+            "title": {
+              "en": "Number of half-hours"
+            },
+            "example": 6
           }
         ]
       },
