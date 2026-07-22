@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Lowest price today" },
-  "units": { "en": "p/kWh" },
+  "title": {
+    "en": "Lowest price today",
+    "nl": "Laagste prijs vandaag"
+  },
+  "units": {
+    "en": "p/kWh"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

@@ -1,6 +1,6 @@
 {
   "id": "uk.co.zarb.octopusenergy",
-  "version": "1.0.32",
+  "version": "1.0.33",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -12,7 +12,8 @@
     "en": "Octopus Energy"
   },
   "description": {
-    "en": "Power your home when energy is cheapest and greenest."
+    "en": "Power your home when energy is cheapest and greenest.",
+    "nl": "Gebruik stroom in huis wanneer die het goedkoopst en groenst is."
   },
   "category": [
     "energy"

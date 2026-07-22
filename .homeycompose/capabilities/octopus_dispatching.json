@@ -1,7 +1,8 @@
 {
   "type": "boolean",
   "title": {
-    "en": "Octopus smart-charging now"
+    "en": "Octopus smart-charging now",
+    "nl": "Octopus laadt nu slim op"
   },
   "getable": true,
   "setable": false,

@@ -1,7 +1,8 @@
 {
   "type": "number",
   "title": {
-    "en": "Day rate"
+    "en": "Day rate",
+    "nl": "Dagtarief"
   },
   "units": {
     "en": "p/kWh"

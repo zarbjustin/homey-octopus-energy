@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Off-peak cost today" },
-  "units": { "en": "£" },
+  "title": {
+    "en": "Off-peak cost today",
+    "nl": "Daltariefkosten vandaag"
+  },
+  "units": {
+    "en": "£"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

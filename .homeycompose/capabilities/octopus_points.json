@@ -1,7 +1,8 @@
 {
   "type": "number",
   "title": {
-    "en": "Octoplus points"
+    "en": "Octoplus points",
+    "nl": "Octoplus-punten"
   },
   "units": {
     "en": "pts"

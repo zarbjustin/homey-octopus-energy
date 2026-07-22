@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "uk.co.zarb.octopusenergy",
-  "version": "1.0.32",
+  "version": "1.0.33",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -13,7 +13,8 @@
     "en": "Octopus Energy"
   },
   "description": {
-    "en": "Power your home when energy is cheapest and greenest."
+    "en": "Power your home when energy is cheapest and greenest.",
+    "nl": "Gebruik stroom in huis wanneer die het goedkoopst en groenst is."
   },
   "category": [
     "energy"
@@ -3777,7 +3778,8 @@
   "drivers": [
     {
       "name": {
-        "en": "Electricity Meter"
+        "en": "Electricity Meter",
+        "nl": "Elektriciteitsmeter"
       },
       "class": "sensor",
       "capabilities": [
@@ -4035,7 +4037,8 @@
     },
     {
       "name": {
-        "en": "Export Meter"
+        "en": "Export Meter",
+        "nl": "Teruglevermeter"
       },
       "class": "sensor",
       "capabilities": [
@@ -4149,7 +4152,8 @@
     },
     {
       "name": {
-        "en": "Gas Meter"
+        "en": "Gas Meter",
+        "nl": "Gasmeter"
       },
       "class": "sensor",
       "capabilities": [
@@ -4449,7 +4453,8 @@
     "measure_gas_carbon": {
       "type": "number",
       "title": {
-        "en": "Carbon (gas, today)"
+        "en": "Carbon (gas, today)",
+        "nl": "CO₂ (gas, vandaag)"
       },
       "units": {
         "en": "kg"
@@ -4521,7 +4526,8 @@
     "measure_renewable_percent": {
       "type": "number",
       "title": {
-        "en": "Renewables"
+        "en": "Renewables",
+        "nl": "Hernieuwbaar"
       },
       "units": {
         "en": "%"
@@ -4536,7 +4542,8 @@
     "octopus_carbon_level": {
       "type": "enum",
       "title": {
-        "en": "Carbon level"
+        "en": "Carbon level",
+        "nl": "CO₂-niveau"
       },
       "getable": true,
       "setable": false,
@@ -4579,7 +4586,8 @@
     "octopus_charge_start": {
       "type": "string",
       "title": {
-        "en": "Next planned charge slot"
+        "en": "Next planned charge slot",
+        "nl": "Volgend gepland laadmoment"
       },
       "getable": true,
       "setable": false,
@@ -4589,7 +4597,8 @@
     "octopus_cost_month": {
       "type": "number",
       "title": {
-        "en": "Cost this month"
+        "en": "Cost this month",
+        "nl": "Kosten deze maand"
       },
       "units": {
         "en": "£"
@@ -4604,7 +4613,8 @@
     "octopus_cost_offpeak_today": {
       "type": "number",
       "title": {
-        "en": "Off-peak cost today"
+        "en": "Off-peak cost today",
+        "nl": "Daltariefkosten vandaag"
       },
       "units": {
         "en": "£"
@@ -4619,7 +4629,8 @@
     "octopus_cost_peak_today": {
       "type": "number",
       "title": {
-        "en": "Peak cost today"
+        "en": "Peak cost today",
+        "nl": "Piektariefkosten vandaag"
       },
       "units": {
         "en": "£"
@@ -4634,7 +4645,8 @@
     "octopus_cost_projected": {
       "type": "number",
       "title": {
-        "en": "Projected month cost"
+        "en": "Projected month cost",
+        "nl": "Verwachte maandkosten"
       },
       "units": {
         "en": "£"
@@ -4667,7 +4679,8 @@
     "octopus_cost_yesterday": {
       "type": "number",
       "title": {
-        "en": "Cost yesterday"
+        "en": "Cost yesterday",
+        "nl": "Kosten gisteren"
       },
       "units": {
         "en": "£"
@@ -4682,7 +4695,8 @@
     "octopus_dispatching": {
       "type": "boolean",
       "title": {
-        "en": "Octopus smart-charging now"
+        "en": "Octopus smart-charging now",
+        "nl": "Octopus laadt nu slim op"
       },
       "getable": true,
       "setable": false,
@@ -4699,7 +4713,8 @@
     "octopus_earnings_month": {
       "type": "number",
       "title": {
-        "en": "Earnings this month"
+        "en": "Earnings this month",
+        "nl": "Opbrengst deze maand"
       },
       "units": {
         "en": "£"
@@ -4714,7 +4729,8 @@
     "octopus_earnings_projected": {
       "type": "number",
       "title": {
-        "en": "Projected month earnings"
+        "en": "Projected month earnings",
+        "nl": "Verwachte maandopbrengst"
       },
       "units": {
         "en": "£"
@@ -4729,7 +4745,8 @@
     "octopus_earnings_today": {
       "type": "number",
       "title": {
-        "en": "Earnings (last 24h)"
+        "en": "Earnings (last 24h)",
+        "nl": "Opbrengst (laatste 24u)"
       },
       "units": {
         "en": "£"
@@ -4744,7 +4761,8 @@
     "octopus_good_now": {
       "type": "boolean",
       "title": {
-        "en": "Good time to use power"
+        "en": "Good time to use power",
+        "nl": "Goed moment om stroom te gebruiken"
       },
       "getable": true,
       "setable": false,
@@ -4761,7 +4779,8 @@
     "octopus_points": {
       "type": "number",
       "title": {
-        "en": "Octoplus points"
+        "en": "Octoplus points",
+        "nl": "Octoplus-punten"
       },
       "units": {
         "en": "pts"
@@ -4776,7 +4795,8 @@
     "octopus_price_avg_today": {
       "type": "number",
       "title": {
-        "en": "Average price today"
+        "en": "Average price today",
+        "nl": "Gemiddelde prijs vandaag"
       },
       "units": {
         "en": "p/kWh"
@@ -4791,7 +4811,8 @@
     "octopus_price_day": {
       "type": "number",
       "title": {
-        "en": "Day rate"
+        "en": "Day rate",
+        "nl": "Dagtarief"
       },
       "units": {
         "en": "p/kWh"
@@ -4846,7 +4867,8 @@
     "octopus_price_max_today": {
       "type": "number",
       "title": {
-        "en": "Highest price today"
+        "en": "Highest price today",
+        "nl": "Hoogste prijs vandaag"
       },
       "units": {
         "en": "p/kWh"
@@ -4861,7 +4883,8 @@
     "octopus_price_min_today": {
       "type": "number",
       "title": {
-        "en": "Lowest price today"
+        "en": "Lowest price today",
+        "nl": "Laagste prijs vandaag"
       },
       "units": {
         "en": "p/kWh"
@@ -4876,7 +4899,8 @@
     "octopus_price_next": {
       "type": "number",
       "title": {
-        "en": "Next price"
+        "en": "Next price",
+        "nl": "Volgende prijs"
       },
       "units": {
         "en": "p/kWh"
@@ -4891,7 +4915,8 @@
     "octopus_price_night": {
       "type": "number",
       "title": {
-        "en": "Night rate"
+        "en": "Night rate",
+        "nl": "Nachttarief"
       },
       "units": {
         "en": "p/kWh"
@@ -4906,7 +4931,8 @@
     "octopus_smart_charge": {
       "type": "boolean",
       "title": {
-        "en": "Cheap-charge window (planned)"
+        "en": "Cheap-charge window (planned)",
+        "nl": "Goedkoop laadvenster (gepland)"
       },
       "getable": true,
       "setable": false,
@@ -4941,7 +4967,8 @@
     "octopus_updated": {
       "type": "string",
       "title": {
-        "en": "Last updated"
+        "en": "Last updated",
+        "nl": "Laatst bijgewerkt"
       },
       "getable": true,
       "setable": false,

@@ -1,1 +1,14 @@
-{}
+{
+  "notification": {
+    "tariff_changed": "🐙 Your {fuel} tariff changed to {tariff}.",
+    "auth_failed": "🐙 Octopus authentication failed — repair the device to update your API key.",
+    "balance_low": "💷 Your Octopus balance is low: £{amount}",
+    "dispatch_started": "🚗 Intelligent Octopus Go smart-charge dispatch has started.",
+    "saving_session_started": "🐙 Octopus Saving Session has started — reduce usage to earn OctoPoints.",
+    "free_electricity_started": "🐙 Octopus Power Up (free electricity) has started — run appliances now to use free power."
+  },
+  "error": {
+    "boost_disabled": "Boost control is turned off. Enable it in the app settings after reading the warning.",
+    "no_iog_device": "No Intelligent Octopus Go device (EV or charge point) was found on this account."
+  }
+}

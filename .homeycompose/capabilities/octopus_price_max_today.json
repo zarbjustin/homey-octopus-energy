@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Highest price today" },
-  "units": { "en": "p/kWh" },
+  "title": {
+    "en": "Highest price today",
+    "nl": "Hoogste prijs vandaag"
+  },
+  "units": {
+    "en": "p/kWh"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

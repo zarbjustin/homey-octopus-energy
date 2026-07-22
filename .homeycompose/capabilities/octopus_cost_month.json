@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Cost this month" },
-  "units": { "en": "£" },
+  "title": {
+    "en": "Cost this month",
+    "nl": "Kosten deze maand"
+  },
+  "units": {
+    "en": "£"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

@@ -17,6 +17,9 @@ Module._load = function load(request, parent, isMain) {
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
 Module._load = originalLoad;
 
+const EN_LOCALE = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'locales', 'en.json'), 'utf8'));
+const tr = (key) => key.split('.').reduce((o, k) => (o || {})[k], EN_LOCALE) ?? key;
+
 function makeDevice({ consent = true, devices = [] } = {}) {
   const calls = [];
   const device = Object.create(OctopusMeterDevice.prototype);
@@ -28,6 +31,7 @@ function makeDevice({ consent = true, devices = [] } = {}) {
     },
   };
   device.homey = {
+    __: (key) => tr(key),
     settings: { get: (k) => (k === 'enable_boost_control' ? consent : undefined) },
     app: { getCachedDevices: async () => devices },
   };

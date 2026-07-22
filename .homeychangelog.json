@@ -1,4 +1,7 @@
 {
+  "1.0.33": {
+    "en": "Dutch language support (Nederlands): the app description, device and value (capability) names, and all push notifications now appear in Dutch on Dutch-language Homeys. Groundwork for more languages — community translation help is welcome."
+  },
   "1.0.32": {
     "en": "Intelligent Octopus Go dispatch control. New 'An EV boost is/is not active' Flow condition so you can automate around bump charges. Advanced (off by default): opt in under Settings to enable 'Start/Cancel an EV boost (bump) charge' Flow actions that command your EV/charger directly. A boost charges at the current rate, so it's opt-in and clearly warned."
   },

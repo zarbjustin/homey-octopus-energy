@@ -9,6 +9,11 @@ const { SavingSessionsPoller } = require('../.homeybuild/lib/SavingSessionsPolle
 const { KrakenClient } = require('../.homeybuild/lib/KrakenClient.js');
 const { opaqueKey, opaqueKeyMigrating } = require('../.homeybuild/lib/diagnosticsKey.js');
 
+const EN_LOCALE = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'locales', 'en.json'), 'utf8'));
+function tr(key) {
+  return key.split('.').reduce((o, k) => (o || {})[k], EN_LOCALE) ?? key;
+}
+
 function fakeApp(accounts) {
   const settings = new Map();
   const fired = [];
@@ -31,6 +36,7 @@ function fakeApp(accounts) {
       return list.map((d) => ({ start: d.start, end: d.end, delta: null }));
     },
     homey: {
+      __: (key) => tr(key),
       drivers: {
         getDriver(id) {
           return { getDevices: () => (id === 'electricity' ? devices : []) };

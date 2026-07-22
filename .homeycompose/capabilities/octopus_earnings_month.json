@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Earnings this month" },
-  "units": { "en": "£" },
+  "title": {
+    "en": "Earnings this month",
+    "nl": "Opbrengst deze maand"
+  },
+  "units": {
+    "en": "£"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

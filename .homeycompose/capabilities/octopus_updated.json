@@ -1,7 +1,8 @@
 {
   "type": "string",
   "title": {
-    "en": "Last updated"
+    "en": "Last updated",
+    "nl": "Laatst bijgewerkt"
   },
   "getable": true,
   "setable": false,

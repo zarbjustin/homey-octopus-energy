@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Peak cost today" },
-  "units": { "en": "£" },
+  "title": {
+    "en": "Peak cost today",
+    "nl": "Piektariefkosten vandaag"
+  },
+  "units": {
+    "en": "£"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

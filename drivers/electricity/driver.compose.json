@@ -1,6 +1,7 @@
 {
   "name": {
-    "en": "Electricity Meter"
+    "en": "Electricity Meter",
+    "nl": "Elektriciteitsmeter"
   },
   "class": "sensor",
   "capabilities": [

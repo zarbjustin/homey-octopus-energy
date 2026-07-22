@@ -850,7 +850,7 @@ export class OctopusMeterDevice extends Homey.Device {
       const state = { deviceId: this.getData().id, old: oldT, new: match.tariffCode };
       this.fireAppTrigger('tariff_changed', { old: oldT, new: match.tariffCode }, state);
       if (this.notifyEnabled('notify_tariff_change', true)) {
-        await this.notify(`🐙 Your ${s.fuel} tariff changed to ${match.tariffCode}.`);
+        await this.notify(this.homey.__('notification.tariff_changed').replace('{fuel}', s.fuel).replace('{tariff}', match.tariffCode));
       }
       return true;
     }
@@ -954,7 +954,7 @@ export class OctopusMeterDevice extends Homey.Device {
     } else if (decision.markUnavailable) {
       if (decision.authenticationFailure && !this.notified401 && this.notifyEnabled('notify_auth', true)) {
         this.notified401 = true;
-        await this.notify('🐙 Octopus authentication failed — repair the device to update your API key.');
+        await this.notify(this.homey.__('notification.auth_failed'));
       }
       await this.setUnavailable(decision.message ?? 'Octopus Energy is temporarily unavailable.').catch(this.error);
     } else if (decision.markAvailable && !this.getAvailable()) {
@@ -1690,7 +1690,7 @@ export class OctopusMeterDevice extends Homey.Device {
     );
     const chosen = boostable ?? candidates[0];
     if (!chosen) {
-      throw new Error('No Intelligent Octopus Go device (EV or charge point) was found on this account.');
+      throw new Error(this.homey.__('error.no_iog_device'));
     }
     return chosen.deviceId;
   }
@@ -1700,7 +1700,7 @@ export class OctopusMeterDevice extends Homey.Device {
    *  the caller can confirm the effect rather than assume success. */
   async bumpCharge(): Promise<{ currentState: string | null }> {
     if (!this.boostControlEnabled()) {
-      throw new Error('Boost control is turned off. Enable it in the app settings after reading the warning.');
+      throw new Error(this.homey.__('error.boost_disabled'));
     }
     const deviceId = await this.resolveBoostDeviceId();
     return this.kraken.updateBoostCharge(deviceId, 'BOOST');
@@ -1710,7 +1710,7 @@ export class OctopusMeterDevice extends Homey.Device {
    *  user to have opted in to boost control. */
   async cancelBoost(): Promise<{ currentState: string | null }> {
     if (!this.boostControlEnabled()) {
-      throw new Error('Boost control is turned off. Enable it in the app settings after reading the warning.');
+      throw new Error(this.homey.__('error.boost_disabled'));
     }
     const deviceId = await this.resolveBoostDeviceId();
     return this.kraken.updateBoostCharge(deviceId, 'CANCEL');
@@ -2627,7 +2627,7 @@ export class OctopusMeterDevice extends Homey.Device {
       this.fireAppTrigger('balance_below', { balance }, state);
       const threshold = Number(this.homey.settings.get('low_balance_threshold') ?? 0);
       if (prev >= threshold && balance < threshold && this.notifyEnabled('notify_low_balance', false)) {
-        await this.notify(`💷 Your Octopus balance is low: £${balance.toFixed(2)}`);
+        await this.notify(this.homey.__('notification.balance_low').replace('{amount}', balance.toFixed(2)));
       }
     }
   }

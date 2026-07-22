@@ -1,0 +1,14 @@
+{
+  "notification": {
+    "tariff_changed": "🐙 Je {fuel}-tarief is gewijzigd naar {tariff}.",
+    "auth_failed": "🐙 Octopus-authenticatie mislukt — repareer het apparaat om je API-sleutel bij te werken.",
+    "balance_low": "💷 Je Octopus-saldo is laag: £{amount}",
+    "dispatch_started": "🚗 Intelligent Octopus Go slim opladen is gestart.",
+    "saving_session_started": "🐙 Octopus Saving Session is gestart — verminder je verbruik om OctoPoints te verdienen.",
+    "free_electricity_started": "🐙 Octopus Power Up (gratis stroom) is gestart — gebruik nu apparaten om van de gratis stroom te profiteren."
+  },
+  "error": {
+    "boost_disabled": "Boostregeling staat uit. Schakel deze in bij de app-instellingen nadat je de waarschuwing hebt gelezen.",
+    "no_iog_device": "Geen Intelligent Octopus Go-apparaat (EV of laadpunt) gevonden op dit account."
+  }
+}

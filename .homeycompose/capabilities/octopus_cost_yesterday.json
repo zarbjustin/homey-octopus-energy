@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Cost yesterday" },
-  "units": { "en": "£" },
+  "title": {
+    "en": "Cost yesterday",
+    "nl": "Kosten gisteren"
+  },
+  "units": {
+    "en": "£"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

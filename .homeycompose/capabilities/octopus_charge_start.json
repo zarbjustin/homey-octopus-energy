@@ -1,7 +1,8 @@
 {
   "type": "string",
   "title": {
-    "en": "Next planned charge slot"
+    "en": "Next planned charge slot",
+    "nl": "Volgend gepland laadmoment"
   },
   "getable": true,
   "setable": false,

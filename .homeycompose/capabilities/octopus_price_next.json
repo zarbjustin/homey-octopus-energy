@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Next price" },
-  "units": { "en": "p/kWh" },
+  "title": {
+    "en": "Next price",
+    "nl": "Volgende prijs"
+  },
+  "units": {
+    "en": "p/kWh"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

@@ -113,7 +113,7 @@ export class SavingSessionsPoller extends AccountPoller {
         const enabled = this.app.homey.settings.get('notify_saving_sessions');
         if (enabled === undefined || enabled === null || enabled) {
           this.app.homey.notifications.createNotification({
-            excerpt: '🐙 Octopus Saving Session has started — reduce usage to earn OctoPoints.',
+            excerpt: this.app.homey.__('notification.saving_session_started'),
           }).catch((err) => this.app.error('Notification failed:', err));
         }
       }
@@ -159,7 +159,7 @@ export class SavingSessionsPoller extends AccountPoller {
           const enabled = this.app.homey.settings.get('notify_free_electricity');
           if (enabled === undefined || enabled === null || enabled) {
             this.app.homey.notifications.createNotification({
-              excerpt: '🐙 Octopus Power Up (free electricity) has started — run appliances now to use free power.',
+              excerpt: this.app.homey.__('notification.free_electricity_started'),
             }).catch((err) => this.app.error('Notification failed:', err));
           }
         }

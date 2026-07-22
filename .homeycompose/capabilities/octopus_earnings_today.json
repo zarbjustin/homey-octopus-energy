@@ -1,7 +1,8 @@
 {
   "type": "number",
   "title": {
-    "en": "Earnings (last 24h)"
+    "en": "Earnings (last 24h)",
+    "nl": "Opbrengst (laatste 24u)"
   },
   "units": {
     "en": "£"

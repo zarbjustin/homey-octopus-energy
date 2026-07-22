@@ -1,7 +1,8 @@
 {
   "type": "number",
   "title": {
-    "en": "Renewables"
+    "en": "Renewables",
+    "nl": "Hernieuwbaar"
   },
   "units": {
     "en": "%"

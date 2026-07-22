@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Projected month cost" },
-  "units": { "en": "£" },
+  "title": {
+    "en": "Projected month cost",
+    "nl": "Verwachte maandkosten"
+  },
+  "units": {
+    "en": "£"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

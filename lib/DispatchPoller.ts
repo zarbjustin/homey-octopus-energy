@@ -166,7 +166,7 @@ export class DispatchPoller extends AccountPoller {
         end: soonest?.end ? this.fmt(soonest.end) : '',
       });
       if (this.notifyEnabled('notify_dispatch', false)) {
-        await this.notify('🚗 Intelligent Octopus Go smart-charge dispatch has started.');
+        await this.notify(this.app.homey.__('notification.dispatch_started'));
       }
     }
     if (wasSeeded && result.ended) {

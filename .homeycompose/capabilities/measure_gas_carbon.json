@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Carbon (gas, today)" },
-  "units": { "en": "kg" },
+  "title": {
+    "en": "Carbon (gas, today)",
+    "nl": "CO₂ (gas, vandaag)"
+  },
+  "units": {
+    "en": "kg"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

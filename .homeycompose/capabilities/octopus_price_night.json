@@ -1,7 +1,8 @@
 {
   "type": "number",
   "title": {
-    "en": "Night rate"
+    "en": "Night rate",
+    "nl": "Nachttarief"
   },
   "units": {
     "en": "p/kWh"

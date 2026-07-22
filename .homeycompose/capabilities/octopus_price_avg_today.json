@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Average price today" },
-  "units": { "en": "p/kWh" },
+  "title": {
+    "en": "Average price today",
+    "nl": "Gemiddelde prijs vandaag"
+  },
+  "units": {
+    "en": "p/kWh"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

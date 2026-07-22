@@ -1,7 +1,8 @@
 {
   "type": "boolean",
   "title": {
-    "en": "Good time to use power"
+    "en": "Good time to use power",
+    "nl": "Goed moment om stroom te gebruiken"
   },
   "getable": true,
   "setable": false,

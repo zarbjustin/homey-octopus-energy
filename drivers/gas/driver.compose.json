@@ -1,6 +1,7 @@
 {
   "name": {
-    "en": "Gas Meter"
+    "en": "Gas Meter",
+    "nl": "Gasmeter"
   },
   "class": "sensor",
   "capabilities": [

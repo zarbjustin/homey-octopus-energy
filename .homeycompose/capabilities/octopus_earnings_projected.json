@@ -1,7 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Projected month earnings" },
-  "units": { "en": "£" },
+  "title": {
+    "en": "Projected month earnings",
+    "nl": "Verwachte maandopbrengst"
+  },
+  "units": {
+    "en": "£"
+  },
   "decimals": 2,
   "getable": true,
   "setable": false,

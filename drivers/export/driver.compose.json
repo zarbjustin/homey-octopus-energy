@@ -1,6 +1,7 @@
 {
   "name": {
-    "en": "Export Meter"
+    "en": "Export Meter",
+    "nl": "Teruglevermeter"
   },
   "class": "sensor",
   "capabilities": [
