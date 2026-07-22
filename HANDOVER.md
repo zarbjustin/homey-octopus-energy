@@ -4,9 +4,16 @@ Last updated: 21 July 2026
 
 ## Current state
 
-- **Sprint S60 "Trust & Money" — FOUNDATION COMPLETE (steps 1–3), feature phase next (unreleased, on
-  `main`).** Spec: `docs/handover/sprint-s60-trust-and-money-spec.md`. **Done (version still 1.0.27,
-  no new build; CI/Validate/CodeQL green on each push):**
+- **v1.0.28 (22 Jul 2026) — SHIPPED: budget alerts + per-source freshness + 7-day breakdown.**
+  Bundles the S60 "Trust & Money" user-facing work (release commit `2c4f2f6`, publish run
+  `29915132425`, green — App Store build uploaded). BL-15 (`data_source_stale` Flow condition +
+  per-source widget freshness badges), BL-17 (Flow-trigger "24h" wording), BL-18a (monthly +
+  projected budget triggers, `monthly_cost_above` condition), BL-18b (settled 7-day usage breakdown
+  in the summary widget). Under it, the S60 foundation shipped too: `lib/reporting/` seam
+  (`cost.ts`/`settlement.ts`), `settledThrough` contiguous fix, generation-safe reporting. 499 tests
+  green. **Manual step:** promote the v1.0.28 build to Test/Live at
+  https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy.
+- **Sprint S60 "Trust & Money" — COMPLETE** (spec: `docs/handover/sprint-s60-trust-and-money-spec.md`).
   **Step 1** golden/characterization tests for `refreshMonthlyCost`/`refreshDayBreakdown` (`220d005`);
   **Step 2** pure cost calculators → `lib/reporting/cost.ts` (`rateForRecord`, `consumptionCostPence`,
   `windowCostPence`, `standingChargePence`, `peakOffPeakCostPence`), device delegates via
