@@ -18,11 +18,14 @@ Last updated: 21 July 2026
   refresh superseded mid-fetch can't overwrite a newer summary (BL-08 cumulative writer untouched).
   **480 tests pass, tsc + lint clean.**
   **Next in S60 — FEATURE PHASE (each needs a product decision, do not autopilot):**
-  **Step 4** thin device-façade cleanup is DEFERRED per plan (optional). **BL-17** (`usage_today`):
-  BB-08 flags this as a **compatibility contract** — `octopus_usage_today`/`octopus_cost_today` sum
-  the rolling last-48 records but are labelled "today"; the ~24h Octopus data lag means true
-  local-day would read ~0 for much of the day, so the report says relabel/provenance FIRST, migrate
-  calc only with release notes + tests (needs the product call on relabel-vs-migrate).
+  **BL-17** (`usage_today`): **RESOLVED as relabel-only** — the honesty defect (BB-08) is fixed by
+  wording (capability titles are "Usage/Cost (last 24h)"; Flow-trigger titles aligned to "Usage/Cost
+  (24h)", commit `98575d2`). The rolling-24h **calculation is intentionally kept** — the REST
+  consumption API lags ~24h so a true calendar-day figure would read ~0 most of the day (a known HA
+  friction) and migrating would break the compatibility contract (Flows expecting a 24h total). A
+  true "today so far" tile is a Phase-4 ADDITIVE enhancement (**BL-31**), not a fix. Full rationale +
+  evidence in `docs/handover/sprint-s60-trust-and-money-spec.md` (BL-17 decision). **Next release
+  changelog** should note the Flow-trigger rename.
   **BL-15** per-source freshness + stale-aware tokens (trust substrate for BL-18). **BL-18a/b**
   settled insights + budget Flows (REST `group_by` is consumption-only; cost/peak from bounded raw
   half-hours + rates; settled-vs-estimate discipline per the spec). Reporting seam (`lib/reporting/`)

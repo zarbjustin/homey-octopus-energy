@@ -53,6 +53,7 @@
 | BL-28 | J | Internationalisation beyond `en` (extract strings, add locales) | M | P3 | — | Phase 5 | 02, 13 |
 | BL-29 | J | Docs: fix README release line (1.0.18→current); lint `test/`/JS; SBOM/provenance note | S | P3 | — | Phase 1 | 08 BB-13/BB-14, 03, 06 |
 | BL-30 | H | API-client hardening: JWT `exp` parsing, contract test vs a documented authed endpoint, re-introspection ritual | S | P2 | — | Phase 2 | 05, 06 S-LOW-01, 17 R-005 |
+| BL-31 | J | Optional calendar "today so far" usage/cost tiles (midnight→now), ADDITIVE to the existing rolling "last 24h" capabilities — mirrors HA's current+previous split; sparse/late by design (REST consumption lags ~24h) | M | P3 | — | Phase 4 | 08 BB-08, BL-17 decision, community (BottlecapDave HA current_accumulative) |
 
 ## Detailed cards for the near-term (P1 / Phase 1–2)
 
@@ -81,6 +82,14 @@
 ### BL-11 — Account-wide credential propagation (Epic C, M, P1)
 - **AC:** Repairing one meter re-keys all siblings on the same account atomically; no stale client remains; original meter identity preserved (`getData().id` unchanged).
 - **Testing:** Multi-device repair regression test asserting siblings re-key and old clients are invalidated.
+
+### BL-31 — Optional calendar "today so far" tiles (Epic J, M, P3, Phase 4)
+- **Description:** ADD new, clearly-named calendar-day capabilities (usage + cost, midnight→now) ALONGSIDE the existing rolling "last 24h" ones — never replacing them. Mirrors the HA current+previous split.
+- **Value:** Serves users (esp. HA migrants) who expect a true calendar-"today" figure, without breaking the rolling-24h compatibility contract that BL-17 preserved.
+- **Context/decision:** Resolves the residual half of BB-08. BL-17 resolved the mislabel by wording only (kept the rolling-24h calc) because the REST consumption API lags ~24h, making a true local-day figure read ~0 for most of the day (a known HA friction point). See the BL-17 decision in `docs/handover/sprint-s60-trust-and-money-spec.md`.
+- **AC:** Existing `octopus_usage_today`/`octopus_cost_today` (rolling 24h) unchanged; new capabilities compute midnight→now from settled records; both clearly labelled; sparse/late population handled honestly (no misleading 0 vs "no data yet"); no Flow/ID breakage.
+- **Testing:** Local-day windowing tests (DST 46/48/50-slot days); "no settled data yet" fail-closed rendering; reuse of `lib/reporting/cost.ts` calculators.
+- **Risk:** Low (additive). UX: distinguish "0 so far" from "not settled yet".
 
 ## Cross-discipline disagreements folded into the backlog
 1. **Dispatch control (BL-24)** — Product wants write control (headline gap vs HA/Tibber); Architecture flags versionless-mutation risk (R-005/R-006). **Resolution:** ship read-only + reference-client-verified + consent-gated first; control is Phase 4–5, behind explicit opt-in, never inferred as settled price.

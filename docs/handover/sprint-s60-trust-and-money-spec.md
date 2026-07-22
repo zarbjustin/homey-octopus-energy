@@ -37,8 +37,40 @@ defer the full `PlanningFacade`/device-as-façade.
    lib/OctopusClient.ts:504) + a `SettledInsightsService` sharing ReportingService's calculators. — M
 8. **BL-18b** budget settings + crossing-only Flows + stale/settled-aware widget/tokens. — L
 
+## Deferred to a later sprint
+
 **Deferred to a later sprint:** full `PlanningFacade`, device-as-façade completion, BL-16 (a11y),
 BL-20 (saving-session "soon" de-dup), BL-21 (Power-ups). **Queued next:** BL-22 rolling target-rate.
+
+## BL-17 decision (RESOLVED — relabel only; calc intentionally unchanged)
+
+**Decision (22 Jul 2026):** keep the rolling **"last 24h"** calculation for `octopus_usage_today` /
+`octopus_cost_today`; do **NOT** migrate to a strict calendar-day (midnight→now) window. The
+honesty defect (BB-08 — a rolling window titled "today") is fully resolved by wording only: the
+capability titles are already "Usage/Cost (last 24h)" and the Flow-trigger titles were aligned to
+"Usage/Cost (24h) rises above …" (commit `98575d2`).
+
+**Evidence / rationale:**
+- The Octopus REST **consumption API lags ~24h** (half-hourly data is a day behind unless a Home
+  Mini is present), so a true calendar-day figure reads **~0 for most of the day** and only fills in
+  late afternoon/evening — a known, recurring "why is today's usage 0?" friction in the Home
+  Assistant community.
+- The community-reference integration (**BottlecapDave's HA Octopus Energy**) names sensors by their
+  actual window — a `current_accumulative_consumption` (today) **and** a
+  `previous_accumulative_consumption` (settled yesterday) — it does not relabel a rolling window as
+  "today". We already expose settled calendar figures via `octopus_cost_yesterday` + month-to-date.
+- Migrating the existing capability would be a **UX regression** (a ~0-then-jump tile) and would
+  break the **compatibility contract** (BB-08): existing Flows built on "usage rises above X kWh"
+  expect a ~24h total.
+- Our always-populated rolling-24h is arguably a **better** at-a-glance tile than HA's sparse "today".
+
+**Future enhancement (Phase 4, additive — NOT a fix):** if a true calendar "today so far" figure is
+wanted, ADD a new, clearly-named capability (mirroring HA's current+previous split) rather than
+changing the existing one. Tracked as **BL-31** (backlog `14-…`, roadmap `15-…` Phase 4).
+
+**Next release note (drop into `.homeychangelog.json` at the next version bump):** "Renamed the
+'Today's usage/cost' Flow triggers to 'Usage/Cost (24h)' so the wording matches what they measure
+(a rolling 24-hour total, as the tiles already show)."
 
 ## Non-negotiables (BL-18 trust discipline)
 - Settled vs estimate **visually + semantically distinct**; projection **always** labelled estimate.

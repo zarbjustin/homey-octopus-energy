@@ -64,6 +64,7 @@ flowchart LR
 | BL-23 Dispatch read-surface deepening | Parity with HA read features | M | P2 |
 | BL-25 Carbon/cost & export/Flux optimiser | Power-user value | L | P2 |
 | BL-26/27 New widgets & Flow cards (REST-default) | Product surface growth | M–L | P2 |
+| BL-31 Optional calendar "today so far" usage/cost tiles (additive to "last 24h") | Matches HA's current+previous mental model without breaking the rolling-24h compatibility contract (BL-17) | M | P3 |
 **Exit criteria:** comparison never claims "best" and shows confidence; target-rate cards recompute on `rates_published`; new live surfaces fit F0.
 
 ## Phase 5 — Future vision, platform & community
