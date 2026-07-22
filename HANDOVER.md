@@ -4,18 +4,19 @@ Last updated: 21 July 2026
 
 ## Current state
 
-- **S64 (BL-24a) — dispatch-control verification spike DONE (read-only; unreleased, on main `56f477d`).**
-  De-risked the marquee dispatch-control feature *read-first*. Verified against the live Kraken schema
-  that IOG boost control is `updateBoostCharge(input:{ deviceId, action: BOOST|CANCEL })` —
-  **device-scoped**, returns `SmartFlexDeviceInterface`; boost state is
-  `devices.status.currentState === 'BOOSTING'`. **Bug surfaced:** the shipped `triggerBoostCharge`
-  mutation is bogus/account-scoped, so the live `bump_charge` action has never worked (fails closed) —
-  S65 fixes it. **Shipped read-only:** `DispatchView.boostingNow`, `DispatchPoller.isBoosting()`
-  (fail-closed on stale), Flow condition `ev_boost_active`. Spec:
-  `docs/handover/sprint-s64-dispatch-control-spike.md`. 536 tests pass, all gates green. **Decision
-  pending:** ship S64 read-only now (v1.0.32) or bundle with the S65 write. **S65 (BL-24b) next:**
-  consent-gated `updateBoostCharge` write (opt-in default OFF), reference-verified on a live IOG
-  account.
+- **S65 (BL-24b) — consent-gated EV boost control DONE (gated OFF; unreleased, on main `9d7d661`).**
+  The marquee dispatch-control write, behind an explicit opt-in (`enable_boost_control`, **default
+  OFF**). `KrakenClient.updateBoostCharge(deviceId, 'BOOST'|'CANCEL')` (verified device-scoped
+  mutation, returns `currentState`); `OctopusMeterDevice.bumpCharge()/cancelBoost()` resolve a
+  boost-capable EV/charge-point id and refuse without consent; Flow actions `bump_charge` (rewired)
+  + new `cancel_boost`; settings "EV boost control (advanced)" opt-in with warning. 543 tests pass,
+  all gates green. **RELEASE BLOCKED on a one-time live reference-verify** (Kraken is versionless,
+  R-005): enable the setting, run `bump_charge`, confirm the EV shows `currentState → BOOSTING`
+  (and `ev_boost_active` true), then `cancel_boost`. Once confirmed, bundle **S64 + S65** as one
+  "dispatch control" release (next version v1.0.32).
+- **S64 (BL-24a) — dispatch-control verification spike DONE (read-only; on main `56f477d`).**
+  Verified boost contract + shipped `DispatchView.boostingNow` / `isBoosting()` / `ev_boost_active`.
+  Spec: `docs/handover/sprint-s64-dispatch-control-spike.md`.
 - **v1.0.31 (22 Jul 2026) — SHIPPED: Power Up automation + accessibility (S63); Phase 3 complete.**
   Release commit `a535119`, publish run `29925835310` (green — App Store build uploaded). **BL-21**
   — Power Up (Free Electricity) automation parity, reusing the saving-session poller machinery (no
