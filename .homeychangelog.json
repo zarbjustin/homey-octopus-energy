@@ -1,4 +1,7 @@
 {
+  "1.0.30": {
+    "en": "Honest tariff comparison: the 'find best tariff' Flow now ranks tariffs with eligibility checks and a confidence level instead of implying a single winner. Saving-session 'starting soon' Flows no longer fire duplicate notifications after an app restart."
+  },
   "1.0.0": {
     "en": "Initial release: Electricity, Gas and Export meter devices with automatic discovery, half-hourly prices, standing charge, price level, last-24h usage and cost/earnings, Homey Energy integration, account balance, smart-charge planner, carbon intensity, tariff comparison, reporting, and a rich set of dynamic-pricing, saving-session, dispatch and balance Flow cards."
   },
