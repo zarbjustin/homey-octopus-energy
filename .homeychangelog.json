@@ -85,5 +85,8 @@
   },
   "1.0.28": {
     "en": "New: budget alerts — add a Flow that triggers when your month's electricity cost (or the projected month cost) rises above a budget you choose. New: a 'data is stale' Flow condition plus per-source freshness badges on the widgets, so you can see and automate on exactly which data (price, consumption, carbon, balance, billing) is up to date; the last known value is always kept. New: a 'Last 7 days' settled usage breakdown in the Summary widget. Changed: the 'Today's usage/cost' Flow triggers are now 'Usage/Cost (24h)' to match what they measure (a rolling 24-hour total)."
+  },
+  "1.0.29": {
+    "en": "New: target-rate automation — a Flow trigger, condition and action for 'the cheapest N hours at or under a price cap before a deadline'. It only fires when it's genuinely cheap, tells you if your cap can't be met, and always labels forward prices as estimates. New (Intelligent Octopus Go): a 'smart-charge dispatch starts within' condition and a 'next dispatch' action, so a target-rate Flow can defer to your car's own cheap schedule instead of fighting it. Dispatch data now carries a freshness flag and these cards fail closed when it's stale. See the new Flow cookbook in the app's docs."
   }
 }
