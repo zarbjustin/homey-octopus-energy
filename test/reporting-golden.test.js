@@ -157,3 +157,80 @@ test('refreshDayBreakdown writes golden yesterday / peak / off-peak costs', asyn
   assert.equal(calls.octopus_cost_peak_today, 0.2, 'today 16–19 local priced as peak');
   assert.equal(calls.octopus_cost_offpeak_today, 0.2, 'today outside 16–19 priced as off-peak');
 });
+
+// A settings-backed store for the persist path.
+function settingsStore(initial = {}) {
+  const map = new Map(Object.entries(initial));
+  return { get: (k) => map.get(k), set: (k, v) => map.set(k, v), _map: map };
+}
+
+test('refreshBillingSummary persists settledThrough as the contiguous run end, not max(interval_end)', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: FIXED_NOW });
+
+  // Two contiguous half-hours, a gap, then a later island — all within the month.
+  const records = [
+    { interval_start: '2026-07-14T10:00:00Z', interval_end: '2026-07-14T10:30:00Z', consumption: 1 },
+    { interval_start: '2026-07-14T10:30:00Z', interval_end: '2026-07-14T11:00:00Z', consumption: 1 },
+    // gap 11:00–14:00
+    { interval_start: '2026-07-14T14:00:00Z', interval_end: '2026-07-14T14:30:00Z', consumption: 1 },
+  ];
+  const settings = settingsStore(); // billing_day unset → default period
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({
+    fuel: 'electricity', isExport: false, mpxn: '1', serial: 's',
+    productCode: 'AGILE-24', tariffCode: 'E-1R-AGILE-24-A', accountNumber: 'A-12345678',
+  });
+  device.homey = { clock: { getTimezone: () => TZ }, settings };
+  device.rates = [];
+  device.lastBillingRefresh = 0;
+  device.vatInc = () => true;
+  device.isNightTime = () => false;
+  device.error = () => {};
+  device.exportBillingInput = async () => undefined;
+  device.client = {
+    consumption: async () => records,
+    standardUnitRates: async () => [rate(20)],
+    registerUnitRates: async () => [],
+    standingCharges: async () => [rate(50)],
+  };
+
+  await device.refreshBillingSummary();
+
+  const persisted = settings.get('billing_summary_v1');
+  const summary = persisted['A-***78'];
+  assert.ok(summary, 'a masked billing summary is persisted');
+  assert.equal(
+    summary.settledThrough, '2026-07-14T11:00:00.000Z',
+    'settled-through stops at the gap, not the max interval_end (14:30)',
+  );
+  assert.ok(typeof summary.importCost === 'number' && summary.importCost > 0, 'import cost is computed');
+});
+
+test('refreshBillingSummary does not persist when its generation is superseded', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: FIXED_NOW });
+  const settings = settingsStore();
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({
+    fuel: 'electricity', isExport: false, mpxn: '1', serial: 's',
+    productCode: 'AGILE-24', tariffCode: 'E-1R-AGILE-24-A', accountNumber: 'A-12345678',
+  });
+  device.homey = { clock: { getTimezone: () => TZ }, settings };
+  device.rates = [];
+  device.lastBillingRefresh = 0;
+  device.refreshGeneration = 9;
+  device.vatInc = () => true;
+  device.isNightTime = () => false;
+  device.error = () => {};
+  device.exportBillingInput = async () => undefined;
+  device.client = {
+    consumption: async () => ([{ interval_start: '2026-07-14T10:00:00Z', interval_end: '2026-07-14T10:30:00Z', consumption: 1 }]),
+    standardUnitRates: async () => [rate(20)],
+    registerUnitRates: async () => [],
+    standingCharges: async () => [rate(50)],
+  };
+
+  await device.refreshBillingSummary(1); // superseded by generation 9
+
+  assert.equal(settings.get('billing_summary_v1'), undefined, 'a superseded generation persists nothing');
+  assert.equal(device.lastBillingRefresh, 0, 'throttle not advanced, so the current generation re-runs');
+});
