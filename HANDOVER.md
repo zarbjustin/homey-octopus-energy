@@ -4,6 +4,24 @@ Last updated: 21 July 2026
 
 ## Current state
 
+- **Sprint S60 "Trust & Money" — IN PROGRESS (unreleased, on `main`).** Spec:
+  `docs/handover/sprint-s60-trust-and-money-spec.md` (three-lens consolidated plan: extract a
+  narrow, BL-18-scoped `ReportingService` seam + generation-safe reporting, THEN ship BL-15 → BL-17
+  → BL-18; defer the full `PlanningFacade`/device-façade). Landed so far (version still 1.0.27, no
+  new build): **Step 1** golden/characterization tests pinning `refreshMonthlyCost`/
+  `refreshDayBreakdown` (commit `220d005`); **Step 2** pure cost calculators extracted to
+  `lib/reporting/cost.ts` (`rateForRecord`, `consumptionCostPence`, `windowCostPence`,
+  `standingChargePence`, `peakOffPeakCostPence`) with the device delegating via `costOptions()` —
+  behaviour-preserving, golden green (commit `6347e11`); **Step 3 (part)** the `settledThrough`
+  correctness fix — `lib/reporting/settlement.ts` `contiguousSettledThrough` replaces
+  `max(interval_end)` so a data gap no longer overstates settlement (commit `9d244b2`). 478 tests
+  pass, tsc + lint clean; CI/Validate/CodeQL green; Create-Release correctly skipped (v1.0.27 tag
+  exists). **Next in S60:** generation-safe reporting (thread the refresh generation into reporting
+  writes; keep BL-08's serialized cumulative writer as final authority — don't cancel it) → thin
+  device delegation cleanup → **BL-15** per-source freshness → **BL-17** `usage_today` local-day fix
+  → **BL-18a** typed `group_by` + `SettledInsightsService` → **BL-18b** budget Flows/widget. See the
+  spec for the trust non-negotiables (settled vs estimate, "settled through" mandatory, no "best",
+  REST-only, group_by is consumption-only).
 - **v1.0.27 (21 Jul 2026) — IOG automatic day/night from `rateType` (community 156860, Darren).**
   Follow-up to v1.0.26 after Darren reported the price still didn't flip to 6.90p at 23:30 (he was on
   the pre-fix build). **Public Kraken schema introspection** (`https://api.octopus.energy/v1/graphql/`)
