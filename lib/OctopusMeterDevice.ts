@@ -13,6 +13,9 @@ import {
 import { daysSpanned, estimateAnnualCost } from './compare';
 import { resolveBillingPeriod } from './billing/period';
 import { computeBillingSummary } from './billing/aggregate';
+import {
+  consumptionCostPence, windowCostPence, standingChargePence, peakOffPeakCostPence, CostOptions,
+} from './reporting/cost';
 import { DispatchView } from './dispatch/types';
 import {
   computeEffectiveRate, EffectiveDispatchKind, EffectiveRateResult,
@@ -2076,17 +2079,14 @@ export class OctopusMeterDevice extends Homey.Device {
     // empty), price history from the authoritative live series instead of £0.
     const dayRatesForCost = this.costRatesForWindow(dayRates, twoRegister);
 
-    let pence = 0;
-    for (const r of records) {
-      const rate = this.rateForRecord(r.interval_start, dayRatesForCost, nightRates);
-      if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
-    }
+    let pence = consumptionCostPence(records, dayRatesForCost, nightRates, this.costOptions(twoRegister));
     if (this.includeStandingChargeInCost()) {
       const { year, month, day } = this.localDateParts(now);
+      const noons: Date[] = [];
       for (let calendarDay = 1; calendarDay <= day; calendarDay++) {
-        const sc = rateAt(standingHistory, this.zonedTime(year, month, calendarDay, 12));
-        if (sc) pence += valueOf(sc, this.vatInc());
+        noons.push(this.zonedTime(year, month, calendarDay, 12));
       }
+      pence += standingChargePence(standingHistory, noons, this.vatInc());
     }
     const cost = pence / 100;
     await this.setCapabilityValue(monthCap, Number(cost.toFixed(2))).catch(this.error);
@@ -2233,19 +2233,12 @@ export class OctopusMeterDevice extends Homey.Device {
   protected async refreshDayBreakdown(
     records: ConsumptionRecord[], dayRates: Rate[], nightRates: Rate[], standingHistory: Rate[] = [],
   ): Promise<void> {
-    const recordCost = (r: ConsumptionRecord): number => {
-      const rate = this.rateForRecord(r.interval_start, dayRates, nightRates);
-      return rate ? this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc()) : 0;
-    };
+    const opts = this.costOptions(this.isTwoRegisterTariff());
 
     if (this.hasCapability('octopus_cost_yesterday')) {
       const yStart = this.localMidnight(-1).getTime();
       const yEnd = this.localMidnight(0).getTime();
-      let pence = 0;
-      for (const r of records) {
-        const t = new Date(r.interval_start).getTime();
-        if (t >= yStart && t < yEnd) pence += recordCost(r);
-      }
+      let pence = windowCostPence(records, yStart, yEnd, dayRates, nightRates, opts);
       if (this.includeStandingChargeInCost()) {
         const sc = rateAt(standingHistory, new Date(yStart + 12 * 3600_000));
         if (sc) pence += valueOf(sc, this.vatInc());
@@ -2255,19 +2248,26 @@ export class OctopusMeterDevice extends Homey.Device {
 
     if (this.hasCapability('octopus_cost_peak_today')) {
       const tStart = this.localMidnight(0).getTime();
-      let peak = 0;
-      let off = 0;
-      for (const r of records) {
-        const t = new Date(r.interval_start).getTime();
-        if (t < tStart) continue;
-        const c = recordCost(r);
-        if (this.isPeakHour(r.interval_start)) peak += c; else off += c;
-      }
+      const { peak, off } = peakOffPeakCostPence(
+        records, tStart, dayRates, nightRates, opts, (iso) => this.isPeakHour(iso),
+      );
       await this.setCapabilityValue('octopus_cost_peak_today', Number((peak / 100).toFixed(2))).catch(this.error);
       if (this.hasCapability('octopus_cost_offpeak_today')) {
         await this.setCapabilityValue('octopus_cost_offpeak_today', Number((off / 100).toFixed(2))).catch(this.error);
       }
     }
+  }
+
+  /** Build the pure-cost options (VAT, register, tz-bound predicates) the
+   *  reporting helpers price against. Keeps the tz/settings coupling on the
+   *  device while the money maths lives in lib/reporting/cost.ts. */
+  private costOptions(twoRegister: boolean): CostOptions {
+    return {
+      incVat: this.vatInc(),
+      twoRegister,
+      isNight: (iso) => this.isNightTime(iso),
+      toEnergy: (value) => this.toEnergyUnit(value),
+    };
   }
 
   protected async refreshStandingCharge(): Promise<void> {
