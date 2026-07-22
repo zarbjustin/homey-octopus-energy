@@ -2199,10 +2199,26 @@
       {
         "id": "bump_charge",
         "title": {
-          "en": "Start an EV bump charge"
+          "en": "Start an EV boost (bump) charge"
         },
         "hint": {
-          "en": "Triggers an immediate Intelligent Octopus Go boost charge. Experimental and only works on IOG with a supported charger."
+          "en": "Starts an immediate Intelligent Octopus Go boost charge on your EV/charger. Requires Intelligent Octopus Go and boost control to be enabled in the app settings (off by default)."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          }
+        ]
+      },
+      {
+        "id": "cancel_boost",
+        "title": {
+          "en": "Cancel an EV boost (bump) charge"
+        },
+        "hint": {
+          "en": "Cancels an in-progress Intelligent Octopus Go boost charge and returns the EV/charger to smart control. Requires boost control to be enabled in the app settings (off by default)."
         },
         "args": [
           {

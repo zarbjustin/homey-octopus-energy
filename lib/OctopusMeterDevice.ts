@@ -18,7 +18,7 @@ import {
   consumptionCostPence, windowCostPence, standingChargePence, peakOffPeakCostPence, CostOptions,
 } from './reporting/cost';
 import { contiguousSettledThrough } from './reporting/settlement';
-import { DispatchView } from './dispatch/types';
+import { DispatchView, SmartFlexDevice } from './dispatch/types';
 import {
   computeEffectiveRate, EffectiveDispatchKind, EffectiveRateResult,
 } from './effectiveRate';
@@ -1670,11 +1670,50 @@ export class OctopusMeterDevice extends Homey.Device {
     await this.refresh();
   }
 
-  /** Trigger an immediate EV bump charge (Intelligent Octopus Go; experimental). */
-  async bumpCharge(): Promise<void> {
-    const { accountNumber } = this.store();
-    if (!accountNumber) throw new Error('No account number stored.');
-    await this.kraken.triggerBoostCharge(accountNumber);
+  /** Whether the user has explicitly opted in to boost (write) control. Default OFF:
+   *  boost is a real, versionless write to the charger, so it is never inferred. */
+  private boostControlEnabled(): boolean {
+    return this.homey.settings.get('enable_boost_control') === true;
+  }
+
+  /** Resolve the smart-flex device to boost: prefer a boost-capable EV / charge
+   *  point, else the first EV / charger. Throws a clear error if none exists. */
+  private async resolveBoostDeviceId(): Promise<string> {
+    const { apiKey, accountNumber } = this.store();
+    const app = this.homey.app as Homey.App & {
+      getCachedDevices?(k: string, a: string): Promise<SmartFlexDevice[]>;
+    };
+    const devices = (await app.getCachedDevices?.(apiKey, accountNumber)) ?? [];
+    const candidates = devices.filter((d) => d.category === 'EV' || d.category === 'CHARGE_POINT');
+    const boostable = candidates.find(
+      (d) => !!d.controlState && /BOOST|SMART_CONTROL/i.test(d.controlState),
+    );
+    const chosen = boostable ?? candidates[0];
+    if (!chosen) {
+      throw new Error('No Intelligent Octopus Go device (EV or charge point) was found on this account.');
+    }
+    return chosen.deviceId;
+  }
+
+  /** Start an immediate EV BOOST (bump) charge (Intelligent Octopus Go). Requires
+   *  the user to have opted in to boost control. Returns the device's new state so
+   *  the caller can confirm the effect rather than assume success. */
+  async bumpCharge(): Promise<{ currentState: string | null }> {
+    if (!this.boostControlEnabled()) {
+      throw new Error('Boost control is turned off. Enable it in the app settings after reading the warning.');
+    }
+    const deviceId = await this.resolveBoostDeviceId();
+    return this.kraken.updateBoostCharge(deviceId, 'BOOST');
+  }
+
+  /** Cancel an in-progress EV BOOST charge (Intelligent Octopus Go). Requires the
+   *  user to have opted in to boost control. */
+  async cancelBoost(): Promise<{ currentState: string | null }> {
+    if (!this.boostControlEnabled()) {
+      throw new Error('Boost control is turned off. Enable it in the app settings after reading the warning.');
+    }
+    const deviceId = await this.resolveBoostDeviceId();
+    return this.kraken.updateBoostCharge(deviceId, 'CANCEL');
   }
 
   /** Is `at` within the cheapest contiguous `durationHours` block of the next `withinHours`? */

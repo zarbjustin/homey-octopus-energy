@@ -14,7 +14,8 @@ interface ElectricityDevice extends Homey.Device {
   isCheapestPercentile(percent: number, hours: number): boolean;
   getRenewablePercent(): number | null;
   refreshNow(): Promise<void>;
-  bumpCharge(): Promise<void>;
+  bumpCharge(): Promise<{ currentState: string | null }>;
+  cancelBoost(): Promise<{ currentState: string | null }>;
   findCheapestSlot(within: number, duration: number): { start_time: string; price: number } | null;
   findCheapestHours(duration: number, by: string): { count: number; first_start: string; price: number } | null;
   getCarbon(): number | null;
@@ -138,11 +139,11 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       });
     flow.getActionCard('bump_charge')
       .registerRunListener(async (args: Args<unknown>) => {
-        try {
-          await args.device.bumpCharge();
-        } catch (err) {
-          throw new Error('Bump charge is not available for this account/charger (experimental).');
-        }
+        await args.device.bumpCharge();
+      });
+    flow.getActionCard('cancel_boost')
+      .registerRunListener(async (args: Args<unknown>) => {
+        await args.device.cancelBoost();
       });
     flow.getActionCard('find_cheapest_slot')
       .registerRunListener(async (args: Args<{ within: number; duration: number }>) => {

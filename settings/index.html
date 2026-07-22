@@ -85,6 +85,16 @@
     <label><input type="checkbox" id="effective_rate_estimate" /> Show estimated IOG household rate in the Summary widget</label>
   </div>
 
+  <h2>EV boost control (advanced)</h2>
+  <p><strong>⚠️ Off by default.</strong> When enabled, the "Start/Cancel an EV boost (bump) charge"
+     Flow actions send a <em>real command to your EV or charger</em> via Intelligent Octopus Go —
+     starting or stopping an immediate boost charge. Only enable this if you have IOG with a
+     supported EV/charger and understand it will draw power at the current rate (a boost charge is
+     not guaranteed the cheap smart-charge rate). You can turn it off at any time.</p>
+  <div class="field">
+    <label><input type="checkbox" id="enable_boost_control" /> Enable EV boost (bump charge) control</label>
+  </div>
+
   <h2>Billing period</h2>
   <p>Set your Octopus billing day for an accurate "this billing period" summary.
      Leave blank to use the calendar month (lower confidence). Figures are from
@@ -116,7 +126,7 @@
 
   <script type="text/javascript">
     function onHomeyReady(Homey) {
-      const checks = ['notify_plunge', 'notify_saving_sessions', 'notify_free_electricity', 'notify_dispatch', 'notify_low_balance', 'effective_rate_estimate'];
+      const checks = ['notify_plunge', 'notify_saving_sessions', 'notify_free_electricity', 'notify_dispatch', 'notify_low_balance', 'effective_rate_estimate', 'enable_boost_control'];
       const defaults = { notify_plunge: true, notify_saving_sessions: true, notify_free_electricity: true };
 
       checks.forEach((key) => {

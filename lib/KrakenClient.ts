@@ -1036,18 +1036,27 @@ export class KrakenClient {
   }
 
   /**
-   * Trigger an immediate EV bump (boost) charge for Intelligent Octopus Go.
-   * Best-effort / experimental: the mutation is unofficial and may not be
-   * available — throws a clear error if unsupported.
+   * Start or cancel an Intelligent Octopus Go BOOST (bump) charge for a specific
+   * smart-flex device. Verified device-scoped mutation (see
+   * docs/handover/sprint-s64-dispatch-control-spike.md): `updateBoostCharge`
+   * with action `BOOST` | `CANCEL`, returning the device's new control state.
+   *
+   * This is a real write to the user's charger and is versionless (R-005/R-006):
+   * callers MUST gate it behind explicit user consent. Returns the device's
+   * `currentState` after the change (e.g. `BOOSTING`) so the caller can confirm
+   * the effect rather than assume success.
    */
-  async triggerBoostCharge(accountNumber: string): Promise<void> {
+  async updateBoostCharge(deviceId: string, action: 'BOOST' | 'CANCEL'): Promise<{ currentState: string | null }> {
     const mutation = `
-      mutation BoostCharge($accountNumber: String!) {
-        triggerBoostCharge(input: { accountNumber: $accountNumber }) {
-          krakenflexDeviceId
+      mutation UpdateBoostCharge($deviceId: String!, $action: UpdateBoostChargeAction!) {
+        updateBoostCharge(input: { deviceId: $deviceId, action: $action }) {
+          id
+          status { currentState }
         }
       }`;
-    await this.query(mutation, { accountNumber }, true, this.url, 'core');
+    interface Resp { updateBoostCharge?: { status?: { currentState?: string } } }
+    const data = await this.query<Resp>(mutation, { deviceId, action }, true, this.url, 'core');
+    return { currentState: data?.updateBoostCharge?.status?.currentState ?? null };
   }
 
   /**

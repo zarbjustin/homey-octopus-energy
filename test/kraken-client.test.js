@@ -924,3 +924,25 @@ test('getBalance fails closed on a partial error (never caches a false £0)', as
     'a nulled balance field must throw, not silently return £0',
   );
 });
+
+test('updateBoostCharge sends the verified device-scoped mutation and parses the new state (BL-24b)', async (t) => {
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const request = JSON.parse(init.body);
+    requests.push(request);
+    if (request.query.includes('obtainKrakenToken')) {
+      return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
+    }
+    return jsonResponse({
+      data: { updateBoostCharge: { id: 'synthetic-dev-1', status: { currentState: 'BOOSTING' } } },
+    });
+  });
+
+  const res = await new KrakenClient('api-key').updateBoostCharge('synthetic-dev-1', 'BOOST');
+  const mutation = requests.find((r) => r.query.includes('updateBoostCharge'));
+  assert.ok(mutation, 'the boost mutation was sent');
+  assert.match(mutation.query, /updateBoostCharge\(input:\s*\{\s*deviceId:\s*\$deviceId,\s*action:\s*\$action\s*\}\)/);
+  assert.match(mutation.query, /\$action:\s*UpdateBoostChargeAction!/);
+  assert.deepEqual(mutation.variables, { deviceId: 'synthetic-dev-1', action: 'BOOST' });
+  assert.equal(res.currentState, 'BOOSTING', 'returns the device state so the caller can confirm the effect');
+});
