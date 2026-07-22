@@ -301,6 +301,33 @@ test('dispatch_changed fires on a reschedule and dispatch_cancelled on removal (
   assert.equal(cancelled.tokens.type, 'SMART');
 });
 
+test('DispatchView.boostingNow + isBoosting() reflect an active BOOST window and fail closed when stale (BL-24a)', async () => {
+  const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
+  const now = Date.now();
+  const win = (startMin, endMin, kind) => ({
+    deviceId: 'dev-1',
+    start: new Date(now + startMin * 60_000).toISOString(),
+    end: new Date(now + endMin * 60_000).toISOString(),
+    kind,
+  });
+  let planned = [win(-5, 25, 'SMART')]; // active SMART, not a boost
+  app.getFlexPlanned = async () => planned;
+  app.getCachedCompletedWindows = async () => [];
+  const poller = new DispatchPoller(app);
+
+  await poller.poll();
+  let view = poller.getAccountView('A-ONE');
+  assert.equal(view.activeNow, true, 'a SMART window is active');
+  assert.equal(view.boostingNow, false, 'a SMART window is not a boost');
+  assert.equal(poller.isBoosting(), false);
+
+  planned = [win(-5, 25, 'BOOST')]; // now an active BOOST
+  await poller.poll();
+  view = poller.getAccountView('A-ONE');
+  assert.equal(view.boostingNow, true, 'an active BOOST window reads as boosting');
+  assert.equal(poller.isBoosting(), true);
+});
+
 test('a failed dispatch poll never fires cancelled or changed (Sprint 44)', async () => {
   const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
   const now = Date.now();

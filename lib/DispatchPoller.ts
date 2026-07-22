@@ -52,6 +52,18 @@ export class DispatchPoller extends AccountPoller {
     return false;
   }
 
+  /** Whether a BOOST (bump/user-initiated) dispatch is active on any account right
+   *  now. Read-only. Fails closed on stale data: a retained-across-failure window
+   *  whose freshness has lapsed does NOT report as boosting, so automations never
+   *  act on a boost we can no longer confirm. */
+  isBoosting(): boolean {
+    for (const accountNumber of this.states.keys()) {
+      const view = this.getAccountView(accountNumber);
+      if (view.boostingNow && view.freshness !== 'stale') return true;
+    }
+    return false;
+  }
+
   /**
    * A sanitised, deviceId-free presentation snapshot for widgets: planned/active
    * intent and recent finalised control windows. Never a settlement claim.
@@ -86,6 +98,7 @@ export class DispatchPoller extends AccountPoller {
     if (observedMs) freshness = now - observedMs > this.intervalMs * 2.5 ? 'stale' : 'current';
     return {
       activeNow: active.length > 0,
+      boostingNow: active.some((w) => w.kind === 'BOOST'),
       active,
       next: planned[0] ?? null,
       recentFinalised: finalised,

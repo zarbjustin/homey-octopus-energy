@@ -80,6 +80,10 @@ export interface DispatchFinalised {
 
 export interface DispatchView {
   activeNow: boolean;
+  /** Whether an active dispatch window is specifically a BOOST (user/bump charge)
+   *  rather than a SMART window. Read-only intent — never a settlement claim.
+   *  Derived from the same clock-verified active windows as `activeNow`. */
+  boostingNow: boolean;
   active: DispatchViewWindow[];
   next: DispatchViewWindow | null;
   recentFinalised: DispatchFinalised[];

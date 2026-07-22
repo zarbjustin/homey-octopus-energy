@@ -468,6 +468,8 @@ module.exports = class OctopusEnergyApp extends Homey.App {
   private registerDispatchCards(): void {
     this.homey.flow.getConditionCard('dispatch_active')
       .registerRunListener(async () => Boolean(this.dispatches?.isActive()));
+    this.homey.flow.getConditionCard('ev_boost_active')
+      .registerRunListener(async () => Boolean(this.dispatches?.isBoosting()));
   }
 
   /** App-level budget and standing-charge Flow triggers (device-scoped). */

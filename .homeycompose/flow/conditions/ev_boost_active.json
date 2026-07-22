@@ -1,0 +1,5 @@
+{
+  "id": "ev_boost_active",
+  "title": { "en": "An EV boost (bump charge) !{{is|is not}} active" },
+  "hint": { "en": "Whether an Intelligent Octopus Go BOOST (bump/user-initiated) charge is running right now. Read-only; fails closed (reports not active) when dispatch data is stale." }
+}
