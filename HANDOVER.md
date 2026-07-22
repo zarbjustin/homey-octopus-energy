@@ -4,6 +4,22 @@ Last updated: 21 July 2026
 
 ## Current state
 
+- **v1.0.30 (22 Jul 2026) — SHIPPED: honest tariff comparison + saving-session de-dup (S62).**
+  Release commit `9d35bce`, publish run `29922819318` (green — App Store build uploaded). **BL-19**
+  — pure `lib/compare/tariffComparison.ts` (`rankTariffs`: eligibility-gated, confidence level,
+  explicit not-evaluated reasons, never labels a single "best"); rewired `compareTariffs` +
+  reworded the `find_best_tariff` Flow card and tokens. **BL-20** — `saving_session_starting_soon`
+  now fires at most once per session per 15-minute bucket (`startingSoon` list in `PollerState`,
+  persisted/trimmed like `known`/`started`/`ended`), suppressing duplicate fires after an app
+  restart while preserving per-Flow lead-time re-evaluation (listener still gates on `minutesUntil`).
+  528 tests pass, tsc + lint clean, publish-validate green. Commits: `b02ce48` (BL-19), `9831384`
+  (BL-20), `9d35bce` (release). **Manual step:** promote v1.0.30 to Test/Live at
+  https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy.
+- **Sprint S62 "Tariff comparison 2.0 + saving-session de-dup" — COMPLETE.** Community research on
+  Octopus tariff eligibility + honest savings framing; three-lens plan applied. Kept the same
+  candidate set (Current/Agile/Go/Flexible) — eligibility-gating logic exists in the pure module for
+  future use. **Next per roadmap:** S63 (BL-16 accessibility, BL-21 Power-ups), then Phase 5 (BL-24
+  dispatch control).
 - **v1.0.29 (22 Jul 2026) — SHIPPED: target-rate automation + dispatch-aware Flows (S61).**
   Release commit `2113a1b`, publish run `29919586047` (green — App Store build uploaded). BL-22
   target-rate condition/trigger/action (cheapest N hours under a price cap before a deadline, push
