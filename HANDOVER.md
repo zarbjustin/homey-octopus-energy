@@ -4,6 +4,24 @@ Last updated: 21 July 2026
 
 ## Current state
 
+- **v1.0.31 (22 Jul 2026) — SHIPPED: Power Up automation + accessibility (S63); Phase 3 complete.**
+  Release commit `a535119`, publish run `29925835310` (green — App Store build uploaded). **BL-21**
+  — Power Up (Free Electricity) automation parity, reusing the saving-session poller machinery (no
+  new Kraken requests): `free_electricity_announced` + `free_electricity_starting_soon` (lead arg,
+  BL-20 per-15-min-bucket de-dup) triggers, a `free_electricity_active` condition backed by a
+  poller-written `feActiveUntil` timestamp (settings-read only, fail-closed), and an opt-in start
+  reminder gated by a new `notify_free_electricity` setting (default on). **BL-16** — accessibility
+  pass across all six widgets + settings: `lang="en"`, `role="region"`+`aria-label` on each widget
+  live region, and darkened low-contrast status text to WCAG AA at small sizes (amber
+  `#b45309`→`#92400e`, unknown-badge grey `#6b7280`→`#4b5563`). 534 tests pass, tsc + lint clean,
+  publish-validate green. Commits: `536b06f` (BL-21+BL-16), `a535119` (release). **Manual step:**
+  promote v1.0.31 to Test/Live at
+  https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy.
+- **Phase 3 — COMPLETE** (BL-15/16/17/18/20/21 all shipped). **Next per roadmap:** remaining Phase 4
+  is optional/low-priority only (BL-25 carbon/cost + export/Flux optimiser, BL-26/27 new widgets/Flow
+  cards, BL-31 calendar "today so far" tiles). The next real frontier is **Phase 5 — BL-24 dispatch
+  **control** (consent-gated, reference-client-verified, read-first)** — highest API risk; see the
+  cross-discipline disagreement resolution in `docs/blueprint/14-engineering-backlog.md`.
 - **v1.0.30 (22 Jul 2026) — SHIPPED: honest tariff comparison + saving-session de-dup (S62).**
   Release commit `9d35bce`, publish run `29922819318` (green — App Store build uploaded). **BL-19**
   — pure `lib/compare/tariffComparison.ts` (`rankTariffs`: eligibility-gated, confidence level,
