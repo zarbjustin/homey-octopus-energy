@@ -1486,6 +1486,9 @@
         "titleFormatted": {
           "en": "Now !{{is|is not}} in the cheapest [[duration]] h before [[by]]"
         },
+        "hint": {
+          "en": "Tip: the newer 'target-rate window' condition/trigger do the same but add a price cap (only run when it's genuinely cheap) and can push-trigger when the window starts."
+        },
         "args": [
           {
             "type": "device",

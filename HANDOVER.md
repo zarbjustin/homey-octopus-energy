@@ -4,6 +4,21 @@ Last updated: 21 July 2026
 
 ## Current state
 
+- **Sprint S61 "Automation for power users" — COMPLETE (unreleased, on `main`).** Tri-model reconciled
+  plan (Sol/Opus/5.5); the delta over the existing planner is a **price cap + push trigger +
+  branchable `target_met`**, not a new engine. Shipped: **BL-22** — pure `lib/planning/targetRate.ts`
+  (`evaluateTargetRate`: cheapest N half-hours ≤ cap by a deadline, fail-closed on incomplete horizon,
+  cap-not-met as a first-class result, floors `now` so an in-progress slot counts) + Flow cards
+  `in_target_rate_window` (condition), `target_rate_window_started` (rising-edge device trigger on the
+  existing half-hour price path — no timer), `get_target_rate_plan` (action, full token contract).
+  **BL-23** — added `observedAt`+`freshness` to `DispatchView` (stale after ~2.5 poll cycles, from the
+  last successful poll) and `dispatch_starts_within` condition + `get_next_dispatch` action, both
+  **fail closed when stale** so a target-rate Flow can defer to the car's own IOG schedule (community
+  best practice). Soft-deprecated `in_cheapest_plan` (hint → target-rate; ID kept) + a Flow cookbook
+  (`docs/flow-cookbook-target-rate.md`). **Zero new requests** (recompute on the existing rates/price
+  events). 520 tests pass, tsc + lint clean, publish-validate green. Commits: `4aa7a56` (pure lib),
+  `b72b2b0` (BL-22 Flow), `4cf1f2e` (BL-23 + freshness), + soft-deprecate/cookbook. **Next:** bundle
+  S61 into a release (next version) when ready.
 - **v1.0.28 (22 Jul 2026) — SHIPPED: budget alerts + per-source freshness + 7-day breakdown.**
   Bundles the S60 "Trust & Money" user-facing work (release commit `2c4f2f6`, publish run
   `29915132425`, green — App Store build uploaded). BL-15 (`data_source_stale` Flow condition +
