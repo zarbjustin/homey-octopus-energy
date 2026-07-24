@@ -4,6 +4,22 @@ Last updated: 21 July 2026
 
 ## Current state
 
+- **v1.0.34 (24 Jul 2026) — SHIPPED: "today so far" tiles (BL-31) + test-lint/SBOM (BL-29).**
+  Publish run `30133681243` (green — Build 34). **BL-31:** additive calendar "today so far" tiles on
+  the electricity meter — `octopus_usage_today_so_far` + `octopus_cost_today_so_far` compute
+  midnight→now (local, DST-safe via `localMidnight(0)`) from settled records in
+  `OctopusMeterDevice.refreshTodaySoFar`, alongside the unchanged rolling "last 24h" caps; read
+  `null` ("–", not-settled-yet) rather than a false 0 while REST lags ~24h; migrated onto existing
+  devices via `addCapability` in the electricity `onInitExtra`. **BL-29:** ESLint config previously
+  ignored `test/` + all `*.js`; added a JS override (`espree` +
+  `@typescript-eslint/disable-type-checked`), fixed all surfaced issues, so `npm run lint` now covers
+  the whole repo (test + widget JS); added a supply-chain/SBOM/provenance section to `SECURITY.md`.
+  **CI fix:** all three workflow audit gates scoped to `npm audit --omit=dev` (bare audit began
+  failing on dev-only ESLint-toolchain advisories that never ship in the app). 548 tests pass, full
+  lint clean, all gates green. **Manual step:** promote Build 34 → Test/Live.
+- **Roadmap: everything shipped except optional exploratory work.** Remaining: BL-25 (carbon/cost +
+  export/Flux optimiser, L), BL-26 (interactive widgets, M–L), BL-27 (more Flow cards, M),
+  innovation-catalogue picks, and exhaustive Dutch Flow-card translation. All P2/P3-optional.
 - **v1.0.33 (22 Jul 2026) — SHIPPED: internationalisation (BL-28); Phase 5 committed items COMPLETE.**
   Publish run `29940317544` (green — Build 33). Runtime i18n infrastructure (`/locales/en.json` +
   `nl.json`); all user-facing push notifications + boost-control error messages resolve via
