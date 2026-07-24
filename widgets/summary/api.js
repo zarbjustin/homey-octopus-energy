@@ -7,7 +7,11 @@ module.exports = {
     let device = null;
     for (const driverId of ['electricity', 'gas', 'export']) {
       let driver;
-      try { driver = homey.drivers.getDriver(driverId); } catch (e) { continue; }
+      try {
+        driver = homey.drivers.getDriver(driverId);
+      } catch (e) {
+        continue;
+      }
       const devices = driver.getDevices();
       if (wanted) {
         device = devices.find((d) => d.getData().id === wanted) || device;

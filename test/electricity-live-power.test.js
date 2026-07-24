@@ -11,13 +11,18 @@ Module._load = function load(request, parent, isMain) {
 };
 const ElectricityDevice = require('../.homeybuild/drivers/electricity/device.js');
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
+
 Module._load = originalLoad;
 
 function makeDevice({ account = 'A-ONE' } = {}) {
   const caps = new Set();
   const app = { subscriptions: [], unsubscriptions: [], lastCb: null };
-  app.subscribeLiveDemand = (creds, id, cb) => { app.subscriptions.push({ creds, id }); app.lastCb = cb; };
-  app.unsubscribeLiveDemand = (accountNumber, id) => { app.unsubscriptions.push({ accountNumber, id }); };
+  app.subscribeLiveDemand = (creds, id, cb) => {
+    app.subscriptions.push({ creds, id }); app.lastCb = cb;
+  };
+  app.unsubscribeLiveDemand = (accountNumber, id) => {
+    app.unsubscriptions.push({ accountNumber, id });
+  };
   const setValues = [];
   const timers = [];
   const device = Object.create(ElectricityDevice.prototype);
@@ -25,11 +30,23 @@ function makeDevice({ account = 'A-ONE' } = {}) {
   device.getData = () => ({ id: 'dev-1' });
   device.getSetting = () => true;
   device.hasCapability = (c) => caps.has(c);
-  device.addCapability = async (c) => { caps.add(c); };
-  device.removeCapability = async (c) => { caps.delete(c); };
-  device.setCapabilityValue = async (c, v) => { setValues.push([c, v]); };
+  device.addCapability = async (c) => {
+    caps.add(c);
+  };
+  device.removeCapability = async (c) => {
+    caps.delete(c);
+  };
+  device.setCapabilityValue = async (c, v) => {
+    setValues.push([c, v]);
+  };
   device.error = () => {};
-  device.homey = { app, setInterval: () => { timers.push(1); return 1; }, clearInterval: () => {} };
+  device.homey = {
+    app,
+    setInterval: () => {
+      timers.push(1); return 1;
+    },
+    clearInterval: () => {},
+  };
   return {
     device, caps, app, setValues, timers,
   };
@@ -49,9 +66,15 @@ test('enabling live power adds measure_power and subscribes to the shared source
 test('only a current reading is written to measure_power; stale is ignored', async () => {
   const h = makeDevice();
   await h.device.enableLivePower();
-  h.app.lastCb({ value: 1234, readAt: null, source: 'graphql', state: 'current' });
-  h.app.lastCb({ value: 9999, readAt: null, source: 'graphql', state: 'stale' });
-  h.app.lastCb({ value: null, readAt: null, source: 'graphql', state: 'unknown' });
+  h.app.lastCb({
+    value: 1234, readAt: null, source: 'graphql', state: 'current',
+  });
+  h.app.lastCb({
+    value: 9999, readAt: null, source: 'graphql', state: 'stale',
+  });
+  h.app.lastCb({
+    value: null, readAt: null, source: 'graphql', state: 'unknown',
+  });
   assert.deepEqual(h.setValues, [['measure_power', 1234]]);
 });
 
@@ -94,11 +117,19 @@ test('octopus_dispatching mirrors the reconciled dispatch view and spends no leg
   h.app.getDispatchView = (account) => {
     dispatchViewCalls += 1;
     assert.equal(account, 'A-ONE');
-    return { activeNow, active: [], next: null, recentFinalised: [] };
+    return {
+      activeNow, active: [], next: null, recentFinalised: [],
+    };
   };
   // The legacy per-device dispatch path must no longer be used.
-  h.app.getCachedPlannedDispatches = async () => { legacyCalls += 1; return []; };
-  h.device.kraken = { getPlannedDispatches: async () => { legacyCalls += 1; return []; } };
+  h.app.getCachedPlannedDispatches = async () => {
+    legacyCalls += 1; return [];
+  };
+  h.device.kraken = {
+    getPlannedDispatches: async () => {
+      legacyCalls += 1; return [];
+    },
+  };
 
   await h.device.refreshDispatching();
   assert.deepEqual(h.setValues.at(-1), ['octopus_dispatching', true], 'active view → capability true');

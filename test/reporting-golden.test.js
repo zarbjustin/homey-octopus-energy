@@ -18,6 +18,7 @@ Module._load = function load(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
+
 Module._load = originalLoad;
 
 const FIXED_NOW = Date.parse('2026-07-15T12:00:00Z'); // BST; mid-month for stable maths
@@ -34,19 +35,28 @@ function rate(valueIncVat, validFrom = '2026-07-01T00:00:00Z', validTo = null) {
 }
 
 /** A device whose real cost/tz helpers run; only ports are stubbed. */
-function makeDevice({ records, dayRates, standing, caps }) {
+function makeDevice({
+  records, dayRates, standing, caps,
+}) {
   const calls = {};
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({
-    fuel: 'electricity', isExport: false, mpxn: '1', serial: 's',
-    productCode: 'AGILE-24', tariffCode: 'E-1R-AGILE-24-A', accountNumber: 'A-ONE',
+    fuel: 'electricity',
+    isExport: false,
+    mpxn: '1',
+    serial: 's',
+    productCode: 'AGILE-24',
+    tariffCode: 'E-1R-AGILE-24-A',
+    accountNumber: 'A-ONE',
   });
   device.homey = { clock: { getTimezone: () => TZ } };
   device.rates = [];
   device.lastMonthlyRefresh = 0;
   device.vatInc = () => true; // config input, not part of the maths under test
   device.hasCapability = (c) => caps.includes(c);
-  device.setCapabilityValue = async (c, v) => { calls[c] = v; };
+  device.setCapabilityValue = async (c, v) => {
+    calls[c] = v;
+  };
   device.error = () => {};
   device.client = {
     consumption: async () => records,
@@ -66,7 +76,9 @@ test('refreshMonthlyCost writes the golden month-to-date cost + projection for k
     { interval_start: '2026-07-10T10:30:00Z', interval_end: '2026-07-10T11:00:00Z', consumption: 1 },
   ];
   const { device, calls } = makeDevice({
-    records, dayRates: [rate(20)], standing: [rate(50)],
+    records,
+    dayRates: [rate(20)],
+    standing: [rate(50)],
     caps: ['octopus_cost_month', 'octopus_cost_projected'],
   });
   // Isolate the monthly path from the day-breakdown path (characterised separately).
@@ -88,7 +100,9 @@ test('refreshMonthlyCost writes the golden month-to-date cost + projection for k
 test('refreshMonthlyCost is a no-op when there are no settled records (fails closed, no £0 write)', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: FIXED_NOW });
   const { device, calls } = makeDevice({
-    records: [], dayRates: [rate(20)], standing: [rate(50)],
+    records: [],
+    dayRates: [rate(20)],
+    standing: [rate(50)],
     caps: ['octopus_cost_month', 'octopus_cost_projected'],
   });
   device.refreshDayBreakdown = async () => {};
@@ -102,7 +116,9 @@ test('refreshMonthlyCost does not write when its generation is superseded (stale
     { interval_start: '2026-07-10T10:00:00Z', interval_end: '2026-07-10T10:30:00Z', consumption: 1 },
   ];
   const { device, calls } = makeDevice({
-    records, dayRates: [rate(20)], standing: [rate(50)],
+    records,
+    dayRates: [rate(20)],
+    standing: [rate(50)],
     caps: ['octopus_cost_month', 'octopus_cost_projected'],
   });
   device.refreshDayBreakdown = async () => {};
@@ -121,7 +137,9 @@ test('refreshMonthlyCost writes when its generation is still current', async (t)
     { interval_start: '2026-07-10T10:30:00Z', interval_end: '2026-07-10T11:00:00Z', consumption: 1 },
   ];
   const { device, calls } = makeDevice({
-    records, dayRates: [rate(20)], standing: [rate(50)],
+    records,
+    dayRates: [rate(20)],
+    standing: [rate(50)],
     caps: ['octopus_cost_month', 'octopus_cost_projected'],
   });
   device.refreshDayBreakdown = async () => {};
@@ -147,7 +165,9 @@ test('refreshDayBreakdown writes golden yesterday / peak / off-peak costs', asyn
     { interval_start: '2026-07-15T16:00:00Z', interval_end: '2026-07-15T16:30:00Z', consumption: 1 },
   ];
   const { device, calls } = makeDevice({
-    records, dayRates, standing,
+    records,
+    dayRates,
+    standing,
     caps: ['octopus_cost_yesterday', 'octopus_cost_peak_today', 'octopus_cost_offpeak_today'],
   });
 
@@ -177,8 +197,13 @@ test('refreshBillingSummary persists settledThrough as the contiguous run end, n
   const settings = settingsStore(); // billing_day unset → default period
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({
-    fuel: 'electricity', isExport: false, mpxn: '1', serial: 's',
-    productCode: 'AGILE-24', tariffCode: 'E-1R-AGILE-24-A', accountNumber: 'A-12345678',
+    fuel: 'electricity',
+    isExport: false,
+    mpxn: '1',
+    serial: 's',
+    productCode: 'AGILE-24',
+    tariffCode: 'E-1R-AGILE-24-A',
+    accountNumber: 'A-12345678',
   });
   device.homey = { clock: { getTimezone: () => TZ }, settings };
   device.rates = [];
@@ -211,8 +236,13 @@ test('refreshBillingSummary does not persist when its generation is superseded',
   const settings = settingsStore();
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({
-    fuel: 'electricity', isExport: false, mpxn: '1', serial: 's',
-    productCode: 'AGILE-24', tariffCode: 'E-1R-AGILE-24-A', accountNumber: 'A-12345678',
+    fuel: 'electricity',
+    isExport: false,
+    mpxn: '1',
+    serial: 's',
+    productCode: 'AGILE-24',
+    tariffCode: 'E-1R-AGILE-24-A',
+    accountNumber: 'A-12345678',
   });
   device.homey = { clock: { getTimezone: () => TZ }, settings };
   device.rates = [];
@@ -244,14 +274,18 @@ test('refreshMonthlyCost fires monthly_cost_above with a crossing-ready state wh
     { interval_start: '2026-07-10T10:30:00Z', interval_end: '2026-07-10T11:00:00Z', consumption: 1 },
   ];
   const { device, calls } = makeDevice({
-    records, dayRates: [rate(20)], standing: [rate(50)],
+    records,
+    dayRates: [rate(20)],
+    standing: [rate(50)],
     caps: ['octopus_cost_month', 'octopus_cost_projected'],
   });
   device.refreshDayBreakdown = async () => {};
   device.getData = () => ({ id: 'm1' });
   device.previousMonthCost = 5.0; // below → crossing to 7.90 this cycle
   const fired = [];
-  device.fireAppTrigger = (id, tokens, state) => { fired.push({ id, tokens, state }); };
+  device.fireAppTrigger = (id, tokens, state) => {
+    fired.push({ id, tokens, state });
+  };
 
   await device.refreshMonthlyCost();
 
@@ -272,7 +306,9 @@ test('refreshMonthlyCost does not fire the budget trigger on the first observati
   });
   device.refreshDayBreakdown = async () => {};
   const fired = [];
-  device.fireAppTrigger = (id) => { fired.push(id); };
+  device.fireAppTrigger = (id) => {
+    fired.push(id);
+  };
   // previousMonthCost is unset (undefined) → must not fire on first run.
   await device.refreshMonthlyCost();
   assert.equal(fired.length, 0, 'no trigger without a previous value to cross from');
@@ -325,7 +361,11 @@ test('getSettledDailyUsage fails closed to the last cache / empty on error', asy
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({ fuel: 'electricity', mpxn: '1', serial: 's' });
   device.dailyUsageCache = null;
-  device.client = { consumption: async () => { throw new Error('boom'); } };
+  device.client = {
+    consumption: async () => {
+      throw new Error('boom');
+    },
+  };
   const out = await device.getSettledDailyUsage(7);
   assert.deepEqual(out, [], 'no data → empty array, never a misleading value');
 });

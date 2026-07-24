@@ -10,6 +10,7 @@ const { KrakenClient } = require('../.homeybuild/lib/KrakenClient.js');
 const { opaqueKey, opaqueKeyMigrating } = require('../.homeybuild/lib/diagnosticsKey.js');
 
 const EN_LOCALE = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'locales', 'en.json'), 'utf8'));
+
 function tr(key) {
   return key.split('.').reduce((o, k) => (o || {})[k], EN_LOCALE) ?? key;
 }
@@ -24,12 +25,20 @@ function fakeApp(accounts) {
   return {
     fired,
     errors,
-    error(...args) { errors.push(args); },
-    getKrakenClient(apiKey, accountNumber) { return new KrakenClient(apiKey, accountNumber); },
-    async getCachedDevices() { return []; },
+    error(...args) {
+      errors.push(args);
+    },
+    getKrakenClient(apiKey, accountNumber) {
+      return new KrakenClient(apiKey, accountNumber);
+    },
+    async getCachedDevices() {
+      return [];
+    },
     async getFlexPlanned(apiKey, accountNumber) {
       const legacy = await new KrakenClient(apiKey, accountNumber).getPlannedDispatches(accountNumber);
-      return legacy.map((d) => ({ deviceId: 'account', start: d.start, end: d.end, kind: 'unknown' }));
+      return legacy.map((d) => ({
+        deviceId: 'account', start: d.start, end: d.end, kind: 'unknown',
+      }));
     },
     async getCachedCompletedWindows(apiKey, accountNumber) {
       const list = await new KrakenClient(apiKey, accountNumber).getCompletedDispatches(accountNumber);
@@ -42,7 +51,13 @@ function fakeApp(accounts) {
           return { getDevices: () => (id === 'electricity' ? devices : []) };
         },
       },
-      flow: { getTriggerCard: (id) => ({ trigger: async (tokens) => { fired.push({ id, tokens }); } }) },
+      flow: {
+        getTriggerCard: (id) => ({
+          trigger: async (tokens) => {
+            fired.push({ id, tokens });
+          },
+        }),
+      },
       settings: { get: (key) => settings.get(key), set: (key, value) => settings.set(key, value) },
       notifications: { createNotification: async () => {} },
       clock: { getTimezone: () => 'Europe/London' },
@@ -50,14 +65,21 @@ function fakeApp(accounts) {
       clearInterval() {},
       timeouts: [],
       cleared: [],
-      setTimeout(fn, ms) { this.timeouts.push({ fn, ms, id: this.timeouts.length + 1 }); return this.timeouts.length; },
-      clearTimeout(id) { this.cleared.push(id); },
+      setTimeout(fn, ms) {
+        this.timeouts.push({ fn, ms, id: this.timeouts.length + 1 }); return this.timeouts.length;
+      },
+      clearTimeout(id) {
+        this.cleared.push(id);
+      },
     },
   };
 }
 
 class ProbePoller extends AccountPoller {
-  getAccounts() { return this.accounts(); }
+  getAccounts() {
+    return this.accounts();
+  }
+
   async poll() {}
 }
 
@@ -65,8 +87,13 @@ test('start() jitters the first poll instead of stampeding on boot; stop() cance
   const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
   let polls = 0;
   class JitterProbe extends AccountPoller {
-    firstPollDelayMs() { return 7000; } // deterministic
-    async poll() { polls += 1; }
+    firstPollDelayMs() {
+      return 7000;
+    } // deterministic
+
+    async poll() {
+      polls += 1;
+    }
   }
   const poller = new JitterProbe(app);
   poller.start();
@@ -90,7 +117,11 @@ test('start() jitters the first poll instead of stampeding on boot; stop() cance
 test('legacy raw-keyed saving-session state migrates to an opaque key, preserving known ids', async (t) => {
   const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
   // Simulate a pre-upgrade blob keyed by the raw account number with a known id.
-  app.homey.settings.set('saving_sessions_state_v2', { 'A-ONE': { known: ['old-id'], started: [], ended: [], feStarted: [], feEnded: [] } });
+  app.homey.settings.set('saving_sessions_state_v2', {
+    'A-ONE': {
+      known: ['old-id'], started: [], ended: [], feStarted: [], feEnded: [],
+    },
+  });
   t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => []);
   t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => []);
 
@@ -214,7 +245,9 @@ test('Power Up (Free Electricity) fires announced once and starting_soon de-dupe
 test('Power Up marks feActiveUntil while running and clears once it ends (BL-21 condition support)', async (t) => {
   const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
   const notes = [];
-  app.homey.notifications.createNotification = async (n) => { notes.push(n); };
+  app.homey.notifications.createNotification = async (n) => {
+    notes.push(n);
+  };
   const start = new Date(Date.now() - 10 * 60_000).toISOString(); // active now
   const end = new Date(Date.now() + 20 * 60_000).toISOString();
   t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => []);
@@ -234,7 +267,9 @@ test('Power Up marks feActiveUntil while running and clears once it ends (BL-21 
 test('Power Up reminder is suppressed when notify_free_electricity is off (BL-21)', async (t) => {
   const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
   const notes = [];
-  app.homey.notifications.createNotification = async (n) => { notes.push(n); };
+  app.homey.notifications.createNotification = async (n) => {
+    notes.push(n);
+  };
   app.homey.settings.set('notify_free_electricity', false);
   const start = new Date(Date.now() - 5 * 60_000).toISOString();
   const end = new Date(Date.now() + 25 * 60_000).toISOString();
@@ -344,7 +379,9 @@ test('a failed dispatch poll never fires cancelled or changed (Sprint 44)', asyn
     kind: 'SMART',
   }];
   let fail = false;
-  app.getFlexPlanned = async () => { if (fail) throw new Error('boom'); return planned; };
+  app.getFlexPlanned = async () => {
+    if (fail) throw new Error('boom'); return planned;
+  };
   app.getCachedCompletedWindows = async () => [];
   const poller = new DispatchPoller(app);
 
@@ -367,7 +404,9 @@ test('a failed first poll does not later fabricate dispatch_started (Sprint 44)'
     kind: 'SMART',
   }];
   let fail = true;
-  app.getFlexPlanned = async () => { if (fail) throw new Error('boom'); return active; };
+  app.getFlexPlanned = async () => {
+    if (fail) throw new Error('boom'); return active;
+  };
   app.getCachedCompletedWindows = async () => [];
   const poller = new DispatchPoller(app);
 
@@ -383,14 +422,16 @@ test('isActive, getAccountView and v2 diagnostics all recompute active against t
   const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
   const now = Date.now();
   // A window active now but ending in 60s.
-  let planned = [{
+  const planned = [{
     deviceId: 'dev-1',
     start: new Date(now - 5 * 60_000).toISOString(),
     end: new Date(now + 60_000).toISOString(),
     kind: 'SMART',
   }];
   let fail = false;
-  app.getFlexPlanned = async () => { if (fail) throw new Error('boom'); return planned; };
+  app.getFlexPlanned = async () => {
+    if (fail) throw new Error('boom'); return planned;
+  };
   app.getCachedCompletedWindows = async () => [];
   const poller = new DispatchPoller(app);
 

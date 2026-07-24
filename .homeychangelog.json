@@ -1,4 +1,7 @@
 {
+  "1.0.34": {
+    "en": "New optional 'today so far' tiles: calendar-day usage and cost from midnight, shown alongside the existing rolling 'last 24h' figures (electricity). Because Octopus settles consumption ~a day late, these read '–' until today's data lands, rather than a misleading £0. Plus internal test-suite linting and supply-chain/SBOM documentation."
+  },
   "1.0.33": {
     "en": "Dutch language support (Nederlands): the app description, device and value (capability) names, and all push notifications now appear in Dutch on Dutch-language Homeys. Groundwork for more languages — community translation help is welcome."
   },

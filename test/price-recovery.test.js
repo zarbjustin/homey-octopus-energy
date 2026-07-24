@@ -10,6 +10,7 @@ Module._load = function load(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
+
 Module._load = originalLoad;
 
 // Build a device whose refreshPrices only succeeds once the stored tariff code
@@ -24,7 +25,9 @@ function recoveryDevice({ workingCode, candidate }) {
   const logs = [];
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => store;
-  device.setStoreValue = async (key, value) => { store[key] = value; };
+  device.setStoreValue = async (key, value) => {
+    store[key] = value;
+  };
   device.isTwoRegisterTariff = () => false;
   device.checkTariffChange = async () => false; // account discovery yields the same code
   device.client = {
@@ -84,11 +87,19 @@ test('guarded recovery still prefers a genuine tariff change from account discov
   };
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => store;
-  device.setStoreValue = async (k, v) => { store[k] = v; };
+  device.setStoreValue = async (k, v) => {
+    store[k] = v;
+  };
   device.isTwoRegisterTariff = () => false;
-  device.checkTariffChange = async () => { store.tariffCode = 'E-1R-NEW-C'; return true; };
+  device.checkTariffChange = async () => {
+    store.tariffCode = 'E-1R-NEW-C'; return true;
+  };
   let variantLookupCalled = false;
-  device.client = { tariffCodeForProduct: async () => { variantLookupCalled = true; return 'X'; } };
+  device.client = {
+    tariffCodeForProduct: async () => {
+      variantLookupCalled = true; return 'X';
+    },
+  };
   device.log = () => {};
   device.error = () => {};
   let attempts = 0;
@@ -106,18 +117,24 @@ test('guarded recovery still prefers a genuine tariff change from account discov
 // --- IOG price gap + budget fix ---------------------------------------------
 
 test('forced price-gap recovery is throttled to once per 6h (budget/log churn)', async () => {
-  const store = { fuel: 'electricity', isExport: false, productCode: 'VAR-22-11-01', tariffCode: 'E-1R-VAR-22-11-01-C' };
+  const store = {
+    fuel: 'electricity', isExport: false, productCode: 'VAR-22-11-01', tariffCode: 'E-1R-VAR-22-11-01-C',
+  };
   const device = Object.create(OctopusMeterDevice.prototype);
   let checks = 0;
   device.store = () => store;
   device.setStoreValue = async () => {};
   device.isTwoRegisterTariff = () => false;
   device.isIntelligentGoTariff = () => false;
-  device.checkTariffChange = async () => { checks += 1; return false; };
+  device.checkTariffChange = async () => {
+    checks += 1; return false;
+  };
   device.tryProductVariantRecovery = async () => false;
   device.log = () => {};
   device.error = () => {};
-  device.refreshPrices = async () => { throw new Error('Octopus returned no rate covering the current time.'); };
+  device.refreshPrices = async () => {
+    throw new Error('Octopus returned no rate covering the current time.');
+  };
 
   await assert.rejects(device.refreshPricesWithTariffRecovery());
   assert.equal(checks, 1, 'first gap attempts forced recovery');
@@ -126,7 +143,9 @@ test('forced price-gap recovery is throttled to once per 6h (budget/log churn)',
 });
 
 test('an IOG import meter never runs product-variant recovery', async () => {
-  const store = { fuel: 'electricity', isExport: false, productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C' };
+  const store = {
+    fuel: 'electricity', isExport: false, productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C',
+  };
   const device = Object.create(OctopusMeterDevice.prototype);
   let variantTried = 0;
   device.store = () => store;
@@ -134,22 +153,32 @@ test('an IOG import meter never runs product-variant recovery', async () => {
   device.isTwoRegisterTariff = () => false;
   device.isIntelligentGoTariff = () => true;
   device.checkTariffChange = async () => false;
-  device.tryProductVariantRecovery = async () => { variantTried += 1; return false; };
+  device.tryProductVariantRecovery = async () => {
+    variantTried += 1; return false;
+  };
   device.log = () => {};
   device.error = () => {};
-  device.refreshPrices = async () => { throw new Error('Octopus returned no rate covering the current time.'); };
+  device.refreshPrices = async () => {
+    throw new Error('Octopus returned no rate covering the current time.');
+  };
 
   await assert.rejects(device.refreshPricesWithTariffRecovery());
   assert.equal(variantTried, 0, 'IOG must not guess a product-derived variant');
 });
 
 test('checkTariffChange never lets REST clobber an IOG import tariff code (anti ping-pong)', async () => {
-  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', mpxn: '1234', productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C' };
+  const store = {
+    fuel: 'electricity', isExport: false, accountNumber: 'A-1', mpxn: '1234', productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C',
+  };
   const device = Object.create(OctopusMeterDevice.prototype);
   let discovered = 0;
   device.store = () => store;
   device.isIntelligentGoTariff = () => true;
-  device.client = { discoverMeters: async () => { discovered += 1; return []; } };
+  device.client = {
+    discoverMeters: async () => {
+      discovered += 1; return [];
+    },
+  };
 
   const changed = await device.checkTariffChange(true);
   assert.equal(changed, false);
@@ -157,25 +186,46 @@ test('checkTariffChange never lets REST clobber an IOG import tariff code (anti 
 });
 
 test('intelligentGoBaseRates adopts the resolved household code when the stored one is stale', async () => {
-  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'IOG-STALE-26-01-01', tariffCode: 'E-1R-IOG-STALE-26-01-01-C' };
+  const store = {
+    fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'IOG-STALE-26-01-01', tariffCode: 'E-1R-IOG-STALE-26-01-01-C',
+  };
   const device = Object.create(OctopusMeterDevice.prototype);
   let invalidated = 0;
   device.store = () => store;
-  device.setStoreValue = async (k, v) => { store[k] = v; };
+  device.setStoreValue = async (k, v) => {
+    store[k] = v;
+  };
   device.isIntelligentGoTariff = () => true;
   device.ensureRegisterCapabilities = async () => {};
   device.log = () => {};
   device.error = () => {};
-  device.homey = { clock: { getTimezone: () => 'Europe/London' }, app: { invalidateIogTariff: () => { invalidated += 1; } } };
+  device.homey = {
+    clock: { getTimezone: () => 'Europe/London' },
+    app: {
+      invalidateIogTariff: () => {
+        invalidated += 1;
+      },
+    },
+  };
   device.vatInc = () => true;
   device.localMidnight = (d) => new Date(Date.UTC(2026, 0, 1 + d));
   device.kraken = {
     getActiveIogTariff: async () => ({
-      tariffType: 'DayNightTariff', resolvedVia: 'fallback', scheduleTrusted: true, validTo: null,
-      tariffCode: 'E-1R-IOG-REAL-26-01-01-C', productCode: 'IOG-REAL-26-01-01',
-      dayRate: 31.5, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7.619,
-      evDevicePeakRate: null, evDeviceOffPeakRate: null,
-      preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 49,
+      tariffType: 'DayNightTariff',
+      resolvedVia: 'fallback',
+      scheduleTrusted: true,
+      validTo: null,
+      tariffCode: 'E-1R-IOG-REAL-26-01-01-C',
+      productCode: 'IOG-REAL-26-01-01',
+      dayRate: 31.5,
+      nightRate: 8,
+      preVatDayRate: 30,
+      preVatNightRate: 7.619,
+      evDevicePeakRate: null,
+      evDeviceOffPeakRate: null,
+      preVatEvDevicePeakRate: null,
+      preVatEvDeviceOffPeakRate: null,
+      standingCharge: 49,
     }),
   };
 
@@ -190,10 +240,14 @@ test('intelligentGoBaseRates prices IOG from HalfHourly agreement rows when REST
   // Darren's account: import agreement is a HalfHourlyTariff whose REST unit-rate
   // feed is empty; its own unitRates ARE the authoritative price series. The code
   // already matches exactly (no adoption). We must price directly from the rows.
-  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-VAR-22-10-14', tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C' };
+  const store = {
+    fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-VAR-22-10-14', tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C',
+  };
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => store;
-  device.setStoreValue = async (k, v) => { store[k] = v; };
+  device.setStoreValue = async (k, v) => {
+    store[k] = v;
+  };
   device.isIntelligentGoTariff = () => true;
   device.ensureRegisterCapabilities = async () => {};
   device.log = () => {};
@@ -209,14 +263,28 @@ test('intelligentGoBaseRates prices IOG from HalfHourly agreement rows when REST
   const nightTo = new Date(now + 4 * 3600_000).toISOString();
   device.kraken = {
     getActiveIogTariff: async () => ({
-      tariffType: 'HalfHourlyTariff', resolvedVia: 'exact', scheduleTrusted: false, validTo: null,
-      tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C', productCode: 'INTELLI-VAR-22-10-14',
-      dayRate: 0, nightRate: 0, preVatDayRate: 0, preVatNightRate: 0,
-      evDevicePeakRate: null, evDeviceOffPeakRate: null,
-      preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 49,
+      tariffType: 'HalfHourlyTariff',
+      resolvedVia: 'exact',
+      scheduleTrusted: false,
+      validTo: null,
+      tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C',
+      productCode: 'INTELLI-VAR-22-10-14',
+      dayRate: 0,
+      nightRate: 0,
+      preVatDayRate: 0,
+      preVatNightRate: 0,
+      evDevicePeakRate: null,
+      evDeviceOffPeakRate: null,
+      preVatEvDevicePeakRate: null,
+      preVatEvDeviceOffPeakRate: null,
+      standingCharge: 49,
       unitRates: [
-        { validFrom: dayFrom, validTo: dayTo, valueIncVat: 28.95, valuePreVat: 27.571 },
-        { validFrom: nightFrom, validTo: nightTo, valueIncVat: 7.0, valuePreVat: 6.667 },
+        {
+          validFrom: dayFrom, validTo: dayTo, valueIncVat: 28.95, valuePreVat: 27.571,
+        },
+        {
+          validFrom: nightFrom, validTo: nightTo, valueIncVat: 7.0, valuePreVat: 6.667,
+        },
       ],
     }),
   };
@@ -231,10 +299,14 @@ test('intelligentGoBaseRates prices IOG from HalfHourly agreement rows when REST
 });
 
 test('intelligentGoBaseRates falls through when HalfHourly rows are all historical (no coverage)', async () => {
-  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-VAR-22-10-14', tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C' };
+  const store = {
+    fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-VAR-22-10-14', tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C',
+  };
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => store;
-  device.setStoreValue = async (k, v) => { store[k] = v; };
+  device.setStoreValue = async (k, v) => {
+    store[k] = v;
+  };
   device.isIntelligentGoTariff = () => true;
   device.ensureRegisterCapabilities = async () => {};
   device.log = () => {};
@@ -246,15 +318,29 @@ test('intelligentGoBaseRates falls through when HalfHourly rows are all historic
   const now = Date.now();
   device.kraken = {
     getActiveIogTariff: async () => ({
-      tariffType: 'HalfHourlyTariff', resolvedVia: 'exact', scheduleTrusted: false, validTo: null,
-      tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C', productCode: 'INTELLI-VAR-22-10-14',
-      dayRate: 0, nightRate: 0, preVatDayRate: 0, preVatNightRate: 0,
-      evDevicePeakRate: null, evDeviceOffPeakRate: null,
-      preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 49,
+      tariffType: 'HalfHourlyTariff',
+      resolvedVia: 'exact',
+      scheduleTrusted: false,
+      validTo: null,
+      tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C',
+      productCode: 'INTELLI-VAR-22-10-14',
+      dayRate: 0,
+      nightRate: 0,
+      preVatDayRate: 0,
+      preVatNightRate: 0,
+      evDevicePeakRate: null,
+      evDeviceOffPeakRate: null,
+      preVatEvDevicePeakRate: null,
+      preVatEvDeviceOffPeakRate: null,
+      standingCharge: 49,
       unitRates: [
         // Both rows ended in the past — none covers now → must fail closed to null.
-        { validFrom: new Date(now - 4 * 3600_000).toISOString(), validTo: new Date(now - 3 * 3600_000).toISOString(), valueIncVat: 28.95, valuePreVat: 27.571 },
-        { validFrom: new Date(now - 3 * 3600_000).toISOString(), validTo: new Date(now - 2 * 3600_000).toISOString(), valueIncVat: 7.0, valuePreVat: 6.667 },
+        {
+          validFrom: new Date(now - 4 * 3600_000).toISOString(), validTo: new Date(now - 3 * 3600_000).toISOString(), valueIncVat: 28.95, valuePreVat: 27.571,
+        },
+        {
+          validFrom: new Date(now - 3 * 3600_000).toISOString(), validTo: new Date(now - 2 * 3600_000).toISOString(), valueIncVat: 7.0, valuePreVat: 6.667,
+        },
       ],
     }),
   };
@@ -264,16 +350,27 @@ test('intelligentGoBaseRates falls through when HalfHourly rows are all historic
 });
 
 test('intelligentGoBaseRates adopts an untrusted-shape code but defers rates to REST', async () => {
-  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-STALE-26-01-01', tariffCode: 'E-1R-INTELLI-STALE-26-01-01-C' };
+  const store = {
+    fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-STALE-26-01-01', tariffCode: 'E-1R-INTELLI-STALE-26-01-01-C',
+  };
   const device = Object.create(OctopusMeterDevice.prototype);
   let invalidated = 0;
   device.store = () => store;
-  device.setStoreValue = async (k, v) => { store[k] = v; };
+  device.setStoreValue = async (k, v) => {
+    store[k] = v;
+  };
   device.isIntelligentGoTariff = () => true;
   device.ensureRegisterCapabilities = async () => {};
   device.log = () => {};
   device.error = () => {};
-  device.homey = { clock: { getTimezone: () => 'Europe/London' }, app: { invalidateIogTariff: () => { invalidated += 1; } } };
+  device.homey = {
+    clock: { getTimezone: () => 'Europe/London' },
+    app: {
+      invalidateIogTariff: () => {
+        invalidated += 1;
+      },
+    },
+  };
   device.vatInc = () => true;
   device.localMidnight = (d) => new Date(Date.UTC(2026, 0, 1 + d));
   const restCalls = [];
@@ -284,7 +381,9 @@ test('intelligentGoBaseRates adopts an untrusted-shape code but defers rates to 
       if (productCode === 'INTELLI-REAL-26-01-01') {
         const from = new Date(Date.now() - 3600_000).toISOString();
         const to = new Date(Date.now() + 3600_000).toISOString();
-        return [{ value_inc_vat: 24, value_exc_vat: 22.8, valid_from: from, valid_to: to, payment_method: null }];
+        return [{
+          value_inc_vat: 24, value_exc_vat: 22.8, valid_from: from, valid_to: to, payment_method: null,
+        }];
       }
       return [];
     },
@@ -293,11 +392,21 @@ test('intelligentGoBaseRates adopts an untrusted-shape code but defers rates to 
     // A StandardTariff/HalfHourly-style agreement: resolved for code adoption
     // only. We must NOT fabricate a day/night schedule from it.
     getActiveIogTariff: async () => ({
-      tariffType: 'StandardTariff', resolvedVia: 'fallback', scheduleTrusted: false, validTo: null,
-      tariffCode: 'E-1R-INTELLI-REAL-26-01-01-C', productCode: 'INTELLI-REAL-26-01-01',
-      dayRate: 28.95, nightRate: 28.95, preVatDayRate: 27.571, preVatNightRate: 27.571,
-      evDevicePeakRate: null, evDeviceOffPeakRate: null,
-      preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 49,
+      tariffType: 'StandardTariff',
+      resolvedVia: 'fallback',
+      scheduleTrusted: false,
+      validTo: null,
+      tariffCode: 'E-1R-INTELLI-REAL-26-01-01-C',
+      productCode: 'INTELLI-REAL-26-01-01',
+      dayRate: 28.95,
+      nightRate: 28.95,
+      preVatDayRate: 27.571,
+      preVatNightRate: 27.571,
+      evDevicePeakRate: null,
+      evDeviceOffPeakRate: null,
+      preVatEvDevicePeakRate: null,
+      preVatEvDeviceOffPeakRate: null,
+      standingCharge: 49,
     }),
   };
 
@@ -313,10 +422,14 @@ test('intelligentGoBaseRates adopts an untrusted-shape code but defers rates to 
 });
 
 test('intelligentGoBaseRates fails closed to null when an untrusted adopted code still has no REST rows', async () => {
-  const store = { fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-STALE-26-01-01', tariffCode: 'E-1R-INTELLI-STALE-26-01-01-C' };
+  const store = {
+    fuel: 'electricity', isExport: false, accountNumber: 'A-1', productCode: 'INTELLI-STALE-26-01-01', tariffCode: 'E-1R-INTELLI-STALE-26-01-01-C',
+  };
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => store;
-  device.setStoreValue = async (k, v) => { store[k] = v; };
+  device.setStoreValue = async (k, v) => {
+    store[k] = v;
+  };
   device.isIntelligentGoTariff = () => true;
   device.ensureRegisterCapabilities = async () => {};
   device.log = () => {};
@@ -327,11 +440,21 @@ test('intelligentGoBaseRates fails closed to null when an untrusted adopted code
   device.client = { standardUnitRates: async () => [] }; // no rows even for the live code
   device.kraken = {
     getActiveIogTariff: async () => ({
-      tariffType: 'HalfHourlyTariff', resolvedVia: 'fallback', scheduleTrusted: false, validTo: null,
-      tariffCode: 'E-1R-INTELLI-REAL-26-01-01-C', productCode: 'INTELLI-REAL-26-01-01',
-      dayRate: 0, nightRate: 0, preVatDayRate: 0, preVatNightRate: 0,
-      evDevicePeakRate: null, evDeviceOffPeakRate: null,
-      preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: null,
+      tariffType: 'HalfHourlyTariff',
+      resolvedVia: 'fallback',
+      scheduleTrusted: false,
+      validTo: null,
+      tariffCode: 'E-1R-INTELLI-REAL-26-01-01-C',
+      productCode: 'INTELLI-REAL-26-01-01',
+      dayRate: 0,
+      nightRate: 0,
+      preVatDayRate: 0,
+      preVatNightRate: 0,
+      evDevicePeakRate: null,
+      evDeviceOffPeakRate: null,
+      preVatEvDevicePeakRate: null,
+      preVatEvDeviceOffPeakRate: null,
+      standingCharge: null,
     }),
   };
 

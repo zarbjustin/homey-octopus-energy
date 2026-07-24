@@ -15,9 +15,11 @@ Module._load = function load(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
+
 Module._load = originalLoad;
 
 const EN_LOCALE = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'locales', 'en.json'), 'utf8'));
+
 const tr = (key) => key.split('.').reduce((o, k) => (o || {})[k], EN_LOCALE) ?? key;
 
 function makeDevice({ consent = true, devices = [] } = {}) {

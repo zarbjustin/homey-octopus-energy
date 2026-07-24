@@ -17,7 +17,9 @@ function fakeHost() {
     intervals: [],
     timeouts: [],
     setInterval(fn, ms) {
-      const handle = { kind: 'interval', fn, ms, cleared: false };
+      const handle = {
+        kind: 'interval', fn, ms, cleared: false,
+      };
       host.intervals.push(handle);
       return handle;
     },
@@ -25,7 +27,9 @@ function fakeHost() {
       if (handle) handle.cleared = true;
     },
     setTimeout(fn, ms) {
-      const handle = { kind: 'timeout', fn, ms, cleared: false };
+      const handle = {
+        kind: 'timeout', fn, ms, cleared: false,
+      };
       host.timeouts.push(handle);
       return handle;
     },

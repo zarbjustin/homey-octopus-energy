@@ -20,6 +20,7 @@ Module._load = function load(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
+
 Module._load = originalLoad;
 
 const HOUR = 3600_000;

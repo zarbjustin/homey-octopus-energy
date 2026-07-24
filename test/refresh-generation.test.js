@@ -15,6 +15,7 @@ Module._load = function load(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
+
 Module._load = originalLoad;
 
 test('isStaleRefresh is false for the current generation and true for a superseded one', () => {
@@ -29,7 +30,9 @@ function meterDevice() {
   const store = {};
   const caps = {};
   const device = Object.create(OctopusMeterDevice.prototype);
-  device.store = () => ({ mpxn: '01', serial: '02', fuel: 'electricity', isExport: false });
+  device.store = () => ({
+    mpxn: '01', serial: '02', fuel: 'electricity', isExport: false,
+  });
   device.hasCapability = (c) => c === 'meter_power';
   device.client = {
     consumption: () => Promise.resolve([
@@ -38,8 +41,12 @@ function meterDevice() {
     ]),
   };
   device.getStoreValue = (k) => store[k];
-  device.setStoreValue = (k, v) => { store[k] = v; return Promise.resolve(); };
-  device.setCapabilityValue = (k, v) => { caps[k] = v; return Promise.resolve(); };
+  device.setStoreValue = (k, v) => {
+    store[k] = v; return Promise.resolve();
+  };
+  device.setCapabilityValue = (k, v) => {
+    caps[k] = v; return Promise.resolve();
+  };
   device.error = () => {};
   device._store = store;
   device._caps = caps;
@@ -101,11 +108,15 @@ test('a commit in progress blocks a later commit until it finishes (no interleav
   const device = meterDevice();
   device.refreshGeneration = 1;
   let release;
-  const gate = new Promise((res) => { release = res; });
+  const gate = new Promise((res) => {
+    release = res;
+  });
   const store = device._store;
   let gatedFirstWrite = true;
   device.setStoreValue = async (k, v) => {
-    if (gatedFirstWrite && k === 'lastConsumptionEnd') { gatedFirstWrite = false; await gate; }
+    if (gatedFirstWrite && k === 'lastConsumptionEnd') {
+      gatedFirstWrite = false; await gate;
+    }
     store[k] = v;
   };
   const pA = device.refreshConsumption(1);

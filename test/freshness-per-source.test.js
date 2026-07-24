@@ -16,6 +16,7 @@ Module._load = function load(request, parent, isMain) {
 };
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
 const { opaqueKey } = require('../.homeybuild/lib/diagnosticsKey.js');
+
 Module._load = originalLoad;
 
 function settingsStore() {

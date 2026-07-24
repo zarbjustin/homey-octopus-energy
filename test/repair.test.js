@@ -13,21 +13,32 @@ Module._load = function load(request, parent, isMain) {
 };
 const { OctopusMeterDriver } = require('../.homeybuild/lib/OctopusMeterDriver.js');
 const { OctopusClient } = require('../.homeybuild/lib/OctopusClient.js');
+
 Module._load = originalLoad;
 
 test('repair refuses to rebind a device to a different meter serial', async (t) => {
   t.mock.method(OctopusClient.prototype, 'discoverMeters', async () => [{
-    fuel: 'electricity', mpxn: '111', serial: 'replacement', isExport: false,
-    tariffCode: 'E-1R-AGILE-C', productCode: 'AGILE',
+    fuel: 'electricity',
+    mpxn: '111',
+    serial: 'replacement',
+    isExport: false,
+    tariffCode: 'E-1R-AGILE-C',
+    productCode: 'AGILE',
   }]);
   const driver = Object.create(OctopusMeterDriver.prototype);
   driver.fuel = 'electricity';
   let login;
-  const session = { setHandler: (name, handler) => { if (name === 'login') login = handler; } };
+  const session = {
+    setHandler: (name, handler) => {
+      if (name === 'login') login = handler;
+    },
+  };
   const writes = [];
   const device = {
     getStoreValue: (key) => ({ mpxn: '111', serial: 'original' }[key]),
-    setStoreValue: async (...args) => { writes.push(args); },
+    setStoreValue: async (...args) => {
+      writes.push(args);
+    },
   };
   await driver.onRepair(session, device);
   await assert.rejects(() => login({ apiKey: 'key', account: 'A-ONE' }), /original meter was not found/);
@@ -36,17 +47,27 @@ test('repair refuses to rebind a device to a different meter serial', async (t) 
 
 test('repair applies validated credentials through the meter device lifecycle', async (t) => {
   t.mock.method(OctopusClient.prototype, 'discoverMeters', async () => [{
-    fuel: 'electricity', mpxn: '111', serial: 'original', isExport: false,
-    tariffCode: 'E-1R-FIXED-A', productCode: 'FIXED',
+    fuel: 'electricity',
+    mpxn: '111',
+    serial: 'original',
+    isExport: false,
+    tariffCode: 'E-1R-FIXED-A',
+    productCode: 'FIXED',
   }]);
   const driver = Object.create(OctopusMeterDriver.prototype);
   driver.fuel = 'electricity';
   let login;
-  const session = { setHandler: (name, handler) => { if (name === 'login') login = handler; } };
+  const session = {
+    setHandler: (name, handler) => {
+      if (name === 'login') login = handler;
+    },
+  };
   let applied;
   const device = {
     getStoreValue: (key) => ({ mpxn: '111', serial: 'original' }[key]),
-    applyCredentials: async (store) => { applied = store; },
+    applyCredentials: async (store) => {
+      applied = store;
+    },
   };
 
   await driver.onRepair(session, device);
@@ -77,7 +98,11 @@ test('pairing rejects malformed account numbers before making a request', async 
   const driver = Object.create(OctopusMeterDriver.prototype);
   driver.fuel = 'electricity';
   const handlers = {};
-  await driver.onPair({ setHandler: (name, handler) => { handlers[name] = handler; } });
+  await driver.onPair({
+    setHandler: (name, handler) => {
+      handlers[name] = handler;
+    },
+  });
   await assert.rejects(
     () => handlers.login({ apiKey: 'key', account: 'not-an-account' }),
     /should look like A-/,
@@ -93,7 +118,11 @@ test('manual pairing requires all fields and validates the account credentials',
   const driver = Object.create(OctopusMeterDriver.prototype);
   driver.fuel = 'electricity';
   const handlers = {};
-  await driver.onPair({ setHandler: (name, handler) => { handlers[name] = handler; } });
+  await driver.onPair({
+    setHandler: (name, handler) => {
+      handlers[name] = handler;
+    },
+  });
 
   await assert.rejects(() => handlers.login({
     apiKey: 'key', account: 'A-ONE', manual_mpxn: '1234567890123',
@@ -114,7 +143,9 @@ test('manual pairing requires all fields and validates the account credentials',
 test('overlapping pairing sessions keep credentials and meters isolated', async (t) => {
   t.mock.method(OctopusClient.prototype, 'discoverMeters', async (account) => {
     if (account === 'A-ONE') {
-      await new Promise((resolve) => { setTimeout(resolve, 10); });
+      await new Promise((resolve) => {
+        setTimeout(resolve, 10);
+      });
     }
     return [{
       fuel: 'electricity',
@@ -130,8 +161,16 @@ test('overlapping pairing sessions keep credentials and meters isolated', async 
   const first = {};
   const second = {};
 
-  await driver.onPair({ setHandler: (name, handler) => { first[name] = handler; } });
-  await driver.onPair({ setHandler: (name, handler) => { second[name] = handler; } });
+  await driver.onPair({
+    setHandler: (name, handler) => {
+      first[name] = handler;
+    },
+  });
+  await driver.onPair({
+    setHandler: (name, handler) => {
+      second[name] = handler;
+    },
+  });
   await Promise.all([
     first.login({ apiKey: 'key-one', account: 'A-ONE' }),
     second.login({ apiKey: 'key-two', account: 'A-TWO' }),
@@ -151,13 +190,21 @@ test('overlapping pairing sessions keep credentials and meters isolated', async 
 
 test('failed pairing login clears any earlier session credentials', async (t) => {
   t.mock.method(OctopusClient.prototype, 'discoverMeters', async () => [{
-    fuel: 'electricity', mpxn: '1111111111111', serial: 'SERIAL', isExport: false,
-    tariffCode: 'E-1R-AGILE-A', productCode: 'AGILE',
+    fuel: 'electricity',
+    mpxn: '1111111111111',
+    serial: 'SERIAL',
+    isExport: false,
+    tariffCode: 'E-1R-AGILE-A',
+    productCode: 'AGILE',
   }]);
   const driver = Object.create(OctopusMeterDriver.prototype);
   driver.fuel = 'electricity';
   const handlers = {};
-  await driver.onPair({ setHandler: (name, handler) => { handlers[name] = handler; } });
+  await driver.onPair({
+    setHandler: (name, handler) => {
+      handlers[name] = handler;
+    },
+  });
 
   await handlers.login({ apiKey: 'key-one', account: 'A-ONE' });
   assert.equal((await handlers.list_devices()).length, 1);

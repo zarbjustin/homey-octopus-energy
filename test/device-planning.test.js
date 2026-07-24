@@ -10,6 +10,7 @@ Module._load = function load(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
+
 Module._load = originalLoad;
 
 function slot(start, price) {
@@ -84,8 +85,11 @@ test('tariff comparison uses one-register codes for candidates from an Economy 7
   const candidateTariffs = [];
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({
-    fuel: 'electricity', mpxn: '123', serial: 'meter-1',
-    productCode: 'CURRENT', tariffCode: 'E-2R-CURRENT-A',
+    fuel: 'electricity',
+    mpxn: '123',
+    serial: 'meter-1',
+    productCode: 'CURRENT',
+    tariffCode: 'E-2R-CURRENT-A',
   });
   device.client = {
     consumption: async () => records,
@@ -142,7 +146,8 @@ function s47Device(rates) {
       const e = new Date(r.valid_to).getTime();
       return (at.getTime()) >= s && at.getTime() < e;
     });
-    return cur ? new Date(cur.valid_from) : (at instanceof Date ? at : new Date());
+    if (cur) return new Date(cur.valid_from);
+    return at instanceof Date ? at : new Date();
   };
   return device;
 }

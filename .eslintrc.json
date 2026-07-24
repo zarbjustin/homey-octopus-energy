@@ -1,6 +1,6 @@
 {
   "extends": "athom/homey-app",
-  "ignorePatterns": ["test/", ".homeybuild/", "node_modules/", "*.js"],
+  "ignorePatterns": [".homeybuild/", "node_modules/"],
   "rules": {
     "linebreak-style": "off",
     "camelcase": "off",
@@ -9,5 +9,35 @@
     "import/no-unresolved": "off",
     "import/extensions": "off",
     "node/no-missing-import": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["*.js", "test/**/*.js"],
+      "extends": ["plugin:@typescript-eslint/disable-type-checked"],
+      "parser": "espree",
+      "parserOptions": { "ecmaVersion": 2021, "sourceType": "script", "project": null },
+      "env": { "node": true, "es2021": true },
+      "rules": {
+        "no-console": "off",
+        "func-names": "off",
+        "no-plusplus": "off",
+        "no-await-in-loop": "off",
+        "no-restricted-syntax": "off",
+        "no-empty-function": "off",
+        "max-len": "off",
+        "homey-app/global-timers": "off",
+        "global-require": "off",
+        "prefer-destructuring": "off",
+        "node/no-unpublished-require": "off",
+        "node/no-missing-require": "off",
+        "import/no-dynamic-require": "off",
+        "import/no-unresolved": "off",
+        "mocha/handle-done-callback": "off",
+        "mocha/no-mocha-arrows": "off",
+        "mocha/no-hooks-for-single-case": "off",
+        "mocha/no-setup-in-describe": "off",
+        "mocha/no-top-level-hooks": "off"
+      }
+    }
+  ]
 }

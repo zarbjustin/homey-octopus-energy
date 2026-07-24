@@ -11,13 +11,16 @@ Module._load = function load(request, parent, isMain) {
 };
 const OctopusEnergyApp = require('../.homeybuild/app.js');
 const { KrakenClient } = require('../.homeybuild/lib/KrakenClient.js');
+
 Module._load = originalLoad;
 
 test('account caches deduplicate balance and dispatch requests', async (t) => {
   let balanceCalls = 0;
   let plannedCalls = 0;
   let completedCalls = 0;
-  t.mock.method(KrakenClient.prototype, 'getBalance', async () => { balanceCalls += 1; return 12; });
+  t.mock.method(KrakenClient.prototype, 'getBalance', async () => {
+    balanceCalls += 1; return 12;
+  });
   t.mock.method(KrakenClient.prototype, 'getPlannedDispatches', async () => {
     plannedCalls += 1;
     return [{ start: '2026-01-01T00:00:00Z', end: '2026-01-01T00:30:00Z' }];
@@ -67,7 +70,9 @@ test('device list is cached, single-flighted, and cleared on credential change',
   let deviceCalls = 0;
   t.mock.method(KrakenClient.prototype, 'getDevices', async () => {
     deviceCalls += 1;
-    return [{ deviceId: 'd1', typename: 'SmartFlexVehicle', category: 'EV', controlState: null, participating: false }];
+    return [{
+      deviceId: 'd1', typename: 'SmartFlexVehicle', category: 'EV', controlState: null, participating: false,
+    }];
   });
   const app = new OctopusEnergyApp();
 
@@ -85,14 +90,20 @@ test('device list is cached, single-flighted, and cleared on credential change',
 test('getFlexPlanned queries an idle-but-linked EV for its future dispatches', async (t) => {
   const queried = [];
   t.mock.method(KrakenClient.prototype, 'getDevices', async () => ([
-    { deviceId: 'ev-1', typename: 'SmartFlexVehicle', category: 'EV', controlState: 'IDLE', participating: false },
+    {
+      deviceId: 'ev-1', typename: 'SmartFlexVehicle', category: 'EV', controlState: 'IDLE', participating: false,
+    },
   ]));
   t.mock.method(KrakenClient.prototype, 'getFlexPlannedDispatches', async (deviceId) => {
     queried.push(deviceId);
-    return [{ deviceId, start: '2026-01-01T23:30:00Z', end: '2026-01-02T05:30:00Z', kind: 'SMART' }];
+    return [{
+      deviceId, start: '2026-01-01T23:30:00Z', end: '2026-01-02T05:30:00Z', kind: 'SMART',
+    }];
   });
   let legacyCalled = false;
-  t.mock.method(KrakenClient.prototype, 'getPlannedDispatches', async () => { legacyCalled = true; return []; });
+  t.mock.method(KrakenClient.prototype, 'getPlannedDispatches', async () => {
+    legacyCalled = true; return [];
+  });
   const app = new OctopusEnergyApp();
 
   const planned = await app.getFlexPlanned('key', 'A-ONE');
@@ -106,15 +117,23 @@ test('getFlexPlanned fails closed when any candidate device errors (never publis
   // authoritative — reconcile would then cancel the failed device's still-future
   // windows. The whole poll must throw so prior state is retained.
   t.mock.method(KrakenClient.prototype, 'getDevices', async () => ([
-    { deviceId: 'ev-good', typename: 'SmartFlexVehicle', category: 'EV', controlState: 'IDLE', participating: false },
-    { deviceId: 'ev-bad', typename: 'SmartFlexVehicle', category: 'EV', controlState: 'IDLE', participating: false },
+    {
+      deviceId: 'ev-good', typename: 'SmartFlexVehicle', category: 'EV', controlState: 'IDLE', participating: false,
+    },
+    {
+      deviceId: 'ev-bad', typename: 'SmartFlexVehicle', category: 'EV', controlState: 'IDLE', participating: false,
+    },
   ]));
   t.mock.method(KrakenClient.prototype, 'getFlexPlannedDispatches', async (deviceId) => {
     if (deviceId === 'ev-bad') throw new Error('Unable to fetch planned dispatches.');
-    return [{ deviceId, start: '2026-01-01T23:30:00Z', end: '2026-01-02T05:30:00Z', kind: 'SMART' }];
+    return [{
+      deviceId, start: '2026-01-01T23:30:00Z', end: '2026-01-02T05:30:00Z', kind: 'SMART',
+    }];
   });
   let legacyCalled = false;
-  t.mock.method(KrakenClient.prototype, 'getPlannedDispatches', async () => { legacyCalled = true; return []; });
+  t.mock.method(KrakenClient.prototype, 'getPlannedDispatches', async () => {
+    legacyCalled = true; return [];
+  });
   const app = new OctopusEnergyApp();
 
   await assert.rejects(app.getFlexPlanned('key', 'A-ONE'), /Unable to fetch planned dispatches/);
@@ -138,8 +157,12 @@ test('getFlexPlanned uses the account-scoped feed only when there is no linked d
 
 test('IOG tariff cache: 6h reuse for a resolved value, exponential backoff for null', async (t) => {
   let calls = 0;
-  const real = { tariffType: 'DayNightTariff', resolvedVia: 'exact', validTo: null, tariffCode: 'E-1R-IOG-X-C', productCode: 'IOG-X', dayRate: 30, nightRate: 8, preVatDayRate: 29, preVatNightRate: 7, evDevicePeakRate: null, evDeviceOffPeakRate: null, preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 40 };
-  t.mock.method(KrakenClient.prototype, 'getActiveIogTariff', async () => { calls += 1; return real; });
+  const real = {
+    tariffType: 'DayNightTariff', resolvedVia: 'exact', validTo: null, tariffCode: 'E-1R-IOG-X-C', productCode: 'IOG-X', dayRate: 30, nightRate: 8, preVatDayRate: 29, preVatNightRate: 7, evDevicePeakRate: null, evDeviceOffPeakRate: null, preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 40,
+  };
+  t.mock.method(KrakenClient.prototype, 'getActiveIogTariff', async () => {
+    calls += 1; return real;
+  });
   const app = new OctopusEnergyApp();
 
   await app.getCachedIogTariff('key', 'A-ONE', 'E-1R-IOG-X-C', 'IOG-X');
@@ -149,7 +172,9 @@ test('IOG tariff cache: 6h reuse for a resolved value, exponential backoff for n
 
 test('IOG tariff cache backs off a persistent null (does not re-fetch every 30 min)', async (t) => {
   let calls = 0;
-  t.mock.method(KrakenClient.prototype, 'getActiveIogTariff', async () => { calls += 1; return null; });
+  t.mock.method(KrakenClient.prototype, 'getActiveIogTariff', async () => {
+    calls += 1; return null;
+  });
   const app = new OctopusEnergyApp();
 
   await app.getCachedIogTariff('key', 'A-TWO', 'E-1R-IOG-Y-C', 'IOG-Y'); // miss → 1 call, nullStreak 1
@@ -159,8 +184,12 @@ test('IOG tariff cache backs off a persistent null (does not re-fetch every 30 m
 
 test('invalidateIogTariff drops only the IOG cache, not the whole account/budget', async (t) => {
   let calls = 0;
-  const real = { tariffType: 'DayNightTariff', resolvedVia: 'exact', validTo: null, tariffCode: 'E-1R-IOG-Z-C', productCode: 'IOG-Z', dayRate: 30, nightRate: 8, preVatDayRate: 29, preVatNightRate: 7, evDevicePeakRate: null, evDeviceOffPeakRate: null, preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 40 };
-  t.mock.method(KrakenClient.prototype, 'getActiveIogTariff', async () => { calls += 1; return real; });
+  const real = {
+    tariffType: 'DayNightTariff', resolvedVia: 'exact', validTo: null, tariffCode: 'E-1R-IOG-Z-C', productCode: 'IOG-Z', dayRate: 30, nightRate: 8, preVatDayRate: 29, preVatNightRate: 7, evDevicePeakRate: null, evDeviceOffPeakRate: null, preVatEvDevicePeakRate: null, preVatEvDeviceOffPeakRate: null, standingCharge: 40,
+  };
+  t.mock.method(KrakenClient.prototype, 'getActiveIogTariff', async () => {
+    calls += 1; return real;
+  });
   const app = new OctopusEnergyApp();
 
   await app.getCachedIogTariff('key', 'A-3', 'E-1R-IOG-Z-C', 'IOG-Z');
@@ -179,21 +208,37 @@ test('repair propagates rotated credentials to sibling meters on the same accoun
       id,
       getData: () => ({ id }),
       getStoreValue: (k) => s[k],
-      setStoreValue: async (k, v) => { s[k] = v; },
+      setStoreValue: async (k, v) => {
+        s[k] = v;
+      },
       applied: null,
-      applyCredentials: async (next) => { Object.assign(s, next); },
+      applyCredentials: async (next) => {
+        Object.assign(s, next);
+      },
       store: s,
     };
   };
-  const elec = makeDevice('elec-1', { apiKey: 'OLD', accountNumber: 'A-ONE', mpxn: '111', serial: 'e1', fuel: 'electricity' });
-  const gas = makeDevice('gas-1', { apiKey: 'OLD', accountNumber: 'A-ONE', mpxn: '999', serial: 'g1', fuel: 'gas' });
-  const other = makeDevice('elec-2', { apiKey: 'KEEP', accountNumber: 'A-TWO', mpxn: '222', serial: 'e2', fuel: 'electricity' });
+  const elec = makeDevice('elec-1', {
+    apiKey: 'OLD', accountNumber: 'A-ONE', mpxn: '111', serial: 'e1', fuel: 'electricity',
+  });
+  const gas = makeDevice('gas-1', {
+    apiKey: 'OLD', accountNumber: 'A-ONE', mpxn: '999', serial: 'g1', fuel: 'gas',
+  });
+  const other = makeDevice('elec-2', {
+    apiKey: 'KEEP', accountNumber: 'A-TWO', mpxn: '222', serial: 'e2', fuel: 'electricity',
+  });
   const drivers = {
     electricity: { getDevices: () => [elec, other] },
     gas: { getDevices: () => [gas] },
     export: { getDevices: () => [] },
   };
-  app.homey = { drivers: { getDriver: (id) => { const d = drivers[id]; if (!d) throw new Error('no'); return d; } } };
+  app.homey = {
+    drivers: {
+      getDriver: (id) => {
+        const d = drivers[id]; if (!d) throw new Error('no'); return d;
+      },
+    },
+  };
 
   // Repair happened on elec-1 (excluded); propagate NEW key to siblings on A-ONE.
   await app.propagateRepairedCredentials('A-ONE', 'NEW', 'A-ONE', 'elec-1');
@@ -227,7 +272,9 @@ test('repair propagation is skipped on an account-number change (siblings not st
   const gas = {
     getData: () => ({ id: 'gas-1' }),
     getStoreValue: (k) => s[k],
-    setStoreValue: async (k, v) => { s[k] = v; },
+    setStoreValue: async (k, v) => {
+      s[k] = v;
+    },
     store: s,
   };
   app.homey = { drivers: { getDriver: (id) => ({ getDevices: () => (id === 'gas' ? [gas] : []) }) } };
@@ -247,10 +294,18 @@ test('repair propagation uses the quiet reloadCredentials path with no refresh b
   const gas = {
     getData: () => ({ id: 'gas-1' }),
     getStoreValue: (k) => s[k],
-    setStoreValue: async (k, v) => { s[k] = v; },
-    reloadCredentials: async (key) => { reloaded = key; s.apiKey = key; },
-    applyCredentials: async () => { appliedHeavy = true; },
-    refresh: async () => { refreshed = true; },
+    setStoreValue: async (k, v) => {
+      s[k] = v;
+    },
+    reloadCredentials: async (key) => {
+      reloaded = key; s.apiKey = key;
+    },
+    applyCredentials: async () => {
+      appliedHeavy = true;
+    },
+    refresh: async () => {
+      refreshed = true;
+    },
     store: s,
   };
   app.homey = { drivers: { getDriver: (id) => ({ getDevices: () => (id === 'gas' ? [gas] : []) }) } };

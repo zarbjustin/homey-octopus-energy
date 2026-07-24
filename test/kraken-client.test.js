@@ -300,15 +300,24 @@ test('active IOG HalfHourly drops rows with a missing/invalid validFrom (never f
     data: {
       account: {
         electricityAgreements: [{
-          validFrom: '2026-01-01T00:00:00Z', validTo: null,
+          validFrom: '2026-01-01T00:00:00Z',
+          validTo: null,
           tariff: {
             __typename: 'HalfHourlyTariff',
-            tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C', productCode: 'INTELLI-VAR-22-10-14',
-            displayName: 'IOG', standingCharge: 49.2,
+            tariffCode: 'E-1R-INTELLI-VAR-22-10-14-C',
+            productCode: 'INTELLI-VAR-22-10-14',
+            displayName: 'IOG',
+            standingCharge: 49.2,
             unitRates: [
-              { validFrom: '2026-01-01T04:30:00Z', validTo: '2026-01-01T22:30:00Z', value: 28.95, preVatValue: 27.571 },
-              { validFrom: null, validTo: null, value: 7.0, preVatValue: 6.667 },
-              { validFrom: 'not-a-date', validTo: null, value: 9.0, preVatValue: 8.5 },
+              {
+                validFrom: '2026-01-01T04:30:00Z', validTo: '2026-01-01T22:30:00Z', value: 28.95, preVatValue: 27.571,
+              },
+              {
+                validFrom: null, validTo: null, value: 7.0, preVatValue: 6.667,
+              },
+              {
+                validFrom: 'not-a-date', validTo: null, value: 9.0, preVatValue: 8.5,
+              },
             ],
           },
         }],
@@ -421,10 +430,16 @@ test('active IOG tariff recovers via fallback when the stored code is stale (the
     typenameHistogram: { DayNightTariff: 1 },
     rawActiveCount: 1,
     invalidDateCount: 0,
-    activeAgreementCount: 1, dayNightCount: 1, fourRateCount: 0,
-    standardCount: 0, threeRateCount: 0, halfHourlyCount: 0,
-    halfHourlyRowCount: -1, halfHourlyCoversNow: false,
-    exactMatchFound: false, fallbackUsed: true,
+    activeAgreementCount: 1,
+    dayNightCount: 1,
+    fourRateCount: 0,
+    standardCount: 0,
+    threeRateCount: 0,
+    halfHourlyCount: 0,
+    halfHourlyRowCount: -1,
+    halfHourlyCoversNow: false,
+    exactMatchFound: false,
+    fallbackUsed: true,
   });
 });
 
@@ -441,7 +456,10 @@ test('active IOG tariff never selects an export/outgoing agreement', async (t) =
               tariffCode: 'E-1R-OUTGOING-FIX-26-01-01-C',
               productCode: 'OUTGOING-FIX-26-01-01',
               displayName: 'Outgoing Export',
-              dayRate: 15, nightRate: 15, preVatDayRate: 14, preVatNightRate: 14,
+              dayRate: 15,
+              nightRate: 15,
+              preVatDayRate: 14,
+              preVatNightRate: 14,
               standingCharge: 0,
             },
           },
@@ -453,7 +471,10 @@ test('active IOG tariff never selects an export/outgoing agreement', async (t) =
               tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
               productCode: 'IOG-SYNTHETIC-26-01-01',
               displayName: 'Import IOG',
-              dayRate: 31.5, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7.619,
+              dayRate: 31.5,
+              nightRate: 8,
+              preVatDayRate: 30,
+              preVatNightRate: 7.619,
               standingCharge: 49.2,
             },
           },
@@ -657,7 +678,9 @@ test('getDevices normalises the smart-flex device list', async (t) => {
     return jsonResponse({
       data: {
         devices: [
-          { __typename: 'SmartFlexChargePoint', id: 'synthetic-cp', deviceType: 'CHARGE_POINTS', status: { currentState: 'SMART_CONTROL_IN_PROGRESS' } },
+          {
+            __typename: 'SmartFlexChargePoint', id: 'synthetic-cp', deviceType: 'CHARGE_POINTS', status: { currentState: 'SMART_CONTROL_IN_PROGRESS' },
+          },
           { __typename: 'SmartFlexBattery', deviceType: 'BATTERIES' },
         ],
       },
@@ -716,14 +739,44 @@ test('getCompletedDispatchWindows parses the optional kWh delta', async (t) => {
 });
 
 test('active IOG tariff excludes a co-existing non-IOG (Economy 7) DayNight agreement', async (t) => {
-  const response = { data: { account: { electricityAgreements: [
-    { validFrom: '2026-01-01T00:00:00Z', validTo: null, tariff: {
-      __typename: 'DayNightTariff', tariffCode: 'E-1R-E7-FIX-26-01-01-C', productCode: 'E-7-FIX-26-01-01',
-      displayName: 'Economy 7', dayRate: 40, nightRate: 20, preVatDayRate: 38, preVatNightRate: 19, standingCharge: 50 } },
-    { validFrom: '2026-01-01T00:00:00Z', validTo: null, tariff: {
-      __typename: 'DayNightTariff', tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C', productCode: 'IOG-SYNTHETIC-26-01-01',
-      displayName: 'IOG', dayRate: 31.5, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7.619, standingCharge: 49.2 } },
-  ] } } };
+  const response = {
+    data: {
+      account: {
+        electricityAgreements: [
+          {
+            validFrom: '2026-01-01T00:00:00Z',
+            validTo: null,
+            tariff: {
+              __typename: 'DayNightTariff',
+              tariffCode: 'E-1R-E7-FIX-26-01-01-C',
+              productCode: 'E-7-FIX-26-01-01',
+              displayName: 'Economy 7',
+              dayRate: 40,
+              nightRate: 20,
+              preVatDayRate: 38,
+              preVatNightRate: 19,
+              standingCharge: 50,
+            },
+          },
+          {
+            validFrom: '2026-01-01T00:00:00Z',
+            validTo: null,
+            tariff: {
+              __typename: 'DayNightTariff',
+              tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
+              productCode: 'IOG-SYNTHETIC-26-01-01',
+              displayName: 'IOG',
+              dayRate: 31.5,
+              nightRate: 8,
+              preVatDayRate: 30,
+              preVatNightRate: 7.619,
+              standingCharge: 49.2,
+            },
+          },
+        ],
+      },
+    },
+  };
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
     const request = JSON.parse(init.body);
     if (request.query.includes('obtainKrakenToken')) return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
@@ -736,14 +789,44 @@ test('active IOG tariff excludes a co-existing non-IOG (Economy 7) DayNight agre
 });
 
 test('active IOG tariff fails closed when two distinct IOG agreements are ambiguous', async (t) => {
-  const response = { data: { account: { electricityAgreements: [
-    { validFrom: '2026-02-01T00:00:00Z', validTo: null, tariff: {
-      __typename: 'DayNightTariff', tariffCode: 'E-1R-IOG-A-26-01-01-C', productCode: 'IOG-A-26-01-01',
-      displayName: 'IOG A', dayRate: 31, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7, standingCharge: 49 } },
-    { validFrom: '2026-01-01T00:00:00Z', validTo: null, tariff: {
-      __typename: 'DayNightTariff', tariffCode: 'E-1R-IOG-B-26-01-01-C', productCode: 'IOG-B-26-01-01',
-      displayName: 'IOG B', dayRate: 32, nightRate: 9, preVatDayRate: 31, preVatNightRate: 8, standingCharge: 49 } },
-  ] } } };
+  const response = {
+    data: {
+      account: {
+        electricityAgreements: [
+          {
+            validFrom: '2026-02-01T00:00:00Z',
+            validTo: null,
+            tariff: {
+              __typename: 'DayNightTariff',
+              tariffCode: 'E-1R-IOG-A-26-01-01-C',
+              productCode: 'IOG-A-26-01-01',
+              displayName: 'IOG A',
+              dayRate: 31,
+              nightRate: 8,
+              preVatDayRate: 30,
+              preVatNightRate: 7,
+              standingCharge: 49,
+            },
+          },
+          {
+            validFrom: '2026-01-01T00:00:00Z',
+            validTo: null,
+            tariff: {
+              __typename: 'DayNightTariff',
+              tariffCode: 'E-1R-IOG-B-26-01-01-C',
+              productCode: 'IOG-B-26-01-01',
+              displayName: 'IOG B',
+              dayRate: 32,
+              nightRate: 9,
+              preVatDayRate: 31,
+              preVatNightRate: 8,
+              standingCharge: 49,
+            },
+          },
+        ],
+      },
+    },
+  };
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
     const request = JSON.parse(init.body);
     if (request.query.includes('obtainKrakenToken')) return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
@@ -755,14 +838,44 @@ test('active IOG tariff fails closed when two distinct IOG agreements are ambigu
 });
 
 test('active IOG tariff fails closed for a malformed EXACT agreement (no fallback substitution)', async (t) => {
-  const response = { data: { account: { electricityAgreements: [
-    { validFrom: '2026-01-01T00:00:00Z', validTo: null, tariff: {
-      __typename: 'DayNightTariff', tariffCode: 'E-1R-IOG-EXACT-26-01-01-C', productCode: 'IOG-EXACT-26-01-01',
-      displayName: 'IOG exact (broken)', dayRate: null, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7, standingCharge: 49 } },
-    { validFrom: '2026-01-01T00:00:00Z', validTo: null, tariff: {
-      __typename: 'DayNightTariff', tariffCode: 'E-1R-IOG-OTHER-26-01-01-C', productCode: 'IOG-OTHER-26-01-01',
-      displayName: 'IOG other', dayRate: 31, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7, standingCharge: 49 } },
-  ] } } };
+  const response = {
+    data: {
+      account: {
+        electricityAgreements: [
+          {
+            validFrom: '2026-01-01T00:00:00Z',
+            validTo: null,
+            tariff: {
+              __typename: 'DayNightTariff',
+              tariffCode: 'E-1R-IOG-EXACT-26-01-01-C',
+              productCode: 'IOG-EXACT-26-01-01',
+              displayName: 'IOG exact (broken)',
+              dayRate: null,
+              nightRate: 8,
+              preVatDayRate: 30,
+              preVatNightRate: 7,
+              standingCharge: 49,
+            },
+          },
+          {
+            validFrom: '2026-01-01T00:00:00Z',
+            validTo: null,
+            tariff: {
+              __typename: 'DayNightTariff',
+              tariffCode: 'E-1R-IOG-OTHER-26-01-01-C',
+              productCode: 'IOG-OTHER-26-01-01',
+              displayName: 'IOG other',
+              dayRate: 31,
+              nightRate: 8,
+              preVatDayRate: 30,
+              preVatNightRate: 7,
+              standingCharge: 49,
+            },
+          },
+        ],
+      },
+    },
+  };
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
     const request = JSON.parse(init.body);
     if (request.query.includes('obtainKrakenToken')) return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
@@ -874,7 +987,11 @@ test('getDevices tolerates a nullable device status field error (returns the dev
       return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
     }
     return jsonResponse({
-      data: { devices: [{ __typename: 'SmartFlexVehicle', id: 'synthetic-ev-1', deviceType: 'EV', status: null }] },
+      data: {
+        devices: [{
+          __typename: 'SmartFlexVehicle', id: 'synthetic-ev-1', deviceType: 'EV', status: null,
+        }],
+      },
       errors: [{ message: 'Device status could not be fetched.' }],
     });
   });

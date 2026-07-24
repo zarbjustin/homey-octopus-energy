@@ -49,8 +49,14 @@ test('an unknown dispatch type fails closed to unknown with low confidence', () 
 test('a vanished future planned window is cancelled — only on a successful poll', () => {
   const prev = {
     windows: [{
-      deviceId: 'd1', kind: 'SMART', start: new Date(NOW + 60 * 60_000).toISOString(),
-      end: new Date(NOW + 90 * 60_000).toISOString(), state: 'planned', provenance: 'planned', confidence: 'medium', delta: null,
+      deviceId: 'd1',
+      kind: 'SMART',
+      start: new Date(NOW + 60 * 60_000).toISOString(),
+      end: new Date(NOW + 90 * 60_000).toISOString(),
+      state: 'planned',
+      provenance: 'planned',
+      confidence: 'medium',
+      delta: null,
     }],
     anyActive: false,
     lastCompletedEnd: 0,
@@ -64,8 +70,14 @@ test('a vanished future planned window is cancelled — only on a successful pol
 test('a failed planned poll retains prior windows and never cancels or ends', () => {
   const prev = {
     windows: [{
-      deviceId: 'd1', kind: 'SMART', start: new Date(NOW - 5 * 60_000).toISOString(),
-      end: new Date(NOW + 25 * 60_000).toISOString(), state: 'active', provenance: 'planned', confidence: 'medium', delta: null,
+      deviceId: 'd1',
+      kind: 'SMART',
+      start: new Date(NOW - 5 * 60_000).toISOString(),
+      end: new Date(NOW + 25 * 60_000).toISOString(),
+      state: 'active',
+      provenance: 'planned',
+      confidence: 'medium',
+      delta: null,
     }],
     anyActive: true,
     lastCompletedEnd: 0,
@@ -81,8 +93,14 @@ test('a failed planned poll retains prior windows and never cancels or ends', ()
 test('the ended edge fires when an active window genuinely disappears on a good poll', () => {
   const prev = {
     windows: [{
-      deviceId: 'd1', kind: 'SMART', start: new Date(NOW - 5 * 60_000).toISOString(),
-      end: new Date(NOW + 25 * 60_000).toISOString(), state: 'active', provenance: 'planned', confidence: 'medium', delta: null,
+      deviceId: 'd1',
+      kind: 'SMART',
+      start: new Date(NOW - 5 * 60_000).toISOString(),
+      end: new Date(NOW + 25 * 60_000).toISOString(),
+      state: 'active',
+      provenance: 'planned',
+      confidence: 'medium',
+      delta: null,
     }],
     anyActive: true,
     lastCompletedEnd: 0,
@@ -100,8 +118,12 @@ test('overlapping active windows on two devices raise a single aggregate started
 
 test('malformed planned rows are dropped', () => {
   const r = reconcile(EMPTY, [
-    { deviceId: 'd1', start: 'not-a-date', end: 'nope', kind: 'SMART' },
-    { deviceId: 'd2', start: new Date(NOW + 60_000).toISOString(), end: new Date(NOW).toISOString(), kind: 'SMART' }, // end <= start
+    {
+      deviceId: 'd1', start: 'not-a-date', end: 'nope', kind: 'SMART',
+    },
+    {
+      deviceId: 'd2', start: new Date(NOW + 60_000).toISOString(), end: new Date(NOW).toISOString(), kind: 'SMART',
+    }, // end <= start
   ], true, [], NOW);
   assert.equal(r.windows.length, 0);
 });
@@ -122,7 +144,9 @@ test('interval membership is instant-based (DST-safe by construction)', () => {
   const start = '2026-03-29T00:30:00Z';
   const end = '2026-03-29T02:30:00Z';
   const now = Date.parse('2026-03-29T01:30:00Z');
-  const r = reconcile(EMPTY, [{ deviceId: 'd1', start, end, kind: 'SMART' }], true, [], now);
+  const r = reconcile(EMPTY, [{
+    deviceId: 'd1', start, end, kind: 'SMART',
+  }], true, [], now);
   assert.equal(r.activeNow.length, 1);
 });
 
@@ -145,10 +169,14 @@ test('a large stable completed history never re-fires an already-seen window', (
 
 function plannedWindow(deviceId, startMin, endMin, kind = 'SMART') {
   return {
-    deviceId, kind,
+    deviceId,
+    kind,
     start: new Date(NOW + startMin * 60_000).toISOString(),
     end: new Date(NOW + endMin * 60_000).toISOString(),
-    state: 'planned', provenance: 'planned', confidence: 'medium', delta: null,
+    state: 'planned',
+    provenance: 'planned',
+    confidence: 'medium',
+    delta: null,
   };
 }
 

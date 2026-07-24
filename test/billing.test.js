@@ -9,7 +9,9 @@ const { computeBillingSummary } = require('../.homeybuild/lib/billing/aggregate.
 const TZ = 'Europe/London';
 
 function rate(fromIso, toIso, p) {
-  return { value_inc_vat: p, value_exc_vat: p, valid_from: fromIso, valid_to: toIso, payment_method: null };
+  return {
+    value_inc_vat: p, value_exc_vat: p, valid_from: fromIso, valid_to: toIso, payment_method: null,
+  };
 }
 function rec(startIso, kwh) {
   return { consumption: kwh, interval_start: startIso, interval_end: startIso };

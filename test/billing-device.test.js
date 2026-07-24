@@ -10,6 +10,7 @@ Module._load = function load(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
+
 Module._load = originalLoad;
 
 function settingsStore() {
@@ -38,8 +39,14 @@ test('persistBillingSummary stores under a masked account key without the full n
 test('refreshBillingSummary is import-electricity only (export meter is skipped)', async () => {
   let fetched = false;
   const device = Object.create(OctopusMeterDevice.prototype);
-  device.store = () => ({ fuel: 'electricity', isExport: true, mpxn: '1', serial: 's', productCode: 'P', tariffCode: 'E-1R-P-A', accountNumber: 'A-ONE' });
-  device.client = { consumption: async () => { fetched = true; return []; } };
+  device.store = () => ({
+    fuel: 'electricity', isExport: true, mpxn: '1', serial: 's', productCode: 'P', tariffCode: 'E-1R-P-A', accountNumber: 'A-ONE',
+  });
+  device.client = {
+    consumption: async () => {
+      fetched = true; return [];
+    },
+  };
   device.homey = { clock: { getTimezone: () => 'Europe/London' }, settings: settingsStore() };
 
   await device.refreshBillingSummary();

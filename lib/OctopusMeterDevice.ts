@@ -1038,6 +1038,53 @@ export class OctopusMeterDevice extends Homey.Device {
     if (hasMeter) {
       await this.commitCumulative(sorted, meterCap as string, generation);
     }
+
+    await this.refreshTodaySoFar(sorted, now);
+  }
+
+  /**
+   * BL-31 — calendar "today so far" tiles (midnight → now, local time), ADDITIVE
+   * to the rolling "last 24h" capabilities (which are unchanged). Because the REST
+   * consumption feed lags ~24h, most of the day has no settled records after local
+   * midnight: in that case the tiles read `null` ("–", i.e. "not settled yet")
+   * rather than a misleading 0. Mirrors the day/night cost logic of the rolling
+   * tile, windowed to the local day.
+   */
+  protected async refreshTodaySoFar(sorted: ConsumptionRecord[], now: Date): Promise<void> {
+    const hasUsage = this.hasCapability('octopus_usage_today_so_far');
+    const hasCost = this.hasCapability('octopus_cost_today_so_far');
+    if (!hasUsage && !hasCost) return;
+
+    const dayStart = this.localMidnight(0).getTime();
+    const nowMs = now.getTime();
+    const todays = sorted.filter((r) => {
+      const t = new Date(r.interval_start).getTime();
+      return t >= dayStart && t < nowMs;
+    });
+
+    if (!todays.length) {
+      // No settled data for today yet — honest "unknown", never a false 0.
+      if (hasUsage) await this.setCapabilityValue('octopus_usage_today_so_far', null).catch(this.error);
+      if (hasCost) await this.setCapabilityValue('octopus_cost_today_so_far', null).catch(this.error);
+      return;
+    }
+
+    if (hasUsage) {
+      const usage = Number(this.toEnergyUnit(sumConsumption(todays)).toFixed(2));
+      await this.setCapabilityValue('octopus_usage_today_so_far', usage).catch(this.error);
+    }
+    if (hasCost) {
+      let pence = 0;
+      for (const r of todays) {
+        const rate = this.rateForRecord(r.interval_start, this.rates, this.nightRates);
+        if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
+      }
+      if (this.includeStandingChargeInCost()) {
+        const sc = rateAt(this.standingRates) ?? this.standingRates[0];
+        if (sc) pence += valueOf(sc, this.vatInc());
+      }
+      await this.setCapabilityValue('octopus_cost_today_so_far', Number((pence / 100).toFixed(2))).catch(this.error);
+    }
   }
 
   /**

@@ -17,10 +17,13 @@ Module._load = function load(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
+
 Module._load = originalLoad;
 
 function rate(fromIso, toIso, inc) {
-  return { value_inc_vat: inc, value_exc_vat: inc, valid_from: fromIso, valid_to: toIso, payment_method: null };
+  return {
+    value_inc_vat: inc, value_exc_vat: inc, valid_from: fromIso, valid_to: toIso, payment_method: null,
+  };
 }
 
 function bareDevice() {
@@ -64,7 +67,9 @@ function breakdownDevice(captured) {
   device.vatInc = () => true;
   device.includeStandingChargeInCost = () => false;
   device.hasCapability = (c) => c === 'octopus_cost_peak_today' || c === 'octopus_cost_offpeak_today';
-  device.setCapabilityValue = (name, value) => { captured[name] = value; return Promise.resolve(); };
+  device.setCapabilityValue = (name, value) => {
+    captured[name] = value; return Promise.resolve();
+  };
   device.error = () => {};
   device.homey = { clock: { getTimezone: () => 'UTC' } };
   device.localMidnight = () => new Date('2026-07-21T00:00:00Z');

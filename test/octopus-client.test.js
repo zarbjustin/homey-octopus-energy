@@ -93,8 +93,12 @@ test('discoverMeters flattens import, export and gas meters with product codes',
 });
 
 test('getAll follows pagination via the next link', async () => {
-  const page1 = { count: 2, next: 'https://api.octopus.energy/v1/x/?page=2', previous: null, results: [{ a: 1 }] };
-  const page2 = { count: 2, next: null, previous: null, results: [{ a: 2 }] };
+  const page1 = {
+    count: 2, next: 'https://api.octopus.energy/v1/x/?page=2', previous: null, results: [{ a: 1 }],
+  };
+  const page2 = {
+    count: 2, next: null, previous: null, results: [{ a: 2 }],
+  };
   let call = 0;
   const client = new OctopusClient({
     apiKey: 'sk_test',
@@ -110,7 +114,9 @@ test('getAll follows pagination via the next link', async () => {
 test('getAll refuses pagination links on an unexpected origin', async () => {
   const client = new OctopusClient({
     apiKey: 'secret',
-    fetchImpl: async () => jsonResponse({ count: 1, next: 'https://evil.example/steal', previous: null, results: [] }),
+    fetchImpl: async () => jsonResponse({
+      count: 1, next: 'https://evil.example/steal', previous: null, results: [],
+    }),
   });
   await assert.rejects(() => client.getAll('/products/'), /unexpected origin/);
 });
@@ -170,7 +176,7 @@ test('throttled requests accept Retry-After seconds and HTTP dates', async () =>
           return {
             ok: false,
             status: 429,
-            headers: { get: (name) => name.toLowerCase() === 'retry-after' ? retryAfter : null },
+            headers: { get: (name) => (name.toLowerCase() === 'retry-after' ? retryAfter : null) },
             json: async () => ({}),
             text: async () => '',
           };
@@ -206,7 +212,9 @@ test('only network failures and transient HTTP statuses are retried', async () =
       parseCalls += 1;
       return {
         ...jsonResponse(ACCOUNT),
-        json: async () => { throw new SyntaxError('invalid JSON'); },
+        json: async () => {
+          throw new SyntaxError('invalid JSON');
+        },
       };
     },
   });
@@ -237,7 +245,9 @@ test('only network failures and transient HTTP statuses are retried', async () =
 test('getAll rejects malformed, repeated, and excessive pagination', async () => {
   const malformed = new OctopusClient({
     apiKey: 'secret',
-    fetchImpl: async () => jsonResponse({ count: 1, next: null, previous: null, results: 'invalid' }),
+    fetchImpl: async () => jsonResponse({
+      count: 1, next: null, previous: null, results: 'invalid',
+    }),
   });
   await assert.rejects(() => malformed.getAll('/products/'), /invalid paginated response/);
 
@@ -341,7 +351,9 @@ test('consumption URL encodes meter path segments', async () => {
     apiKey: 'secret',
     fetchImpl: async (url) => {
       requestedUrl = String(url);
-      return jsonResponse({ count: 0, next: null, previous: null, results: [] });
+      return jsonResponse({
+        count: 0, next: null, previous: null, results: [],
+      });
     },
   });
 
@@ -353,7 +365,9 @@ test('GET coalescing: concurrent identical reads hit the network once (BL-03)', 
   let calls = 0;
   const client = new OctopusClient({
     apiKey: 'secret',
-    fetchImpl: async () => { calls += 1; return jsonResponse({ count: 1, results: [{ v: 1 }] }); },
+    fetchImpl: async () => {
+      calls += 1; return jsonResponse({ count: 1, results: [{ v: 1 }] });
+    },
   });
 
   // Two concurrent identical GETs share one network request.

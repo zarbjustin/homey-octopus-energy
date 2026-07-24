@@ -68,6 +68,12 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
   /** Enable live power polling if the setting is on (opt-in, Home Mini only). */
   protected async onInitExtra(): Promise<void> {
+    // BL-31: migrate existing devices onto the additive "today so far" tiles.
+    for (const cap of ['octopus_usage_today_so_far', 'octopus_cost_today_so_far']) {
+      if (!this.hasCapability(cap)) {
+        await this.addCapability(cap).catch((err) => this.error(`Add ${cap} failed:`, err));
+      }
+    }
     if (this.getSetting('live_power')) {
       await this.enableLivePower();
     } else if (this.hasCapability('measure_power')) {

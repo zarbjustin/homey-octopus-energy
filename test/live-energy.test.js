@@ -11,6 +11,7 @@ Module._load = function load(request, parent, isMain) {
 };
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
 const { DispatchPoller } = require('../.homeybuild/lib/DispatchPoller.js');
+
 Module._load = originalLoad;
 
 function liveDevice(reading) {
@@ -21,7 +22,9 @@ function liveDevice(reading) {
 }
 
 test('getLiveDemandView derives import from a positive signed net reading', () => {
-  const view = liveDevice({ value: 1500, state: 'current', readAt: '2026-07-20T00:00:00Z', source: 'graphql' }).getLiveDemandView();
+  const view = liveDevice({
+    value: 1500, state: 'current', readAt: '2026-07-20T00:00:00Z', source: 'graphql',
+  }).getLiveDemandView();
   assert.equal(view.netW, 1500);
   assert.equal(view.importW, 1500);
   assert.equal(view.exportW, 0);
@@ -29,7 +32,9 @@ test('getLiveDemandView derives import from a positive signed net reading', () =
 });
 
 test('getLiveDemandView derives export from a negative signed net reading', () => {
-  const view = liveDevice({ value: -900, state: 'current', readAt: '2026-07-20T00:00:00Z', source: 'graphql' }).getLiveDemandView();
+  const view = liveDevice({
+    value: -900, state: 'current', readAt: '2026-07-20T00:00:00Z', source: 'graphql',
+  }).getLiveDemandView();
   assert.equal(view.exportW, 900);
   assert.equal(view.importW, 0);
 });
@@ -47,9 +52,14 @@ test('dispatch account view is deviceId-free and clock-accurate', () => {
   const now = Date.now();
   poller.states.set('A-ONE', {
     windows: [{
-      deviceId: 'secret-device-id', kind: 'SMART',
-      start: new Date(now - 60_000).toISOString(), end: new Date(now + 1_800_000).toISOString(),
-      state: 'active', provenance: 'planned', confidence: 'medium', delta: null,
+      deviceId: 'secret-device-id',
+      kind: 'SMART',
+      start: new Date(now - 60_000).toISOString(),
+      end: new Date(now + 1_800_000).toISOString(),
+      state: 'active',
+      provenance: 'planned',
+      confidence: 'medium',
+      delta: null,
     }],
     anyActive: true,
     lastCompletedEnd: 0,
@@ -70,9 +80,14 @@ test('a window retained across a failed poll is not shown as active once it has 
   const now = Date.now();
   poller.states.set('A-ONE', {
     windows: [{
-      deviceId: 'd', kind: 'SMART',
-      start: new Date(now - 7_200_000).toISOString(), end: new Date(now - 3_600_000).toISOString(),
-      state: 'active', provenance: 'planned', confidence: 'medium', delta: null,
+      deviceId: 'd',
+      kind: 'SMART',
+      start: new Date(now - 7_200_000).toISOString(),
+      end: new Date(now - 3_600_000).toISOString(),
+      state: 'active',
+      provenance: 'planned',
+      confidence: 'medium',
+      delta: null,
     }],
     anyActive: true, // stale retained flag from a failed poll
     lastCompletedEnd: 0,

@@ -95,10 +95,16 @@ test('widget APIs pass device freshness through to their frontends', async () =>
 test('summary widget populates the S44 effective-price hook from the device', async () => {
   const api = require('../widgets/summary/api.js');
   const effective = {
-    householdBase: 24.5, estimatedEffective: 24.5, finalisedPrevHalfHour: 22.3,
-    confidence: 'medium', estimated: true, settlement: false,
+    householdBase: 24.5,
+    estimatedEffective: 24.5,
+    finalisedPrevHalfHour: 22.3,
+    confidence: 'medium',
+    estimated: true,
+    settlement: false,
     reasons: ['bonus-smart-ev-only', 'estimate-not-settlement'],
-    ev: { peak: 30.1, offPeak: 7.5, allowanceWindow: '12:00–12:00 local', allowanceRemaining: null },
+    ev: {
+      peak: 30.1, offPeak: 7.5, allowanceWindow: '12:00–12:00 local', allowanceRemaining: null,
+    },
   };
   const device = {
     getData: () => ({ id: 'd1' }),
@@ -106,8 +112,12 @@ test('summary widget populates the S44 effective-price hook from the device', as
     hasCapability: () => false,
     getCapabilityValue: () => null,
     getDataFreshness: () => ({ updatedAt: null, stale: false, problem: false }),
-    getLiveDemandView: () => ({ netW: -900, importW: 0, exportW: 900, state: 'current', readAt: '2026-07-20T00:00:00Z', source: 'graphql' }),
-    getDispatchView: () => ({ activeNow: true, active: [], next: null, recentFinalised: [{ start: 'x', end: 'y', delta: 2.3 }] }),
+    getLiveDemandView: () => ({
+      netW: -900, importW: 0, exportW: 900, state: 'current', readAt: '2026-07-20T00:00:00Z', source: 'graphql',
+    }),
+    getDispatchView: () => ({
+      activeNow: true, active: [], next: null, recentFinalised: [{ start: 'x', end: 'y', delta: 2.3 }],
+    }),
     getEffectiveRateView: async () => effective,
   };
   const homey = { drivers: { getDriver: () => ({ getDevices: () => [device] }) } };

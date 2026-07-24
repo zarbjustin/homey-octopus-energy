@@ -10,6 +10,7 @@ Module._load = function load(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js');
+
 Module._load = originalLoad;
 
 function slot(start, price) {
@@ -29,7 +30,9 @@ function pointsDevice(getOctoplusPoints) {
   device.store = () => ({ accountNumber: 'A-ONE' });
   device.hasCapability = () => true;
   device.kraken = { getOctoplusPoints };
-  device.setCapabilityValue = async (cap, value) => { capabilities[cap] = value; };
+  device.setCapabilityValue = async (cap, value) => {
+    capabilities[cap] = value;
+  };
   device.log = (...args) => logs.push(args.join(' '));
   device.error = () => {};
   return { device, logs, capabilities };
@@ -37,7 +40,9 @@ function pointsDevice(getOctoplusPoints) {
 
 test('points refresh backs off for 24h and logs once when the field is unsupported', async () => {
   let calls = 0;
-  const { device, logs } = pointsDevice(async () => { calls += 1; return null; });
+  const { device, logs } = pointsDevice(async () => {
+    calls += 1; return null;
+  });
 
   await device.refreshPoints();
   await device.refreshPoints();
@@ -58,7 +63,9 @@ test('points refresh updates the capability and clears the unsupported flag on s
 
 test('a transient points failure only retries at most hourly, not every cycle', async () => {
   let calls = 0;
-  const { device } = pointsDevice(async () => { calls += 1; throw new Error('Transient Kraken error 503'); });
+  const { device } = pointsDevice(async () => {
+    calls += 1; throw new Error('Transient Kraken error 503');
+  });
 
   await assert.rejects(device.refreshPoints(), /Transient Kraken error 503/);
   // The cooldown was advanced before the call, so an immediate second refresh is skipped.
@@ -86,8 +93,14 @@ test('a recovered account resumes points polling after credentials are re-applie
   device.ensureRegisterCapabilities = async () => {};
   device.refresh = async () => {};
   await device.applyCredentials({
-    apiKey: 'k', accountNumber: 'A-ONE', mpxn: '1', serial: 's',
-    fuel: 'electricity', isExport: false, productCode: 'P', tariffCode: 'E-1R-P-A',
+    apiKey: 'k',
+    accountNumber: 'A-ONE',
+    mpxn: '1',
+    serial: 's',
+    fuel: 'electricity',
+    isExport: false,
+    productCode: 'P',
+    tariffCode: 'E-1R-P-A',
   });
 
   mode = 'ok';
@@ -101,7 +114,9 @@ test('a price gap logs a privacy-safe diagnostic shape and throws', async () => 
   const staleFallback = [slot(now - 2 * 3600_000, 21)]; // also ended before now
   const logs = [];
   const device = Object.create(OctopusMeterDevice.prototype);
-  device.store = () => ({ fuel: 'electricity', isExport: false, productCode: 'VAR-22-11-01', tariffCode: 'E-1R-VAR-22-11-01-A' });
+  device.store = () => ({
+    fuel: 'electricity', isExport: false, productCode: 'VAR-22-11-01', tariffCode: 'E-1R-VAR-22-11-01-A',
+  });
   device.isTwoRegisterTariff = () => false;
   device.isDynamicTariff = () => false;
   device.client = {
@@ -153,16 +168,23 @@ test('other time-of-use tariff families align refreshes to half-hour boundaries'
 test('IOG price gaps recover from account day/night rates', async () => {
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({
-    accountNumber: 'A-ONE', fuel: 'electricity', isExport: false,
-    productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C',
+    accountNumber: 'A-ONE',
+    fuel: 'electricity',
+    isExport: false,
+    productCode: 'IOG-VAR-26-01-01',
+    tariffCode: 'E-1R-IOG-VAR-26-01-01-C',
   });
   device.homey = { clock: { getTimezone: () => 'Europe/London' } };
   device.kraken = {
     getActiveIogTariff: async () => ({
       tariffType: 'FourRateEvTariff',
       scheduleTrusted: true,
-      dayRate: 31.5, nightRate: 8, preVatDayRate: 30, preVatNightRate: 7.619,
-      evDevicePeakRate: 45, evDeviceOffPeakRate: 6,
+      dayRate: 31.5,
+      nightRate: 8,
+      preVatDayRate: 30,
+      preVatNightRate: 7.619,
+      evDevicePeakRate: 45,
+      evDeviceOffPeakRate: 6,
     }),
   };
   device.log = () => {};
@@ -181,7 +203,9 @@ test('IOG price gaps recover from account day/night rates', async () => {
 test('IOG account-rate recovery fails closed for unsupported agreement shapes', async () => {
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({
-    accountNumber: 'A-ONE', fuel: 'electricity', isExport: false,
+    accountNumber: 'A-ONE',
+    fuel: 'electricity',
+    isExport: false,
     productCode: 'IOG-SYNTHETIC-26-01-01',
     tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
   });
@@ -196,13 +220,17 @@ test('IOG account-rate recovery fails closed when GraphQL is unavailable', async
   const logs = [];
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({
-    accountNumber: 'A-ONE', fuel: 'electricity', isExport: false,
+    accountNumber: 'A-ONE',
+    fuel: 'electricity',
+    isExport: false,
     productCode: 'IOG-SYNTHETIC-26-01-01',
     tariffCode: 'E-1R-IOG-SYNTHETIC-26-01-01-C',
   });
   device.homey = { clock: { getTimezone: () => 'Europe/London' } };
   device.kraken = {
-    getActiveIogTariff: async () => { throw new Error('Unsupported GraphQL field'); },
+    getActiveIogTariff: async () => {
+      throw new Error('Unsupported GraphQL field');
+    },
   };
   device.log = (...args) => logs.push(args.join(' '));
 
@@ -214,8 +242,12 @@ test('IOG account-rate recovery fails closed when GraphQL is unavailable', async
 test('effective-rate view is opt-in: null when the estimate setting is off', async () => {
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({
-    apiKey: 'k', accountNumber: 'A-ONE', fuel: 'electricity', isExport: false,
-    productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C',
+    apiKey: 'k',
+    accountNumber: 'A-ONE',
+    fuel: 'electricity',
+    isExport: false,
+    productCode: 'IOG-VAR-26-01-01',
+    tariffCode: 'E-1R-IOG-VAR-26-01-01-C',
   });
   device.currentPrice = 24.5;
   device.rates = [];
@@ -226,7 +258,11 @@ test('effective-rate view is opt-in: null when the estimate setting is off', asy
   device.homey = {
     settings: { get: () => enabled },
     clock: { getTimezone: () => 'Europe/London' },
-    app: { getDispatchView: () => ({ activeNow: false, active: [], next: null, recentFinalised: [] }) },
+    app: {
+      getDispatchView: () => ({
+        activeNow: false, active: [], next: null, recentFinalised: [],
+      }),
+    },
   };
 
   assert.equal(await device.getEffectiveRateView(), null, 'off by default → null');
@@ -243,14 +279,19 @@ test('effective-rate view is opt-in: null when the estimate setting is off', asy
 test('effective-rate view never derives a finalised price from the IOG GraphQL fallback', async () => {
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({
-    apiKey: 'k', accountNumber: 'A-ONE', fuel: 'electricity', isExport: false,
-    productCode: 'IOG-VAR-26-01-01', tariffCode: 'E-1R-IOG-VAR-26-01-01-C',
+    apiKey: 'k',
+    accountNumber: 'A-ONE',
+    fuel: 'electricity',
+    isExport: false,
+    productCode: 'IOG-VAR-26-01-01',
+    tariffCode: 'E-1R-IOG-VAR-26-01-01-C',
   });
   device.currentPrice = 24.5;
   // A rate row that WOULD cover the previous half-hour, but sourced from the IOG
   // GraphQL fallback — must NOT be reported as a finalised (settled) price.
   device.rates = [{
-    value_inc_vat: 8, value_exc_vat: 7.6,
+    value_inc_vat: 8,
+    value_exc_vat: 7.6,
     valid_from: new Date(Date.now() - 3 * 3600_000).toISOString(),
     valid_to: new Date(Date.now() + 3 * 3600_000).toISOString(),
     payment_method: null,
@@ -261,7 +302,11 @@ test('effective-rate view never derives a finalised price from the IOG GraphQL f
   device.homey = {
     settings: { get: () => true },
     clock: { getTimezone: () => 'Europe/London' },
-    app: { getDispatchView: () => ({ activeNow: false, active: [], next: null, recentFinalised: [] }) },
+    app: {
+      getDispatchView: () => ({
+        activeNow: false, active: [], next: null, recentFinalised: [],
+      }),
+    },
   };
 
   const view = await device.getEffectiveRateView();
@@ -272,7 +317,9 @@ test('a budget skip is recorded as a soft skip, never as an error or fault', () 
   const { BudgetError } = require('../.homeybuild/lib/KrakenBudget.js');
   const device = Object.create(OctopusMeterDevice.prototype);
   device.diagnosticUpdates = {};
-  device.store = () => ({ apiKey: 'api-key-xyz', accountNumber: 'A-1001', mpxn: '9900001', serial: 'SN-77' });
+  device.store = () => ({
+    apiKey: 'api-key-xyz', accountNumber: 'A-1001', mpxn: '9900001', serial: 'SN-77',
+  });
 
   device.recordIntegrationDiagnostic('points', new BudgetError());
   const entry = device.diagnosticUpdates.points;

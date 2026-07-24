@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  analysePriceWindow, classifyBand, spikeThreshold, estimatePlanSavings,
+  analysePriceWindow, classifyBand, estimatePlanSavings,
   lowPriceEnergyShare, coveringRows,
 } = require('../.homeybuild/lib/analytics/priceAnalytics.js');
 

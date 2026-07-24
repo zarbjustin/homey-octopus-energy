@@ -7,11 +7,15 @@ const { LiveDemandSource } = require('../.homeybuild/lib/LiveDemandSource.js');
 
 function harness({ deviceId = 'synthetic-mini', demand = 500, readAt = null } = {}) {
   const clock = { t: 1_000_000 };
-  const calls = { discover: 0, demand: 0, setInterval: 0, clearInterval: 0 };
+  const calls = {
+    discover: 0, demand: 0, setInterval: 0, clearInterval: 0,
+  };
   const timers = new Map();
   let nextTimer = 1;
   const client = {
-    getElectricityDeviceId: async () => { calls.discover += 1; return deviceId; },
+    getElectricityDeviceId: async () => {
+      calls.discover += 1; return deviceId;
+    },
     getDemandReading: async () => {
       calls.demand += 1;
       return { demand, readAt: readAt ?? new Date(clock.t).toISOString() };
@@ -19,13 +23,19 @@ function harness({ deviceId = 'synthetic-mini', demand = 500, readAt = null } = 
   };
   const deps = {
     getClient: () => client,
-    setInterval: (fn) => { calls.setInterval += 1; const id = nextTimer++; timers.set(id, fn); return id; },
-    clearInterval: (id) => { calls.clearInterval += 1; timers.delete(id); },
+    setInterval: (fn) => {
+      calls.setInterval += 1; const id = nextTimer++; timers.set(id, fn); return id;
+    },
+    clearInterval: (id) => {
+      calls.clearInterval += 1; timers.delete(id);
+    },
     now: () => clock.t,
     onError: () => {},
   };
   const source = new LiveDemandSource(deps, 120);
-  return { source, clock, calls, client, timers, deps };
+  return {
+    source, clock, calls, client, timers, deps,
+  };
 }
 
 const CREDS = { apiKey: 'k', accountNumber: 'A-ONE' };
@@ -69,7 +79,9 @@ test('a failed refresh yields a stale reading that retains the last value', asyn
   h.source.subscribe(CREDS, 'dev-a', (r) => seen.push(r));
   await h.source.pollAccount('A-ONE');
   // Now make the demand fetch fail.
-  h.client.getDemandReading = async () => { throw new Error('boom'); };
+  h.client.getDemandReading = async () => {
+    throw new Error('boom');
+  };
   await h.source.pollAccount('A-ONE');
   const last = seen[seen.length - 1];
   assert.equal(last.state, 'stale');

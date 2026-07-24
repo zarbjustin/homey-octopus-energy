@@ -12,7 +12,9 @@ const {
 } = require('../.homeybuild/lib/reporting/cost.js');
 
 function rate(inc, from = '2026-07-01T00:00:00Z', to = null) {
-  return { value_inc_vat: inc, value_exc_vat: Number((inc / 1.05).toFixed(4)), valid_from: from, valid_to: to, payment_method: null };
+  return {
+    value_inc_vat: inc, value_exc_vat: Number((inc / 1.05).toFixed(4)), valid_from: from, valid_to: to, payment_method: null,
+  };
 }
 const identity = (n) => n;
 const never = () => false;
@@ -39,13 +41,17 @@ test('consumptionCostPence sums energy cost at the inc-VAT rate', () => {
     { interval_start: '2026-07-10T10:00:00Z', interval_end: '2026-07-10T10:30:00Z', consumption: 1 },
     { interval_start: '2026-07-10T10:30:00Z', interval_end: '2026-07-10T11:00:00Z', consumption: 2 },
   ];
-  const pence = consumptionCostPence(records, [rate(20)], [], { incVat: true, twoRegister: false, isNight: never, toEnergy: identity });
+  const pence = consumptionCostPence(records, [rate(20)], [], {
+    incVat: true, twoRegister: false, isNight: never, toEnergy: identity,
+  });
   assert.equal(pence, 60, '3 kWh × 20p');
 });
 
 test('consumptionCostPence honours the VAT flag (exc-VAT)', () => {
   const records = [{ interval_start: '2026-07-10T10:00:00Z', interval_end: '2026-07-10T10:30:00Z', consumption: 1 }];
-  const pence = consumptionCostPence(records, [rate(21)], [], { incVat: false, twoRegister: false, isNight: never, toEnergy: identity });
+  const pence = consumptionCostPence(records, [rate(21)], [], {
+    incVat: false, twoRegister: false, isNight: never, toEnergy: identity,
+  });
   assert.equal(pence, 20, '21p inc → 20p exc at 5% VAT');
 });
 
@@ -57,7 +63,9 @@ test('windowCostPence includes only records whose start is in [start, end)', () 
   ];
   const start = Date.parse('2026-07-10T00:00:00Z');
   const end = Date.parse('2026-07-11T00:00:00Z');
-  const pence = windowCostPence(records, start, end, [rate(20)], [], { incVat: true, twoRegister: false, isNight: never, toEnergy: identity });
+  const pence = windowCostPence(records, start, end, [rate(20)], [], {
+    incVat: true, twoRegister: false, isNight: never, toEnergy: identity,
+  });
   assert.equal(pence, 20, 'only the in-window 1 kWh record counts');
 });
 
@@ -76,7 +84,9 @@ test('peakOffPeakCostPence splits at/after the window start by the isPeak predic
   ];
   const since = Date.parse('2026-07-15T06:00:00Z');
   const isPeak = (iso) => new Date(iso).getUTCHours() >= 16 && new Date(iso).getUTCHours() < 19;
-  const { peak, off } = peakOffPeakCostPence(records, since, [rate(20)], [], { incVat: true, twoRegister: false, isNight: never, toEnergy: identity }, isPeak);
+  const { peak, off } = peakOffPeakCostPence(records, since, [rate(20)], [], {
+    incVat: true, twoRegister: false, isNight: never, toEnergy: identity,
+  }, isPeak);
   assert.equal(peak, 20, 'the 16:00 record is peak');
   assert.equal(off, 20, 'the 09:00 record is off-peak; the pre-start record is excluded');
 });

@@ -1,0 +1,16 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Usage (today so far)",
+    "nl": "Verbruik (vandaag tot nu)",
+    "de": "Verbrauch (heute bisher)",
+    "fr": "Consommation (aujourd'hui)"
+  },
+  "units": { "en": "kWh" },
+  "decimals": 2,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/usage.svg",
+  "insights": true
+}

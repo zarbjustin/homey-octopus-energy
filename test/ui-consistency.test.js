@@ -21,7 +21,9 @@ function extractFn(src, name) {
   let depth = 0;
   for (; i < src.length; i++) {
     if (src[i] === '{') depth += 1;
-    else if (src[i] === '}') { depth -= 1; if (depth === 0) return src.slice(start, i + 1); }
+    else if (src[i] === '}') {
+      depth -= 1; if (depth === 0) return src.slice(start, i + 1);
+    }
   }
   throw new Error(`unbalanced braces in ${name}`);
 }
@@ -42,7 +44,9 @@ for (const w of WIDGETS) {
 
 // Domain widgets badge their OWN source's freshness (BL-15), not just the
 // device-wide flag; summary/timeline remain device-scoped.
-const SOURCE_WIDGETS = { price: 'prices', agile: 'prices', carbon: 'carbon', export: 'prices' };
+const SOURCE_WIDGETS = {
+  price: 'prices', agile: 'prices', carbon: 'carbon', export: 'prices',
+};
 for (const [w, key] of Object.entries(SOURCE_WIDGETS)) {
   test(`${w} widget badges its own data source (${key})`, () => {
     assert.match(html(w), new RegExp(`freshnessHtml\\(d, '[^']+', '${key}'\\)`), `${w} passes its per-source key`);

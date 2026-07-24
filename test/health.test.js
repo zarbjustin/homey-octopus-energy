@@ -10,6 +10,7 @@ Module._load = function load(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 const { OctopusMeterDevice, refreshHealthDecision } = require('../.homeybuild/lib/OctopusMeterDevice.js');
+
 Module._load = originalLoad;
 
 function slot(start, price) {
@@ -85,7 +86,9 @@ test('a missing current rate rediscovers a changed tariff and retries prices onc
       tariffCode: 'E-1R-NEW-A',
     }],
   };
-  device.setStoreValue = async (key, value) => { store[key] = value; };
+  device.setStoreValue = async (key, value) => {
+    store[key] = value;
+  };
   device.ensureRegisterCapabilities = async () => {};
   device.getData = () => ({ id: 'device-1' });
   device.fireAppTrigger = () => {};
@@ -128,8 +131,14 @@ test('price refresh recovers a long-lived current rate omitted by the date windo
 
 test('repair clears account-scoped caches before rebuilding clients', async () => {
   const store = {
-    apiKey: 'old-key', accountNumber: 'A-OLD', mpxn: '123', serial: 'meter-1',
-    fuel: 'electricity', isExport: false, productCode: 'OLD', tariffCode: 'E-1R-OLD-A',
+    apiKey: 'old-key',
+    accountNumber: 'A-OLD',
+    mpxn: '123',
+    serial: 'meter-1',
+    fuel: 'electricity',
+    isExport: false,
+    productCode: 'OLD',
+    tariffCode: 'E-1R-OLD-A',
   };
   const device = Object.create(OctopusMeterDevice.prototype);
   device.refreshPromise = null;
@@ -142,13 +151,19 @@ test('repair clears account-scoped caches before rebuilding clients', async () =
   device.lastStandingRefresh = Date.now();
   device.lastMonthlyRefresh = Date.now();
   device.lastPointsRefresh = Date.now();
-  device.setStoreValue = async (key, value) => { store[key] = value; };
+  device.setStoreValue = async (key, value) => {
+    store[key] = value;
+  };
   device.getStoreValue = (key) => store[key];
   device.homey = { app: {} };
   let builtWith;
-  device.buildClients = () => { builtWith = store.apiKey; };
+  device.buildClients = () => {
+    builtWith = store.apiKey;
+  };
   let hookCalled = false;
-  device.onCredentialsApplied = async () => { hookCalled = true; };
+  device.onCredentialsApplied = async () => {
+    hookCalled = true;
+  };
   device.ensureRegisterCapabilities = async () => {};
   device.refresh = async () => {};
   device.error = () => {};
@@ -218,8 +233,14 @@ test('integration diagnostics redact all stored account identifiers', () => {
 
 test('repair rolls back store values after a partial write failure', async () => {
   const original = {
-    apiKey: 'old-key', accountNumber: 'A-OLD', mpxn: '123', serial: 'meter-1',
-    fuel: 'electricity', isExport: false, productCode: 'OLD', tariffCode: 'E-1R-OLD-A',
+    apiKey: 'old-key',
+    accountNumber: 'A-OLD',
+    mpxn: '123',
+    serial: 'meter-1',
+    fuel: 'electricity',
+    isExport: false,
+    productCode: 'OLD',
+    tariffCode: 'E-1R-OLD-A',
   };
   const store = { ...original };
   const device = Object.create(OctopusMeterDevice.prototype);
@@ -252,9 +273,15 @@ test('setHealth raises a warning (not a connection alarm) for a price-only gap',
   device.consecutiveTotalFailures = 0;
   device.store = () => ({ productCode: 'VAR-22-11-01' });
   device.hasCapability = (cap) => cap === 'alarm_generic';
-  device.setCapabilityValue = async (cap, value) => { events.caps[cap] = value; };
-  device.setWarning = async (msg) => { events.warning = msg; };
-  device.unsetWarning = async () => { events.warnCleared = true; };
+  device.setCapabilityValue = async (cap, value) => {
+    events.caps[cap] = value;
+  };
+  device.setWarning = async (msg) => {
+    events.warning = msg;
+  };
+  device.unsetWarning = async () => {
+    events.warnCleared = true;
+  };
   device.getAvailable = () => true;
   device.setAvailable = async () => {};
   device.setUnavailable = async () => {};
@@ -274,10 +301,14 @@ test('setHealth clears the advisory warning once fully healthy', async () => {
   device.lastHealthyRefreshAt = 0;
   device.store = () => ({ productCode: 'VAR' });
   device.hasCapability = (cap) => cap === 'alarm_generic';
-  device.setCapabilityValue = async (cap, value) => { events.caps[cap] = value; };
+  device.setCapabilityValue = async (cap, value) => {
+    events.caps[cap] = value;
+  };
   device.setStoreValue = async () => {};
   device.setWarning = async () => {};
-  device.unsetWarning = async () => { events.warnCleared = true; };
+  device.unsetWarning = async () => {
+    events.warnCleared = true;
+  };
   device.getAvailable = () => true;
   device.setAvailable = async () => {};
   device.formatLocal = () => 'now';

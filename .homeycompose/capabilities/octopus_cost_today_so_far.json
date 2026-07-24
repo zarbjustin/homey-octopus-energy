@@ -1,0 +1,16 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Cost (today so far)",
+    "nl": "Kosten (vandaag tot nu)",
+    "de": "Kosten (heute bisher)",
+    "fr": "Coût (aujourd'hui)"
+  },
+  "units": { "en": "£" },
+  "decimals": 2,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/calendar-cost.svg",
+  "insights": true
+}

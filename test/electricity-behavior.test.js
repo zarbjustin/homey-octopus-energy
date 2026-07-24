@@ -13,12 +13,15 @@ Module._load = function load(request, parent, isMain) {
 };
 const ElectricityDriver = require('../.homeybuild/drivers/electricity/driver.js');
 const ElectricityDevice = require('../.homeybuild/drivers/electricity/device.js');
+
 Module._load = originalLoad;
 
 test('good-time condition requires both price and carbon data', async () => {
   const conditions = new Map();
   const register = (target) => ({
-    registerRunListener(listener) { target.listener = listener; return this; },
+    registerRunListener(listener) {
+      target.listener = listener; return this;
+    },
   });
   const driver = Object.create(ElectricityDriver.prototype);
   driver.homey = {
@@ -54,12 +57,16 @@ test('plunge trigger and notification fire only when crossing below zero', async
   device.hasCapability = () => false;
   device.getPriceLevel = () => 'plunge';
   device.notifyEnabled = () => true;
-  device.notify = async (message) => { notifications.push(message); };
+  device.notify = async (message) => {
+    notifications.push(message);
+  };
   device.error = () => {};
   device.homey = {
     flow: {
       getDeviceTriggerCard: (id) => ({
-        trigger: async (_target, tokens) => { fired.push({ id, tokens }); },
+        trigger: async (_target, tokens) => {
+          fired.push({ id, tokens });
+        },
       }),
     },
   };
@@ -79,11 +86,15 @@ test('smart-charge window is unknown when rates are present but none covers now 
   const device = Object.create(ElectricityDevice.prototype);
   device.hasCapability = (c) => c === 'octopus_smart_charge' || c === 'octopus_charge_start';
   device.getCapabilityValue = (c) => (c in values ? values[c] : null);
-  device.setCapabilityValue = async (c, v) => { values[c] = v; };
+  device.setCapabilityValue = async (c, v) => {
+    values[c] = v;
+  };
   device.error = () => {};
   device.currentPrice = 12.3; // stale value from a previous successful refresh
   const past = Date.now() - 3600_000;
-  device.rates = [{ value_inc_vat: 12.3, value_exc_vat: 11.7, valid_from: new Date(past - 1800_000).toISOString(), valid_to: new Date(past).toISOString() }];
+  device.rates = [{
+    value_inc_vat: 12.3, value_exc_vat: 11.7, valid_from: new Date(past - 1800_000).toISOString(), valid_to: new Date(past).toISOString(),
+  }];
 
   await device.updateSmartCharge();
   assert.equal(values.octopus_smart_charge, null, 'no current-covering row → unknown, not a stale true/false');
@@ -105,7 +116,9 @@ test('smart-charge window shows unknown (null) not a misleading No when price da
   const device = Object.create(ElectricityDevice.prototype);
   device.hasCapability = (c) => c === 'octopus_smart_charge' || c === 'octopus_charge_start';
   device.getCapabilityValue = (c) => (c in values ? values[c] : null);
-  device.setCapabilityValue = async (c, v) => { values[c] = v; };
+  device.setCapabilityValue = async (c, v) => {
+    values[c] = v;
+  };
   device.error = () => {};
   device.currentPrice = null; // no price resolved (IOG price gap)
   device.rates = [];
@@ -120,7 +133,9 @@ test('smart-charge window computes normally once price data exists', async () =>
   const device = Object.create(ElectricityDevice.prototype);
   device.hasCapability = (c) => c === 'octopus_smart_charge' || c === 'octopus_charge_start';
   device.getCapabilityValue = (c) => (c in values ? values[c] : null);
-  device.setCapabilityValue = async (c, v) => { values[c] = v; };
+  device.setCapabilityValue = async (c, v) => {
+    values[c] = v;
+  };
   device.error = () => {};
   device.getSetting = () => undefined;
   device.smartChargeMaxPrice = () => undefined;
@@ -128,7 +143,9 @@ test('smart-charge window computes normally once price data exists', async () =>
   device.nextChargeStart = () => '01:30';
   device.trigger = () => {};
   device.currentPrice = 12.3;
-  device.rates = [{ value_inc_vat: 12.3, value_exc_vat: 11.7, valid_from: new Date().toISOString(), valid_to: null }];
+  device.rates = [{
+    value_inc_vat: 12.3, value_exc_vat: 11.7, valid_from: new Date().toISOString(), valid_to: null,
+  }];
 
   await device.updateSmartCharge();
   assert.equal(values.octopus_smart_charge, true);
