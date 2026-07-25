@@ -12,7 +12,7 @@
 - **Usage** and **cost** over the last 24 hours, plus a cumulative meter shown in **Homey Energy**.
 - **Account balance**, Octoplus points, Saving Sessions, Free Electricity (Power Up), and Intelligent dispatches.
 - Regional **carbon intensity**, renewable generation percentage, and price/carbon-aware charging plans.
-- Agile, price, carbon, export, account summary, and upcoming-price timeline widgets, each showing a **provenance badge** (Current / Stale / Unknown) and clearly labelling app-derived recommendations and forecasts as **estimates**, never settled figures.
+- Agile, price, carbon, export, Energy Optimiser, account summary, and upcoming-price timeline widgets, each showing a **provenance badge** (Current / Stale / Unknown) and clearly labelling app-derived recommendations and forecasts as **estimates**, never settled figures.
 - Opt-in **estimated effective rate** for Intelligent Octopus Go on the summary widget — off by default, clearly labelled an estimate (never a bill or settlement), equal to your household unit rate with EV-device rates shown separately (enable it under Settings).
 - **Flow cards**
   - Triggers cover prices, thresholds, charge windows, carbon, tariffs, dispatches (including `dispatch_cancelled` and `dispatch_changed`), account balance, and Saving Sessions.
@@ -31,19 +31,24 @@ Public tariff prices need no auth; consumption and balance use your API key.
 ## Development
 
 ```bash
-npm install
+npm ci
 npm run build        # tsc
 npm test             # tsc + node --test
 npm run lint         # eslint
-homey app validate --level publish
-homey app run        # run on a connected Homey
+npm audit --omit=dev # production dependency gate
+npx homey app validate --level publish
+npx homey app install # install on the configured local Homey Pro
 ```
 
 - TypeScript, Homey SDK v3, Homey Compose (`.homeycompose/`).
 - API client in `lib/OctopusClient.ts` (REST) and `lib/KrakenClient.ts` (GraphQL, balance).
 - Pure tariff helpers in `lib/rates.ts` (unit-tested in `test/`).
 - Shared device/driver bases in `lib/OctopusMeterDevice.ts` and `lib/OctopusMeterDriver.ts`.
-- Current release and operational context in [`HANDOVER.md`](HANDOVER.md).
+- AI/human takeover starts in [`docs/ai-handover.md`](docs/ai-handover.md).
+- Repository rules for coding agents are in [`AGENTS.md`](AGENTS.md).
+- Current optional work is in [`docs/roadmap-next.md`](docs/roadmap-next.md).
+- Durable implementation gotchas are in [`docs/engineering-learnings.md`](docs/engineering-learnings.md).
+- Detailed release history remains in [`HANDOVER.md`](HANDOVER.md).
 
 ## Current release
 
@@ -88,13 +93,12 @@ To publish to the Homey App Store:
 
 1. Create a **Homey Personal Access Token** at https://tools.developer.homey.app (Account → Personal Access Tokens).
 2. Add it as a repository secret named `HOMEY_PAT` (Settings → Secrets and variables → Actions).
-3. Run the **Publish Homey App** workflow (Actions tab → *Publish Homey App* → *Run workflow*), or locally:
-
-   ```bash
-   homey app publish
-   ```
-
-4. Finish the submission and certification in the Homey Developer Tools.
+3. At a sprint or phase endpoint, run the validation commands in `AGENTS.md`.
+4. Install and smoke-test locally with `npx homey app install`.
+5. Commit and push the release.
+6. Run the **Publish Homey App** workflow (Actions tab → *Publish Homey App* → *Run workflow*).
+7. Confirm the GitHub release and Homey build exist.
+8. Finish Test/Live promotion and certification in Homey Developer Tools.
 
 The app validates at `publish` level. Homey currently reports two expected
 `energy.cumulative` warnings:

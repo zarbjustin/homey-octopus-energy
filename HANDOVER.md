@@ -2,8 +2,18 @@
 
 Last updated: 25 July 2026
 
+> **AI/LLM takeover:** start with [`docs/ai-handover.md`](docs/ai-handover.md), then read
+> [`AGENTS.md`](AGENTS.md), [`docs/roadmap-next.md`](docs/roadmap-next.md), and
+> [`docs/engineering-learnings.md`](docs/engineering-learnings.md). This file is a chronological
+> release record. Older “next”, “open”, and “remaining” statements are historical unless repeated
+> in the current takeover or roadmap documents.
+
 ## Current state
 
+- **AI-ready handover pack refreshed (25 Jul 2026).** Added repository-wide agent instructions,
+  a concise current-state takeover, a current optional roadmap, and durable engineering learnings.
+  `ROADMAP.md` now points to the authoritative post-v1.0.35 roadmap instead of presenting historical
+  sprint status as current.
 - **v1.0.35 (25 Jul 2026) — SHIPPED: Energy Optimiser + final BL-25/26/27 surfaces.**
   Publish run `30135586673` (green — Build 35). **BL-25:** pure
   `lib/planning/costCarbon.ts` selects one contiguous window after fairly normalising price and
@@ -934,17 +944,20 @@ validation error should be investigated.
 
 ## Release runbook
 
-1. Confirm a clean worktree and aligned versions.
-2. Run `npm run lint`, `npm test`, and `npm audit`.
+1. Confirm a clean worktree and aligned versions in `package.json`,
+   `package-lock.json`, `.homeycompose/app.json`, `app.json`, and `.homeychangelog.json`.
+2. Run `npx homey app build`, `npm test`, `npm run lint`, and `npm audit --omit=dev`.
 3. Run `npx homey app validate --level publish`.
-4. Install on the local hub with `npx homey app install` and smoke-test devices,
-   widgets, and representative Flows.
-5. Commit and push the implementation.
-6. Run `npx homey app publish`, choose the intended version, enter the changelog,
-   and allow the Homey CLI to commit/tag/push its version bump.
-7. Synchronize npm package metadata to the new version and push that follow-up.
-8. In Homey Developer Tools, publish the build to Test and submit it for
-   certification. Keep automatic publication enabled when desired.
+4. Install on the local hub with `npx homey app install`. Do not default to
+   `--clean`; it returned a generic `Missing File` error for v1.0.35 while the
+   normal packed install succeeded.
+5. Smoke-test affected devices, widgets, and representative Flows.
+6. Update the handover, roadmap, learnings, and repository instructions.
+7. Commit and push the implementation and release metadata.
+8. Dispatch `homey-app-publish.yml` on `main`.
+9. Confirm the Homey build ID plus the GitHub tag and release.
+10. In Homey Developer Tools, promote the build to Test/Live and submit it for
+    certification when appropriate.
 
 ## Release automation
 
@@ -958,7 +971,7 @@ validation error should be investigated.
   which is configured).
 - GitHub currently warns that the pinned checkout/setup-node actions target the
   deprecated Node 20 action runtime and are being forced onto Node 24. The
-  warning did not affect Build 17, but the pinned actions should be reviewed in
+  warning did not affect Build 35, but the pinned actions should be reviewed in
   a separate maintenance change when upstream releases compatible revisions.
 - CAVEAT observed on 19 July 2026: merging a release PR via the `gh` CLI did NOT
   emit the `push` event that triggers `Create GitHub Release` (merging via the

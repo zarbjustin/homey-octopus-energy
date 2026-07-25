@@ -1,5 +1,11 @@
 # Octopus Energy for Homey — Build Roadmap
 
+> **Current status (25 Jul 2026):** the formal engineering backlog is complete through
+> `BL-31` and shipped in v1.0.35. Read
+> [`docs/roadmap-next.md`](docs/roadmap-next.md) for current operational work and optional
+> future phases. The sprint material below is retained as historical design and delivery context;
+> its old “future”, “unreleased”, and “next” labels are not current.
+
 A feature-rich Homey Pro app integrating the Octopus Energy REST (and later GraphQL) API:
 energy monitoring, dynamic-pricing intelligence, and a rich set of Flow cards.
 
@@ -20,7 +26,7 @@ App: `uk.co.zarb.octopusenergy` · Repo: `zarbjustin/homey-octopus-energy`
   `/standing-charges/`, `/electricity-meter-points/{mpan}/meters/{serial}/consumption/`, gas equivalents.
 - Tariff code → product code: strip `^[EG]-\dR-` and trailing `-[A-P]` (region).
 
-## Future backlog - Sprints 40-48
+## Historical backlog - Sprints 40-48
 
 > **See `docs/handover/sprints-42-48-spec.md`** for the researched, opinionated
 > specification of Sprints 42–48. It proposes (and justifies) a revised execution
