@@ -43,6 +43,7 @@ import {
   iogHouseholdBands, iogRateTypeSummary,
 } from './pricing/iogSchedule';
 import { evaluateTargetRate, TargetRateResult } from './planning/targetRate';
+import { CostCarbonPlan, evaluateCostCarbonPlan } from './planning/costCarbon';
 import {
   rankTariffs, TariffCandidateInput, TariffVolatility,
 } from './compare/tariffComparison';
@@ -1834,42 +1835,117 @@ export class OctopusMeterDevice extends Homey.Device {
     return at.getTime() >= start && at.getTime() < end;
   }
 
+  /** True only in the first slot of the recommended export window. */
+  peakWindowStartedNow(withinHours: number, durationHours: number, at: Date = new Date()): boolean {
+    const current = rateAt(this.rates, at);
+    if (!current || !this.isPeakNow(withinHours, durationHours, at)) return false;
+    const previousSlot = new Date(Date.parse(current.valid_from) - 1);
+    return !this.isPeakNow(withinHours, durationHours, previousSlot);
+  }
+
   /**
-   * Carbon-weighted "green charge" plan: pick the half-hours before `byTime`
-   * that minimise a blend of price and carbon intensity, biased by `greenness`
-   * (0 = price only, 1 = carbon-heavy). Returns count, first start, avg price/carbon.
+   * Recommend one contiguous charge window using cached price and carbon data.
+   * The result is forecast-only and fails closed when either horizon is incomplete.
    */
+  getCostCarbonPlan(
+    durationHours: number,
+    withinHours: number,
+    greenness = 0.5,
+    energyKwh?: number,
+    at: Date = new Date(),
+    includeCurrentSlot = false,
+  ): CostCarbonPlan {
+    return evaluateCostCarbonPlan(this.rates, this.carbonForecastForWeighting(), {
+      now: at,
+      horizonEnd: new Date(at.getTime() + Number(withinHours) * 60 * 60_000),
+      durationSlots: Math.ceil(Number(durationHours) * 2),
+      greenness,
+      incVat: this.vatInc(),
+      energyKwh,
+      includeCurrentSlot,
+    });
+  }
+
+  /** True while the current slot is inside the cost/carbon recommendation. */
+  isInCostCarbonWindow(
+    durationHours: number,
+    withinHours: number,
+    greenness = 0.5,
+    at: Date = new Date(),
+  ): boolean {
+    return this.getCostCarbonPlan(
+      durationHours,
+      withinHours,
+      greenness,
+      undefined,
+      at,
+      true,
+    ).activeNow;
+  }
+
+  /** True only in the first slot of the current cost/carbon recommendation. */
+  costCarbonWindowStartedNow(
+    durationHours: number,
+    withinHours: number,
+    greenness = 0.5,
+    at: Date = new Date(),
+  ): boolean {
+    const current = rateAt(this.rates, at);
+    const result = this.getCostCarbonPlan(durationHours, withinHours, greenness, undefined, at, true);
+    if (!current || !result.activeNow) return false;
+    const previousSlot = new Date(Date.parse(current.valid_from) - 1);
+    return !this.getCostCarbonPlan(
+      durationHours,
+      withinHours,
+      greenness,
+      undefined,
+      previousSlot,
+      true,
+    ).activeNow;
+  }
+
   planGreenCharge(neededKwh: number, chargeRateKw: number, byTime: string, greenness = 0.5): {
-    count: number; first_start: string; price: number; carbon: number;
+    count: number;
+    first_start: string;
+    end: string;
+    price: number;
+    carbon: number;
+    estimated_cost: number;
+    estimated_emissions: number;
+    extra_price: number;
+    carbon_reduction: number;
+    confidence: string;
+    estimate_label: string;
   } | null {
-    const energyPerSlot = Math.max(0.01, Number(chargeRateKw) * 0.5);
-    const slots = Math.max(1, Math.ceil(Number(neededKwh) / energyPerSlot));
+    if (!(neededKwh > 0) || !(chargeRateKw > 0)) return null;
     const now = new Date();
-    const to = this.nextLocalTime(byTime);
-    const carbon = this.carbonForecastForWeighting();
-    const pool = ratesInWindow(this.rates, this.planningWindowStart(now), to);
-    if (pool.length < slots) return null;
-    const g = Math.min(1, Math.max(0, Number(greenness)));
-    const carbonAt = (start: string): number => {
-      const t = new Date(start).getTime();
-      const point = carbon.find((c) => new Date(c.from).getTime() <= t && t < new Date(c.to).getTime());
-      return point ? point.intensity : 150; // neutral default
-    };
-    const scored = pool.map((r) => ({
-      rate: r,
-      score: (1 - g) * valueOf(r, this.vatInc()) + g * (carbonAt(r.valid_from) / 10),
-    }));
-    scored.sort((a, b) => a.score - b.score);
-    const chosen = scored.slice(0, slots).map((s) => s.rate);
-    if (!chosen.length) return null;
-    const avgPrice = chosen.reduce((a, r) => a + valueOf(r, this.vatInc()), 0) / chosen.length;
-    const avgCarbon = chosen.reduce((a, r) => a + carbonAt(r.valid_from), 0) / chosen.length;
-    const sorted = chosen.sort((a, b) => new Date(a.valid_from).getTime() - new Date(b.valid_from).getTime());
+    const result = evaluateCostCarbonPlan(this.rates, this.carbonForecastForWeighting(), {
+      now,
+      horizonEnd: this.nextLocalTime(byTime),
+      durationSlots: Math.ceil(neededKwh / (chargeRateKw * 0.5)),
+      greenness,
+      incVat: this.vatInc(),
+      energyKwh: neededKwh,
+      energyPerSlotKwh: chargeRateKw * 0.5,
+    });
+    if (!result.available || !result.start || !result.end
+      || result.averagePrice === null || result.averageCarbon === null
+      || result.estimatedCost === null || result.estimatedEmissionsKg === null
+      || result.extraPriceVsCheapest === null || result.carbonReductionVsCheapest === null) {
+      return null;
+    }
     return {
-      count: sorted.length,
-      first_start: this.formatLocal(new Date(sorted[0].valid_from)),
-      price: Number(avgPrice.toFixed(2)),
-      carbon: Math.round(avgCarbon),
+      count: result.slots.length,
+      first_start: this.formatLocal(new Date(result.start)),
+      end: this.formatLocal(new Date(result.end)),
+      price: result.averagePrice,
+      carbon: result.averageCarbon,
+      estimated_cost: result.estimatedCost,
+      estimated_emissions: result.estimatedEmissionsKg,
+      extra_price: result.extraPriceVsCheapest,
+      carbon_reduction: result.carbonReductionVsCheapest,
+      confidence: result.confidence,
+      estimate_label: result.estimateLabel,
     };
   }
 

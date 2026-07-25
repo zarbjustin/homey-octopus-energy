@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="/homey.js" data-origin="widget"></script>
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--homey-text-color, #222); padding: 12px 14px; }
+    .name { font-size: 12px; color: var(--homey-text-color-light, #666); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .controls { display: flex; gap: 5px; margin: 7px 0; flex-wrap: wrap; }
+    button { border: 1px solid #767676; border-radius: 12px; padding: 4px 9px; background: transparent; color: inherit; font-size: 11px; cursor: pointer; }
+    button[aria-pressed="true"] { background: #075985; border-color: #075985; color: #fff; font-weight: 700; }
+    .window { font-size: 24px; line-height: 1.1; font-weight: 750; margin: 7px 0 4px; }
+    .metrics { display: flex; gap: 8px; flex-wrap: wrap; }
+    .metric { background: var(--homey-background-color, #f3f4f6); border: 1px solid #9ca3af; border-radius: 8px; padding: 4px 7px; font-size: 11px; }
+    .tradeoff { font-size: 11px; margin-top: 6px; }
+    .estimate { color: var(--homey-text-color-light, #555); font-size: 10px; margin-top: 5px; }
+    .err { font-size: 13px; color: var(--homey-text-color-light, #666); margin-top: 10px; }
+    .prov-badge { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 6px; margin-left: 4px; }
+    .prov-row { margin: 4px 0 6px; }
+    .prov-msg { color: #92400e; font-size: 10px; margin-left: 4px; }
+    .b-current { background: #dcfce7; color: #166534; }
+    .b-stale { background: #fef3c7; color: #92400e; }
+    .b-unknown { background: #e5e7eb; color: #374151; }
+  </style>
+</head>
+<body>
+  <div id="content" aria-live="polite" role="region" aria-label="Energy optimiser">
+    <div class="err">Loading...</div>
+  </div>
+  <script type="text/javascript">
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, function (char) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
+      });
+    }
+    function provenanceBadge(label, cls) { return '<span class="prov-badge ' + cls + '">' + esc(label) + '</span>'; }
+    function ageText(readAt) {
+      if (!readAt) return '';
+      var t = Date.parse(readAt);
+      if (isNaN(t)) return '';
+      var seconds = Math.max(0, Math.round((Date.now() - t) / 1000));
+      return seconds < 90 ? (seconds + 's ago') : (Math.round(seconds / 60) + 'm ago');
+    }
+    function freshnessHtml(d) {
+      var f = d && d.freshness;
+      var src = f && f.sources ? f.sources.prices : null;
+      var state = 'Unknown';
+      var cls = 'b-unknown';
+      var message = 'Price freshness is not yet known.';
+      var readAt = f ? f.updatedAt : null;
+      if (src) {
+        readAt = src.updatedAt;
+        if (src.state === 'current') { state = 'Current'; cls = 'b-current'; message = ''; }
+        else if (src.state === 'stale') { state = 'Stale'; cls = 'b-stale'; message = 'Prices may be out of date.'; }
+        else { message = 'No published prices yet.'; }
+      } else if (f && f.updatedAt && !f.stale && !f.problem) { state = 'Current'; cls = 'b-current'; message = ''; }
+      else if (f && f.updatedAt) { state = 'Stale'; cls = 'b-stale'; message = 'Prices may be out of date.'; }
+      var age = ageText(readAt);
+      return '<div class="prov-row" role="status">' + provenanceBadge('Prices - ' + state + (age ? ' - ' + age : ''), cls)
+        + (message ? '<span class="prov-msg">' + esc(message) + '</span>' : '') + '</div>';
+    }
+    function shortTime(iso) {
+      var date = new Date(iso);
+      if (isNaN(date.getTime())) return '';
+      return date.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+    function button(label, kind, value, selected) {
+      return '<button type="button" data-kind="' + kind + '" data-value="' + value
+        + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' + esc(label) + '</button>';
+    }
+    var state = { duration: 2, within: 12, greenness: 0.5 };
+    function controlsHtml() {
+      return '<div class="controls" role="group" aria-label="Optimiser priority">'
+        + button('Cheapest', 'greenness', 0, state.greenness === 0)
+        + button('Balanced', 'greenness', 0.5, state.greenness === 0.5)
+        + button('Greenest', 'greenness', 1, state.greenness === 1)
+        + '</div><div class="controls" role="group" aria-label="Window duration">'
+        + button('1 hour', 'duration', 1, state.duration === 1)
+        + button('2 hours', 'duration', 2, state.duration === 2)
+        + button('4 hours', 'duration', 4, state.duration === 4)
+        + '</div>';
+    }
+    function render(d) {
+      var el = document.getElementById('content');
+      if (!d || d.error) {
+        el.innerHTML = '<div class="err">' + esc((d && d.error) || 'Optimiser data is unavailable') + '</div>';
+        return;
+      }
+      var plan = d.plan;
+      var html = '<div class="name">' + esc(d.name || 'Energy optimiser') + '</div>';
+      html += freshnessHtml(d) + controlsHtml();
+      if (!plan || !plan.available) {
+        html += '<div class="err">Not enough complete published price and carbon forecast data yet.</div>';
+      } else {
+        html += '<div class="window">' + esc(shortTime(plan.start)) + ' - ' + esc(shortTime(plan.end)) + '</div>';
+        html += '<div class="metrics"><span class="metric">' + esc(plan.averagePrice) + ' p/kWh</span>'
+          + '<span class="metric">' + esc(plan.averageCarbon) + ' gCO2/kWh forecast</span>'
+          + '<span class="metric">' + esc(plan.confidence) + ' confidence</span></div>';
+        html += '<div class="tradeoff">Vs cheapest: ' + esc(plan.extraPriceVsCheapest)
+          + ' p/kWh price difference, ' + esc(plan.carbonReductionVsCheapest) + ' gCO2/kWh forecast reduction.</div>';
+        html += '<div class="estimate">' + esc(plan.estimateLabel) + '</div>';
+      }
+      el.innerHTML = html;
+      Array.prototype.forEach.call(el.querySelectorAll('button[data-kind]'), function (control) {
+        control.addEventListener('click', function () {
+          state[control.getAttribute('data-kind')] = Number(control.getAttribute('data-value'));
+          load();
+        });
+      });
+    }
+    var HomeyRef;
+    var deviceId = '';
+    async function load() {
+      if (!HomeyRef) return;
+      try {
+        var query = '/?id=' + encodeURIComponent(deviceId)
+          + '&duration=' + encodeURIComponent(state.duration)
+          + '&within=' + encodeURIComponent(state.within)
+          + '&greenness=' + encodeURIComponent(state.greenness);
+        var data = await HomeyRef.api('GET', query);
+        render(data);
+        HomeyRef.setHeight(document.body.scrollHeight);
+      } catch (err) {
+        render({ error: (err && err.message) || 'Error' });
+      }
+    }
+    function onHomeyReady(Homey) {
+      HomeyRef = Homey;
+      try {
+        var settings = Homey.getSettings();
+        if (settings && settings.device) {
+          deviceId = (typeof settings.device === 'object') ? (settings.device.id || '') : settings.device;
+        }
+      } catch (e) {}
+      load();
+      setInterval(load, 60000);
+      Homey.ready();
+    }
+  </script>
+</body>
+</html>

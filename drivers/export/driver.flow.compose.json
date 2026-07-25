@@ -63,6 +63,46 @@
           "example": 18
         }
       ]
+    },
+    {
+      "id": "export_peak_started",
+      "title": {
+        "en": "The best export window started ..."
+      },
+      "titleFormatted": {
+        "en": "The highest-priced [[duration]] h export window in the next [[within]] h started"
+      },
+      "hint": {
+        "en": "Fires at the start of the best contiguous export window from cached published rates. This is an estimate, not a guaranteed earning."
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "duration",
+          "min": 0.5,
+          "max": 12,
+          "step": 0.5,
+          "placeholder": { "en": "1" },
+          "title": { "en": "Duration (hours)" }
+        },
+        {
+          "type": "number",
+          "name": "within",
+          "min": 1,
+          "max": 48,
+          "step": 1,
+          "placeholder": { "en": "12" },
+          "title": { "en": "Within the next (hours)" }
+        }
+      ],
+      "tokens": [
+        {
+          "name": "price",
+          "type": "number",
+          "title": { "en": "Export rate (p/kWh)" },
+          "example": 24
+        }
+      ]
     }
   ],
   "actions": [

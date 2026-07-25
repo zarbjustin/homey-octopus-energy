@@ -20,6 +20,10 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
   private previousPrice: number | null = null;
 
+  private previousOptimiserSlot: string | null = null;
+
+  private pendingOptimiserSlot: string | null = null;
+
   private previousLevel: string | null = null;
 
   private liveSubscribedAccount: string | null = null;
@@ -87,7 +91,14 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     await this.updateSmartCharge();
     await this.updateNightRate();
     await this.refreshDispatching().catch((err) => this.error('Dispatch refresh failed:', err));
-    await this.refreshCarbon().catch((err) => this.error('Carbon refresh failed:', err));
+    const { pendingOptimiserSlot } = this;
+    this.pendingOptimiserSlot = null;
+    try {
+      await this.refreshCarbon();
+      if (pendingOptimiserSlot) this.trigger('green_charge_window_started', {}, {});
+    } catch (err) {
+      this.error('Carbon refresh failed:', err);
+    }
   }
 
   /** Fire night-rate started/ended triggers for Economy 7 tariffs. */
@@ -342,8 +353,14 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
       }
     }
 
+    // Price can be unchanged across adjacent slots while the carbon forecast
+    // changes, so the optimiser edge follows the rate slot rather than value.
+    if (this.previousOptimiserSlot !== null && rate.valid_from !== this.previousOptimiserSlot) {
+      this.pendingOptimiserSlot = rate.valid_from;
+    }
     this.previousPrice = value;
     this.previousLevel = levelNow;
+    this.previousOptimiserSlot = rate.valid_from;
   }
 
   private trigger(id: string, tokens: Record<string, unknown>, state: Record<string, unknown> = {}): void {

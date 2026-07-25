@@ -68,6 +68,113 @@ test('charge planning rejects non-positive energy or charge rates', () => {
   assert.equal(device.planCharge(7, 0, '07:00'), null);
 });
 
+test('cost/carbon device adapter returns one contiguous forecast window', () => {
+  const start = Date.parse('2026-07-25T00:00:00Z');
+  const device = deviceWithRates([
+    slot(start, 5),
+    slot(start + 30 * 60_000, 5),
+    slot(start + 60 * 60_000, 8),
+    slot(start + 90 * 60_000, 8),
+  ]);
+  device.carbonForecastForWeighting = () => [300, 300, 50, 50].map((intensity, index) => ({
+    from: new Date(start + index * 30 * 60_000).toISOString(),
+    to: new Date(start + (index + 1) * 30 * 60_000).toISOString(),
+    intensity,
+  }));
+
+  const plan = device.getCostCarbonPlan(1, 2, 0.8, 7, new Date(start));
+
+  assert.equal(plan.available, true);
+  assert.equal(plan.start, new Date(start + 60 * 60_000).toISOString());
+  assert.equal(plan.end, new Date(start + 120 * 60_000).toISOString());
+  assert.equal(plan.estimatedCost, 0.56);
+  assert.equal(plan.carbonReductionVsCheapest, 250);
+});
+
+test('cost/carbon device adapter fails closed without complete carbon data', () => {
+  const start = Date.parse('2026-07-25T00:00:00Z');
+  const device = deviceWithRates([slot(start, 5), slot(start + 30 * 60_000, 6)]);
+  device.carbonForecastForWeighting = () => [];
+
+  const plan = device.getCostCarbonPlan(1, 1, 0.5, undefined, new Date(start));
+
+  assert.equal(plan.available, false);
+  assert.equal(plan.reason, 'insufficient-carbon');
+});
+
+test('green charge adapter weights a partially used final slot', () => {
+  const start = Math.floor(Date.now() / (30 * 60_000)) * 30 * 60_000;
+  const device = deviceWithRates([
+    slot(start, 99),
+    slot(start + 30 * 60_000, 20),
+    slot(start + 60 * 60_000, 30),
+  ]);
+  device.nextLocalTime = () => new Date(start + 90 * 60_000);
+  device.carbonForecastForWeighting = () => [500, 100, 200].map((intensity, index) => ({
+    from: new Date(start + index * 30 * 60_000).toISOString(),
+    to: new Date(start + (index + 1) * 30 * 60_000).toISOString(),
+    intensity,
+  }));
+
+  const plan = device.planGreenCharge(4, 7, '07:00', 0.5);
+
+  assert.equal(plan.estimated_cost, 0.85);
+  assert.equal(plan.estimated_emissions, 0.45);
+});
+
+test('cost/carbon start edge does not repeat inside a rolling recommendation', () => {
+  const start = Date.parse('2026-07-25T00:00:00Z');
+  const device = deviceWithRates([
+    slot(start, 5),
+    slot(start + 30 * 60_000, 5),
+    slot(start + 60 * 60_000, 20),
+  ]);
+  device.carbonForecastForWeighting = () => [100, 100, 300].map((intensity, index) => ({
+    from: new Date(start + index * 30 * 60_000).toISOString(),
+    to: new Date(start + (index + 1) * 30 * 60_000).toISOString(),
+    intensity,
+  }));
+
+  assert.equal(
+    device.costCarbonWindowStartedNow(0.5, 1, 0.5, new Date(start + 30 * 60_000)),
+    false,
+  );
+});
+
+test('cost/carbon start edge fires when the recommendation becomes active', () => {
+  const start = Date.parse('2026-07-25T00:00:00Z');
+  const device = deviceWithRates([
+    slot(start, 30),
+    slot(start + 30 * 60_000, 5),
+    slot(start + 60 * 60_000, 20),
+  ]);
+  device.carbonForecastForWeighting = () => [300, 50, 200].map((intensity, index) => ({
+    from: new Date(start + index * 30 * 60_000).toISOString(),
+    to: new Date(start + (index + 1) * 30 * 60_000).toISOString(),
+    intensity,
+  }));
+
+  assert.equal(
+    device.costCarbonWindowStartedNow(0.5, 1, 0.5, new Date(start + 30 * 60_000)),
+    true,
+  );
+});
+
+test('export peak start edge does not repeat inside the selected window', () => {
+  const start = Date.parse('2026-07-25T00:00:00Z');
+  const device = deviceWithRates([
+    slot(start, 50),
+    slot(start + 30 * 60_000, 50),
+    slot(start + 60 * 60_000, 5),
+    slot(start + 90 * 60_000, 5),
+  ]);
+
+  assert.equal(
+    device.peakWindowStartedNow(1.5, 1, new Date(start + 30 * 60_000)),
+    false,
+  );
+});
+
 test('tariff comparison uses one-register codes for candidates from an Economy 7 tariff', async () => {
   const recordStart = '2026-07-01T00:00:00.000Z';
   const records = [{

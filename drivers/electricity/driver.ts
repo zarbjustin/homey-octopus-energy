@@ -23,7 +23,17 @@ interface ElectricityDevice extends Homey.Device {
   isGreenestNow(hours?: number): boolean;
   compareTariffs(days: number): Promise<{ best_product: string; current_annual: number; best_annual: number; annual_saving: number; confidence: string; note: string } | null>;
   planCharge(neededKwh: number, chargeRateKw: number, by: string): { count: number; first_start: string; price: number; cost: number } | null;
-  planGreenCharge(neededKwh: number, chargeRateKw: number, by: string, greenness: number): { count: number; first_start: string; price: number; carbon: number } | null;
+  planGreenCharge(neededKwh: number, chargeRateKw: number, by: string, greenness: number): {
+    count: number; first_start: string; end: string; price: number; carbon: number;
+    estimated_cost: number; estimated_emissions: number; extra_price: number;
+    carbon_reduction: number; confidence: string; estimate_label: string;
+  } | null;
+  getCostCarbonPlan(durationHours: number, withinHours: number, greenness: number): {
+    available: boolean; activeNow: boolean; start: string | null; end: string | null;
+    averagePrice: number | null; averageCarbon: number | null; confidence: string;
+  };
+  isInCostCarbonWindow(durationHours: number, withinHours: number, greenness: number): boolean;
+  costCarbonWindowStartedNow(durationHours: number, withinHours: number, greenness: number): boolean;
   findExtremeSlotAdvanced(kind: 'import' | 'export', within: number, duration: number, tie: string, seed: string): {
     start_time: string; end_time: string; price: number; window_start: string; window_end: string;
     tie_rule: string; price_basis: string; estimate_label: string;
@@ -77,6 +87,10 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       .registerRunListener(async (args: Args<{ duration: number; by: string; max_price: number }>) => (
         args.device.targetRateStartedNow(args.duration, args.by, args.max_price)
       ));
+    flow.getDeviceTriggerCard('green_charge_window_started')
+      .registerRunListener(async (args: Args<{ duration: number; within: number; greenness: number }>) => (
+        args.device.costCarbonWindowStartedNow(args.duration, args.within, args.greenness)
+      ));
     flow.getDeviceTriggerCard('carbon_below')
       .registerRunListener(async (args: Args<{ threshold: number }>, state: { carbon: number; previous: number | null }) => (
         crossedBelow(state.carbon, state.previous, args.threshold)
@@ -107,6 +121,10 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
     flow.getConditionCard('in_target_rate_window')
       .registerRunListener(async (args: Args<{ duration: number; by: string; max_price: number }>) => (
         args.device.isInTargetRateWindow(args.duration, args.by, args.max_price)
+      ));
+    flow.getConditionCard('in_green_charge_window')
+      .registerRunListener(async (args: Args<{ duration: number; within: number; greenness: number }>) => (
+        args.device.isInCostCarbonWindow(args.duration, args.within, args.greenness)
       ));
     flow.getConditionCard('dispatch_starts_within')
       .registerRunListener(async (args: Args<{ minutes: number }>) => args.device.dispatchStartsWithin(args.minutes));

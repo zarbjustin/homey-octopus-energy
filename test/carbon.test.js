@@ -31,3 +31,36 @@ test('isGreenestNow compares the current point to the forward window', () => {
   // At 00:15 current is 120 but 80 is still ahead -> not greenest.
   assert.strictEqual(c.isGreenestNow(forecast, new Date('2024-01-01T00:15:00Z')), false);
 });
+
+test('CarbonClient drops forecast rows with no intensity instead of inventing zero', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      data: [
+        {
+          from: '2026-07-25T00:00:00Z',
+          to: '2026-07-25T00:30:00Z',
+          intensity: {},
+        },
+        {
+          from: '2026-07-25T00:30:00Z',
+          to: '2026-07-25T01:00:00Z',
+          intensity: { forecast: 80, index: 'low' },
+        },
+      ],
+    }),
+  });
+  try {
+    const result = await new c.CarbonClient('https://example.invalid').getForecast();
+    assert.deepStrictEqual(result, [{
+      from: '2026-07-25T00:30:00Z',
+      to: '2026-07-25T01:00:00Z',
+      intensity: 80,
+      index: 'low',
+    }]);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

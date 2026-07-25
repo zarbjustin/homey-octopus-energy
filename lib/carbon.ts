@@ -16,6 +16,12 @@ export interface CarbonPoint {
 
 export type CarbonLevel = 'very_low' | 'low' | 'moderate' | 'high' | 'very_high';
 
+function finiteIntensity(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const intensity = Number(value);
+  return Number.isFinite(intensity) ? intensity : null;
+}
+
 /** GSP region letter (A–P) → Carbon Intensity API regionid (1–14). */
 const GSP_TO_REGION_ID: Record<string, number> = {
   A: 10, // East England
@@ -115,10 +121,12 @@ export class CarbonClient {
     const json = await res.json() as { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; actual?: number; index?: string } }> };
     const d = json?.data?.[0];
     if (!d) return null;
+    const intensity = finiteIntensity(d.intensity?.actual ?? d.intensity?.forecast);
+    if (intensity === null) return null;
     return {
       from: d.from,
       to: d.to,
-      intensity: Number(d.intensity?.actual ?? d.intensity?.forecast ?? 0),
+      intensity,
       index: String(d.intensity?.index ?? ''),
     };
   }
@@ -129,12 +137,15 @@ export class CarbonClient {
     const res = await this.request(`/intensity/${fromIso}/fw48h`);
     if (!res.ok) return [];
     const json = await res.json() as { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string } }> };
-    return (json?.data ?? []).map((d) => ({
-      from: d.from,
-      to: d.to,
-      intensity: Number(d.intensity?.forecast ?? 0),
-      index: String(d.intensity?.index ?? ''),
-    }));
+    return (json?.data ?? []).flatMap((d) => {
+      const intensity = finiteIntensity(d.intensity?.forecast);
+      return intensity === null ? [] : [{
+        from: d.from,
+        to: d.to,
+        intensity,
+        index: String(d.intensity?.index ?? ''),
+      }];
+    });
   }
 
   /** Current regional carbon intensity + index + renewable %, or null. */
@@ -146,10 +157,12 @@ export class CarbonClient {
     };
     const d = json?.data?.[0]?.data?.[0];
     if (!d) return null;
+    const intensity = finiteIntensity(d.intensity?.forecast);
+    if (intensity === null) return null;
     return {
       from: d.from,
       to: d.to,
-      intensity: Number(d.intensity?.forecast ?? 0),
+      intensity,
       index: String(d.intensity?.index ?? ''),
       renewable: renewablePercent(d.generationmix),
     };
@@ -161,11 +174,14 @@ export class CarbonClient {
     const res = await this.request(`/regional/intensity/${fromIso}/fw48h/regionid/${regionId}`);
     if (!res.ok) return [];
     const json = await res.json() as { data?: { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string } }> } };
-    return (json?.data?.data ?? []).map((d) => ({
-      from: d.from,
-      to: d.to,
-      intensity: Number(d.intensity?.forecast ?? 0),
-      index: String(d.intensity?.index ?? ''),
-    }));
+    return (json?.data?.data ?? []).flatMap((d) => {
+      const intensity = finiteIntensity(d.intensity?.forecast);
+      return intensity === null ? [] : [{
+        from: d.from,
+        to: d.to,
+        intensity,
+        index: String(d.intensity?.index ?? ''),
+      }];
+    });
   }
 }

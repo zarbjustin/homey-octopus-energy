@@ -10,6 +10,7 @@ const widgetApis = [
   ['price', 'electricity'],
   ['timeline', 'electricity'],
   ['carbon', 'electricity'],
+  ['optimiser', 'electricity'],
   ['export', 'export'],
 ];
 
@@ -49,7 +50,7 @@ test('summary widget also rejects a stale device id across all meter drivers', a
 });
 
 test('widget frontends escape device names and upstream error messages', () => {
-  for (const widget of ['agile', 'price', 'summary', 'timeline', 'export', 'carbon']) {
+  for (const widget of ['agile', 'price', 'summary', 'timeline', 'export', 'carbon', 'optimiser']) {
     const file = path.join(__dirname, '..', 'widgets', widget, 'public', 'index.html');
     const html = fs.readFileSync(file, 'utf8');
     assert.match(html, /function esc\(value\)/, widget);
@@ -59,7 +60,7 @@ test('widget frontends escape device names and upstream error messages', () => {
 });
 
 test('widget frontends expose live status and accessible controls', () => {
-  for (const widget of ['agile', 'price', 'summary', 'timeline', 'export', 'carbon']) {
+  for (const widget of ['agile', 'price', 'summary', 'timeline', 'export', 'carbon', 'optimiser']) {
     const file = path.join(__dirname, '..', 'widgets', widget, 'public', 'index.html');
     const html = fs.readFileSync(file, 'utf8');
     assert.match(html, /aria-live="polite"/, widget);
@@ -71,6 +72,48 @@ test('widget frontends expose live status and accessible controls', () => {
   );
   assert.match(agile, /<button type="button" class="tab/);
   assert.match(agile, /aria-pressed/);
+  const optimiser = fs.readFileSync(
+    path.join(__dirname, '..', 'widgets', 'optimiser', 'public', 'index.html'),
+    'utf8',
+  );
+  assert.match(optimiser, /role="group"/);
+  assert.match(optimiser, /aria-pressed/);
+});
+
+test('optimiser widget uses the cached device planner and bounds controls', async () => {
+  const api = require('../widgets/optimiser/api.js');
+  const expected = {
+    available: true,
+    start: '2026-07-25T01:00:00Z',
+    end: '2026-07-25T03:00:00Z',
+  };
+  const calls = [];
+  const device = {
+    getData: () => ({ id: 'meter-1' }),
+    getName: () => 'Meter',
+    getDataFreshness: () => ({ updatedAt: null, stale: false, problem: false }),
+    getCostCarbonPlan: (...args) => {
+      calls.push(args);
+      return expected;
+    },
+  };
+  const homey = {
+    drivers: {
+      getDriver: (id) => {
+        assert.equal(id, 'electricity');
+        return { getDevices: () => [device] };
+      },
+    },
+  };
+
+  const result = await api.getData({
+    homey,
+    query: {
+      id: 'meter-1', duration: '99', within: '0', greenness: '2',
+    },
+  });
+  assert.equal(result.plan, expected);
+  assert.deepEqual(calls, [[12, 1, 1]]);
 });
 
 test('widget APIs pass device freshness through to their frontends', async () => {

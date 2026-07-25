@@ -1,0 +1,24 @@
+{
+  "name": {
+    "en": "Energy Optimiser",
+    "nl": "Energieoptimalisatie"
+  },
+  "settings": [
+    {
+      "id": "device",
+      "type": "device",
+      "title": {
+        "en": "Electricity meter",
+        "nl": "Elektriciteitsmeter"
+      },
+      "filter": "driver_id=electricity"
+    }
+  ],
+  "height": 230,
+  "api": {
+    "getData": {
+      "method": "GET",
+      "path": "/"
+    }
+  }
+}

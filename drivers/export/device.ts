@@ -7,6 +7,8 @@ module.exports = class ExportDevice extends OctopusMeterDevice {
 
   private previousExportRate: number | null = null;
 
+  private previousExportSlot: string | null = null;
+
   /** Export energy is tracked as exported (production) for Homey Energy. */
   protected energyMeterCapability(): string | null {
     return 'meter_power.exported';
@@ -37,7 +39,11 @@ module.exports = class ExportDevice extends OctopusMeterDevice {
       this.trigger('export_rate_changed', { price: value, previous: prev });
       this.trigger('export_rate_above', { price: value }, { price: value, previous: prev });
     }
+    if (this.previousExportSlot !== null && rate.valid_from !== this.previousExportSlot) {
+      this.trigger('export_peak_started', { price: value }, {});
+    }
     this.previousExportRate = value;
+    this.previousExportSlot = rate.valid_from;
   }
 
   private trigger(id: string, tokens: Record<string, unknown>, state: Record<string, unknown> = {}): void {

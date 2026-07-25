@@ -55,6 +55,19 @@
 | BL-30 | H | API-client hardening: JWT `exp` parsing, contract test vs a documented authed endpoint, re-introspection ritual | S | P2 | — | Phase 2 | 05, 06 S-LOW-01, 17 R-005 |
 | BL-31 | J | Optional calendar "today so far" usage/cost tiles (midnight→now), ADDITIVE to the existing rolling "last 24h" capabilities — mirrors HA's current+previous split; sparse/late by design (REST consumption lags ~24h) | M | P3 | — | Phase 4 | 08 BB-08, BL-17 decision, community (BottlecapDave HA current_accumulative) |
 
+### Delivery status (24 Jul 2026)
+
+- **BL-25 — delivered in v1.0.35:** pure normalized cost/carbon contiguous-window
+  optimiser, forecast provenance, fail-closed incomplete horizons, and expanded
+  `plan_green_charge` estimate/trade-off tokens. Existing export planning remains
+  the export/Flux recommendation engine; no tariff-specific polling was added.
+- **BL-26 — delivered in v1.0.35:** interactive Energy Optimiser widget with
+  cheapest/balanced/greenest and duration controls, reading only cached device data.
+- **BL-27 — delivered in v1.0.35:** `green_charge_window_started`,
+  `in_green_charge_window`, and `export_peak_started`; trigger edges follow rate
+  slots so equal-price half-hours do not suppress carbon/export recommendations.
+- **BL-31 — delivered in v1.0.34.**
+
 ## Detailed cards for the near-term (P1 / Phase 1–2)
 
 ### BL-07 — Decompose `OctopusMeterDevice` (Epic B, XL, P1)

@@ -13,6 +13,7 @@ Module._load = function load(request, parent, isMain) {
 };
 const ElectricityDriver = require('../.homeybuild/drivers/electricity/driver.js');
 const ElectricityDevice = require('../.homeybuild/drivers/electricity/device.js');
+const ExportDevice = require('../.homeybuild/drivers/export/device.js');
 
 Module._load = originalLoad;
 
@@ -79,6 +80,67 @@ test('plunge trigger and notification fire only when crossing below zero', async
   await device.onPriceUpdated(-2, {});
   assert.equal(fired.filter((event) => event.id === 'price_plunge').length, 1);
   assert.equal(notifications.length, 1);
+});
+
+test('optimiser trigger follows slot edges even when the price is unchanged', async () => {
+  const fired = [];
+  let carbonRefreshed = false;
+  const device = Object.create(ElectricityDevice.prototype);
+  device.previousPrice = 10;
+  device.previousLevel = 'normal';
+  device.previousOptimiserSlot = '2026-07-25T00:00:00.000Z';
+  device.hasCapability = () => false;
+  device.getPriceLevel = () => 'normal';
+  device.error = () => {};
+  device.homey = {
+    flow: {
+      getDeviceTriggerCard: (id) => ({
+        trigger: async () => fired.push(id),
+      }),
+    },
+  };
+
+  await device.onPriceUpdated(10, { valid_from: '2026-07-25T00:30:00.000Z' });
+
+  assert.equal(fired.filter((id) => id === 'green_charge_window_started').length, 0);
+  device.refreshConsumption = async () => {};
+  device.updateSmartCharge = async () => {};
+  device.updateNightRate = async () => {};
+  device.refreshDispatching = async () => {};
+  device.refreshCarbon = async () => {
+    carbonRefreshed = true;
+  };
+  device.homey.flow.getDeviceTriggerCard = (id) => ({
+    trigger: async () => {
+      assert.equal(carbonRefreshed, true);
+      fired.push(id);
+    },
+  });
+  await device.refreshExtra(1);
+
+  assert.equal(fired.filter((id) => id === 'green_charge_window_started').length, 1);
+  assert.equal(fired.filter((id) => id === 'price_changed').length, 0);
+});
+
+test('export peak trigger follows slot edges even when the rate is unchanged', async () => {
+  const fired = [];
+  const device = Object.create(ExportDevice.prototype);
+  device.previousExportRate = 20;
+  device.previousExportSlot = '2026-07-25T00:00:00.000Z';
+  device.hasCapability = () => false;
+  device.error = () => {};
+  device.homey = {
+    flow: {
+      getDeviceTriggerCard: (id) => ({
+        trigger: async () => fired.push(id),
+      }),
+    },
+  };
+
+  await device.onPriceUpdated(20, { valid_from: '2026-07-25T00:30:00.000Z' });
+
+  assert.equal(fired.filter((id) => id === 'export_peak_started').length, 1);
+  assert.equal(fired.filter((id) => id === 'export_rate_changed').length, 0);
 });
 
 test('smart-charge window is unknown when rates are present but none covers now (stale price)', async () => {
