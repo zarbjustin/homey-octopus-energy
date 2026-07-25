@@ -17,7 +17,9 @@ Last updated: 25 July 2026
   plateaus, rising-edge checks prevent repeat fires, and the green trigger waits for the same-cycle
   carbon refresh. Carbon API rows with missing intensity are dropped rather than becoming a false
   zero. Commits: `b05ab64` (feature), `0b5458d` (release). 570 tests pass, lint/audit/publish
-  validation green. **Manual step:** promote Build 35 → Test/Live at
+  validation green. Local install verified on **Justin's Homey Pro** via `homey app install`
+  (the first `--clean` attempt returned Homey's generic "Missing File"; the normal packed install
+  succeeded). **Manual step:** promote Build 35 → Test/Live at
   https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/35.
 - **v1.0.34 (24 Jul 2026) — SHIPPED: "today so far" tiles (BL-31) + test-lint/SBOM (BL-29).**
   Publish run `30133681243` (green — Build 34). **BL-31:** additive calendar "today so far" tiles on
