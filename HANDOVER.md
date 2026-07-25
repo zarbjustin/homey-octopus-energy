@@ -1,9 +1,24 @@
 # Project Handover
 
-Last updated: 21 July 2026
+Last updated: 25 July 2026
 
 ## Current state
 
+- **v1.0.35 (25 Jul 2026) — SHIPPED: Energy Optimiser + final BL-25/26/27 surfaces.**
+  Publish run `30135586673` (green — Build 35). **BL-25:** pure
+  `lib/planning/costCarbon.ts` selects one contiguous window after fairly normalising price and
+  regional carbon-forecast scales; it requires complete continuous price + carbon coverage, excludes
+  an in-progress slot from new charge plans, weights a partially used final slot, and labels cost,
+  emissions, confidence and cheapest-window trade-offs as estimates (never settlement). Existing
+  `plan_green_charge` ID is preserved with expanded tokens. **BL-26:** new interactive Energy
+  Optimiser widget (cheapest/balanced/greenest + 1/2/4-hour controls), reading cached device state
+  only — zero new API cadence. **BL-27:** `green_charge_window_started`,
+  `in_green_charge_window`, and `export_peak_started`; slot-edge detection handles equal-price
+  plateaus, rising-edge checks prevent repeat fires, and the green trigger waits for the same-cycle
+  carbon refresh. Carbon API rows with missing intensity are dropped rather than becoming a false
+  zero. Commits: `b05ab64` (feature), `0b5458d` (release). 570 tests pass, lint/audit/publish
+  validation green. **Manual step:** promote Build 35 → Test/Live at
+  https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/35.
 - **v1.0.34 (24 Jul 2026) — SHIPPED: "today so far" tiles (BL-31) + test-lint/SBOM (BL-29).**
   Publish run `30133681243` (green — Build 34). **BL-31:** additive calendar "today so far" tiles on
   the electricity meter — `octopus_usage_today_so_far` + `octopus_cost_today_so_far` compute
@@ -17,9 +32,9 @@ Last updated: 21 July 2026
   **CI fix:** all three workflow audit gates scoped to `npm audit --omit=dev` (bare audit began
   failing on dev-only ESLint-toolchain advisories that never ship in the app). 548 tests pass, full
   lint clean, all gates green. **Manual step:** promote Build 34 → Test/Live.
-- **Roadmap: everything shipped except optional exploratory work.** Remaining: BL-25 (carbon/cost +
-  export/Flux optimiser, L), BL-26 (interactive widgets, M–L), BL-27 (more Flow cards, M),
-  innovation-catalogue picks, and exhaustive Dutch Flow-card translation. All P2/P3-optional.
+- **Blueprint backlog complete.** BL-25/26/27 shipped in v1.0.35 and BL-31 in v1.0.34. Remaining
+  work is deliberately exploratory only: innovation-catalogue picks and exhaustive Dutch Flow-card
+  translation. There is no committed roadmap debt.
 - **v1.0.33 (22 Jul 2026) — SHIPPED: internationalisation (BL-28); Phase 5 committed items COMPLETE.**
   Publish run `29940317544` (green — Build 33). Runtime i18n infrastructure (`/locales/en.json` +
   `nl.json`); all user-facing push notifications + boost-control error messages resolve via
@@ -27,12 +42,10 @@ Last updated: 21 July 2026
   value (capability) titles. Locale-parity test guards key/placeholder parity. Exhaustive Flow-card
   translation is a **deferred incremental community task** (infra is in place). Release commit
   `f084183`. 546 tests pass, all gates green. **Manual step:** promote Build 33 → Test/Live.
-- **Phase 5 — COMPLETE (committed scope).** BL-24 (dispatch control, v1.0.32) + BL-28 (i18n,
-  v1.0.33) delivered. Remaining across the whole blueprint is now **optional only**: Phase 4
-  leftovers (BL-25 optimiser, BL-26/27 new surfaces, BL-31 calendar tiles) and the
-  innovation-catalogue picks in `docs/blueprint/19-future-ideas-innovation-catalogue.md` (whose
-  flagship ideas — target-rate, dispatch control, budget guardrails, settled insights, comparison
-  2.0 — are already shipped). The core multi-model roadmap (Phases 1–5) is delivered.
+- **Phase 5 + optional Phase 4 follow-ons — COMPLETE.** BL-24 (dispatch control, v1.0.32), BL-28
+  (i18n, v1.0.33), BL-31 (calendar tiles, v1.0.34), and BL-25/26/27 (optimiser/widget/Flow,
+  v1.0.35) are delivered. Only uncommitted innovation-catalogue exploration and incremental
+  community translation remain.
 - **v1.0.32 (22 Jul 2026) — SHIPPED: Intelligent Octopus Go dispatch control (S64 + S65).**
   Publish run `29933694280` (green — Build 32 uploaded). **S64 read-only:** `ev_boost_active` Flow
   condition, `DispatchView.boostingNow`, `DispatchPoller.isBoosting()` (fail-closed on stale).
