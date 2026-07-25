@@ -47,10 +47,15 @@ homey app run        # run on a connected Homey
 
 ## Current release
 
-Source version `1.0.33` (published to the Homey App Store as Build 33; promotion
-to Test/Live is a manual dashboard step). This line completes the multi-model
-roadmap (Phases 1–5). Highlights across the recent releases:
+Source version `1.0.35` (Homey App Store builds are uploaded by the publish
+workflow; promotion to Test/Live is a manual dashboard step). The committed
+multi-model roadmap and its optional BL-25/26/27/31 follow-ons are complete.
+Highlights across the recent releases:
 
+- **v1.0.35** — a pure, fail-closed price/carbon optimiser, interactive Energy
+  Optimiser widget, cheap-and-green Flow trigger/condition, and export-peak trigger.
+- **v1.0.34** — additive calendar "today so far" usage/cost tiles, full JavaScript
+  test/widget lint coverage, and SBOM/provenance documentation.
 - **v1.0.33** — internationalisation: runtime i18n (`homey.__()` with
   `locales/en.json` + `nl.json`) plus Dutch app description, device names, and all
   value (capability) titles.

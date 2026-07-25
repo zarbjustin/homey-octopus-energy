@@ -1,4 +1,7 @@
 {
+  "1.0.35": {
+    "en": "New Energy Optimiser widget and Flow automation for cheap-and-green charging and peak export windows. The charge planner now selects one contiguous window, fairly normalises price versus carbon, labels every result as a forecast estimate, and returns no recommendation when price or carbon data is incomplete."
+  },
   "1.0.34": {
     "en": "New optional 'today so far' tiles: calendar-day usage and cost from midnight, shown alongside the existing rolling 'last 24h' figures (electricity). Because Octopus settles consumption ~a day late, these read '–' until today's data lands, rather than a misleading £0. Plus internal test-suite linting and supply-chain/SBOM documentation."
   },

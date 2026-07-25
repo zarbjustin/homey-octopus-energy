@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "uk.co.zarb.octopusenergy",
-  "version": "1.0.34",
+  "version": "1.0.35",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -838,6 +838,64 @@
         ]
       },
       {
+        "id": "green_charge_window_started",
+        "title": {
+          "en": "A cheap-and-green window started ..."
+        },
+        "titleFormatted": {
+          "en": "A [[duration]] h cheap-and-green window in the next [[within]] h started (green weighting [[greenness]])"
+        },
+        "hint": {
+          "en": "Fires when the recommended contiguous cost/carbon window begins. Uses cached published prices and regional carbon forecast data; fails closed if either horizon is incomplete."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "duration",
+            "min": 0.5,
+            "max": 12,
+            "step": 0.5,
+            "placeholder": {
+              "en": "2"
+            },
+            "title": {
+              "en": "Duration (hours)"
+            }
+          },
+          {
+            "type": "number",
+            "name": "within",
+            "min": 1,
+            "max": 48,
+            "step": 1,
+            "placeholder": {
+              "en": "12"
+            },
+            "title": {
+              "en": "Within the next (hours)"
+            }
+          },
+          {
+            "type": "number",
+            "name": "greenness",
+            "min": 0,
+            "max": 1,
+            "step": 0.1,
+            "placeholder": {
+              "en": "0.5"
+            },
+            "title": {
+              "en": "Green weighting (0-1)"
+            }
+          }
+        ]
+      },
+      {
         "id": "price_changed",
         "title": {
           "en": "The unit rate changed"
@@ -1280,6 +1338,61 @@
               "en": "Export rate (p/kWh)"
             },
             "example": 18
+          }
+        ]
+      },
+      {
+        "id": "export_peak_started",
+        "title": {
+          "en": "The best export window started ..."
+        },
+        "titleFormatted": {
+          "en": "The highest-priced [[duration]] h export window in the next [[within]] h started"
+        },
+        "hint": {
+          "en": "Fires at the start of the best contiguous export window from cached published rates. This is an estimate, not a guaranteed earning."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=export"
+          },
+          {
+            "type": "number",
+            "name": "duration",
+            "min": 0.5,
+            "max": 12,
+            "step": 0.5,
+            "placeholder": {
+              "en": "1"
+            },
+            "title": {
+              "en": "Duration (hours)"
+            }
+          },
+          {
+            "type": "number",
+            "name": "within",
+            "min": 1,
+            "max": 48,
+            "step": 1,
+            "placeholder": {
+              "en": "12"
+            },
+            "title": {
+              "en": "Within the next (hours)"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "price",
+            "type": "number",
+            "title": {
+              "en": "Export rate (p/kWh)"
+            },
+            "example": 24
           }
         ]
       },
@@ -2077,6 +2190,64 @@
         ]
       },
       {
+        "id": "in_green_charge_window",
+        "title": {
+          "en": "Now !{{is|isn't}} in a cheap-and-green window ..."
+        },
+        "titleFormatted": {
+          "en": "Now !{{is|isn't}} in the recommended [[duration]] h window within [[within]] h at green weighting [[greenness]]"
+        },
+        "hint": {
+          "en": "True only while the normalized price/carbon recommendation is active. Forecast estimate; fails closed if published prices or carbon forecast data are incomplete."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "type": "number",
+            "name": "duration",
+            "min": 0.5,
+            "max": 12,
+            "step": 0.5,
+            "placeholder": {
+              "en": "2"
+            },
+            "title": {
+              "en": "Duration (hours)"
+            }
+          },
+          {
+            "type": "number",
+            "name": "within",
+            "min": 1,
+            "max": 48,
+            "step": 1,
+            "placeholder": {
+              "en": "12"
+            },
+            "title": {
+              "en": "Within the next (hours)"
+            }
+          },
+          {
+            "type": "number",
+            "name": "greenness",
+            "min": 0,
+            "max": 1,
+            "step": 0.1,
+            "placeholder": {
+              "en": "0.5"
+            },
+            "title": {
+              "en": "Green weighting (0-1)"
+            }
+          }
+        ]
+      },
+      {
         "id": "dispatch_starts_within",
         "title": {
           "en": "A smart-charge dispatch !{{starts|doesn't start}} within ..."
@@ -2655,7 +2826,7 @@
           "en": "Plan greenest charge of [[needed_kwh]] kWh at [[charge_rate]] kW before [[by]] at greenness [[greenness]]"
         },
         "hint": {
-          "en": "Picks half-hours that balance low price and low carbon. Greenness 0 = cheapest, 1 = greenest."
+          "en": "Picks one contiguous window balancing low price and forecast carbon. Green weighting 0 = cheapest, 1 = greenest. Fails closed if either forecast horizon is incomplete."
         },
         "args": [
           {
@@ -2709,7 +2880,7 @@
               "en": "0.5"
             },
             "title": {
-              "en": "Min greenness (%)"
+              "en": "Green weighting (0-1)"
             }
           }
         ],
@@ -2747,6 +2918,68 @@
               "en": "Average carbon (gCO₂/kWh)"
             },
             "example": 90
+          },
+          {
+            "name": "end",
+            "type": "string",
+            "title": {
+              "en": "Window end"
+            },
+            "example": {
+              "en": "Tue 03:00"
+            }
+          },
+          {
+            "name": "estimated_cost",
+            "type": "number",
+            "title": {
+              "en": "Estimated cost (£)"
+            },
+            "example": 2.76
+          },
+          {
+            "name": "estimated_emissions",
+            "type": "number",
+            "title": {
+              "en": "Estimated emissions (kgCO₂)"
+            },
+            "example": 2.7
+          },
+          {
+            "name": "extra_price",
+            "type": "number",
+            "title": {
+              "en": "Price premium vs cheapest (p/kWh)"
+            },
+            "example": 0.8
+          },
+          {
+            "name": "carbon_reduction",
+            "type": "number",
+            "title": {
+              "en": "Carbon reduction vs cheapest (gCO₂/kWh)"
+            },
+            "example": 45
+          },
+          {
+            "name": "confidence",
+            "type": "string",
+            "title": {
+              "en": "Confidence"
+            },
+            "example": {
+              "en": "medium"
+            }
+          },
+          {
+            "name": "estimate_label",
+            "type": "string",
+            "title": {
+              "en": "Estimate label"
+            },
+            "example": {
+              "en": "Estimate from published prices and carbon forecast; not a bill or settlement."
+            }
           }
         ]
       },
@@ -4380,6 +4613,31 @@
         }
       },
       "id": "export"
+    },
+    "optimiser": {
+      "name": {
+        "en": "Energy Optimiser",
+        "nl": "Energieoptimalisatie"
+      },
+      "settings": [
+        {
+          "id": "device",
+          "type": "device",
+          "title": {
+            "en": "Electricity meter",
+            "nl": "Elektriciteitsmeter"
+          },
+          "filter": "driver_id=electricity"
+        }
+      ],
+      "height": 230,
+      "api": {
+        "getData": {
+          "method": "GET",
+          "path": "/"
+        }
+      },
+      "id": "optimiser"
     },
     "price": {
       "name": {
