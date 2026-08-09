@@ -12,6 +12,31 @@
       "filter": "driver_id=electricity"
     },
     {
+      "id": "colour_mode",
+      "type": "dropdown",
+      "title": {
+        "en": "Chart colours"
+      },
+      "value": "price_bands",
+      "values": [
+        {
+          "id": "price_bands",
+          "title": {
+            "en": "Price bands"
+          }
+        },
+        {
+          "id": "cheapest_slots",
+          "title": {
+            "en": "Cheapest slots (classic)"
+          }
+        }
+      ],
+      "hint": {
+        "en": "Price bands colour every half-hour by cost. Classic mode keeps the original purple chart with the cheapest slots in green."
+      }
+    },
+    {
       "id": "cheapest_count",
       "type": "number",
       "title": {
@@ -23,6 +48,70 @@
       "hint": {
         "en": "How many of the day's cheapest half-hours to highlight as the best times to use power."
       }
+    },
+    {
+      "id": "green_max",
+      "type": "number",
+      "title": {
+        "en": "Green up to (p/kWh)"
+      },
+      "value": 10,
+      "min": 0,
+      "max": 200,
+      "hint": {
+        "en": "Prices from zero through this value are green. Negative prices are always blue."
+      }
+    },
+    {
+      "id": "yellow_max",
+      "type": "number",
+      "title": {
+        "en": "Yellow up to (p/kWh)"
+      },
+      "value": 20,
+      "min": 0,
+      "max": 200
+    },
+    {
+      "id": "orange_max",
+      "type": "number",
+      "title": {
+        "en": "Orange up to (p/kWh)"
+      },
+      "value": 30,
+      "min": 0,
+      "max": 200,
+      "hint": {
+        "en": "Prices above this value are red. Thresholds must increase from green to yellow to orange."
+      }
+    },
+    {
+      "id": "palette",
+      "type": "dropdown",
+      "title": {
+        "en": "Colour palette"
+      },
+      "value": "standard",
+      "values": [
+        {
+          "id": "standard",
+          "title": {
+            "en": "Standard"
+          }
+        },
+        {
+          "id": "colourblind",
+          "title": {
+            "en": "Colour-blind friendly"
+          }
+        },
+        {
+          "id": "high_contrast",
+          "title": {
+            "en": "High contrast"
+          }
+        }
+      ]
     }
   ],
   "height": 350,

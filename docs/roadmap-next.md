@@ -1,8 +1,8 @@
-# Roadmap After v1.0.35
+# Roadmap After v1.0.36
 
 ## Current Roadmap Status
 
-The formal engineering backlog is complete through `BL-31`. The core roadmap and optional Phase 4 follow-ons shipped by v1.0.35.
+The formal engineering backlog is complete through `BL-31`. The core roadmap and optional Phase 4 follow-ons shipped by v1.0.35. Community-requested configurable widget price bands shipped in v1.0.36 as S71–S72.
 
 No item below is committed delivery debt. Start a new phase only after explicit prioritisation.
 
@@ -10,7 +10,8 @@ No item below is committed delivery debt. Start a new phase only after explicit 
 
 | Priority | Item | Status | Completion evidence |
 |---|---|---|---|
-| P0 | Promote Homey Build 35 to Test/Live | Manual | Homey Developer Tools shows the intended channel |
+| P0 | Promote Homey Build 36 to Test/Live | Manual | Homey Developer Tools shows the intended channel |
+| P1 | Smoke-test both configurable price-band widgets | Pending human verification | Custom thresholds and palette persist; bars, legend, and current-slot marker render on a real Homey |
 | P1 | Smoke-test Energy Optimiser widget and new Flow cards | Pending human verification | Widget loads; trigger, condition, and export trigger behave on a real Homey |
 | P1 | Live-verify EV boost start and cancel | Pending opt-in verification | Device reaches `BOOSTING`, then exits after cancel |
 
@@ -28,6 +29,15 @@ Reduce handover and release risk without adding product behavior.
 | Verify release runbooks against the automated workflow | Prevents future version or audit drift | Low |
 
 The documentation consolidation and new AI instructions were completed in the v1.0.35 handover update.
+
+## Delivered Community Sprints S71–S72
+
+| Sprint | Delivered |
+|---|---|
+| S71 | One shared, deterministic five-band classifier for Agile Prices and Price Timeline; custom green/yellow/orange upper thresholds; negative prices always separated; invalid ordering safely falls back to 10p/20p/30p; no new polling |
+| S72 | Standard, colour-blind-friendly, and high-contrast palettes; textual range legend and exact per-bar accessible labels; Agile classic cheapest-slot mode preserved; tests, changelog, and v1.0.36 release metadata |
+
+The existing widgets were enhanced instead of adding another overlapping dashboard widget. Existing Agile cheapest-slot ranking remains available and is visually independent from the selected price band.
 
 ## Optional Product Phase S68: Supportability and Onboarding
 
@@ -93,4 +103,3 @@ Constraints:
 - Sub-minute live polling.
 - Presenting forecasts, plans, or telemetry as settlement.
 - Adding fake capabilities to silence accepted Homey validation warnings.
-

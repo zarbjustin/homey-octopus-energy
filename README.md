@@ -52,11 +52,14 @@ npx homey app install # install on the configured local Homey Pro
 
 ## Current release
 
-Source version `1.0.35` (Homey App Store builds are uploaded by the publish
+Source version `1.0.36` (Homey App Store builds are uploaded by the publish
 workflow; promotion to Test/Live is a manual dashboard step). The committed
 multi-model roadmap and its optional BL-25/26/27/31 follow-ons are complete.
 Highlights across the recent releases:
 
+- **v1.0.36** — configurable five-band price colours in Agile Prices and Price
+  Timeline, with standard, colour-blind-friendly and high-contrast palettes,
+  accessible price-band labels, and an Agile classic-mode fallback.
 - **v1.0.35** — a pure, fail-closed price/carbon optimiser, interactive Energy
   Optimiser widget, cheap-and-green Flow trigger/condition, and export-peak trigger.
 - **v1.0.34** — additive calendar "today so far" usage/cost tiles, full JavaScript

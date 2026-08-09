@@ -50,13 +50,46 @@
     .bar-slot { flex: 1 1 0; min-width: 0; position: relative; }
     .bar {
       position: absolute; left: 0; right: 0;
-      background: linear-gradient(180deg, #e64bff, #b521e0);
+      background: #888;
       border-radius: 1px 1px 0 0; min-height: 1px;
     }
-    .bar.neg { background: linear-gradient(180deg, #8e44ff, #6f42c1); border-radius: 0 0 1px 1px; }
-    .bar.cheap { background: linear-gradient(180deg, #4dffa6, #16c172); }
+    .bar.legacy { background: linear-gradient(180deg, #e64bff, #b521e0); }
+    .bar.legacy-negative { background: linear-gradient(180deg, #8e44ff, #6f42c1); border-radius: 0 0 1px 1px; }
+    .bar.legacy-cheapest { background: linear-gradient(180deg, #4dffa6, #16c172); }
+    .bar.band-negative, .swatch.band-negative, .price-band-badge.band-negative { background: #2563eb; }
+    .bar.band-green, .swatch.band-green, .price-band-badge.band-green { background: #16a34a; }
+    .bar.band-yellow, .swatch.band-yellow, .price-band-badge.band-yellow { background: #ca8a04; }
+    .bar.band-orange, .swatch.band-orange, .price-band-badge.band-orange { background: #ea580c; }
+    .bar.band-red, .swatch.band-red, .price-band-badge.band-red { background: #dc2626; }
+    body.palette-colourblind .bar.band-negative, body.palette-colourblind .swatch.band-negative,
+    body.palette-colourblind .price-band-badge.band-negative { background: #0072b2; }
+    body.palette-colourblind .bar.band-green, body.palette-colourblind .swatch.band-green,
+    body.palette-colourblind .price-band-badge.band-green { background: #009e73; }
+    body.palette-colourblind .bar.band-yellow, body.palette-colourblind .swatch.band-yellow,
+    body.palette-colourblind .price-band-badge.band-yellow { background: #e6a700; }
+    body.palette-colourblind .bar.band-orange, body.palette-colourblind .swatch.band-orange,
+    body.palette-colourblind .price-band-badge.band-orange { background: #d55e00; }
+    body.palette-colourblind .bar.band-red, body.palette-colourblind .swatch.band-red,
+    body.palette-colourblind .price-band-badge.band-red { background: #cc4f87; }
+    body.palette-high-contrast .bar.band-negative, body.palette-high-contrast .swatch.band-negative,
+    body.palette-high-contrast .price-band-badge.band-negative { background: #0047ab; }
+    body.palette-high-contrast .bar.band-green, body.palette-high-contrast .swatch.band-green,
+    body.palette-high-contrast .price-band-badge.band-green { background: #007a3d; }
+    body.palette-high-contrast .bar.band-yellow, body.palette-high-contrast .swatch.band-yellow,
+    body.palette-high-contrast .price-band-badge.band-yellow { background: #8a6d00; }
+    body.palette-high-contrast .bar.band-orange, body.palette-high-contrast .swatch.band-orange,
+    body.palette-high-contrast .price-band-badge.band-orange { background: #c2410c; }
+    body.palette-high-contrast .bar.band-red, body.palette-high-contrast .swatch.band-red,
+    body.palette-high-contrast .price-band-badge.band-red { background: #991b1b; }
+    .bar.cheapest-marker { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.95); }
     .bar.current { outline: 2px solid var(--homey-text-color, #fff); outline-offset: -1px; }
     .ticks { display: flex; justify-content: space-between; font-size: 9px; color: var(--homey-text-color-light, #888); margin-top: 2px; }
+    .band-legend { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 5px; font-size: 9px; color: var(--homey-text-color-light, #666); }
+    .legend-item { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+    .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.18); }
+    .band-advisory { margin-top: 4px; color: #92400e; font-size: 10px; }
+    .price-band-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 7px;
+      border-radius: 9px; color: #fff; text-transform: capitalize; margin-top: 3px; }
 
     .best { font-size: 11px; margin: 8px 0 6px; }
     .best .hl { color: #16c172; font-weight: 600; }
@@ -142,7 +175,33 @@
       return s < 90 ? (s + 's ago') : (Math.round(s / 60) + 'm ago');
     }
 
-    function renderChart(slots) {
+    function bandLabel(band) {
+      return {
+        negative: 'Negative', green: 'Green', yellow: 'Yellow', orange: 'Orange', red: 'Red', unknown: 'Unknown'
+      }[band] || 'Unknown';
+    }
+
+    function bandOptions(d) {
+      return (d && d.bandOptions) || {
+        mode: 'price_bands', palette: 'standard', corrected: false,
+        thresholds: { greenMax: 10, yellowMax: 20, orangeMax: 30 }
+      };
+    }
+
+    function renderBandLegend(options) {
+      if (options.mode !== 'price_bands') return '';
+      var t = options.thresholds;
+      return '<div class="band-legend" aria-label="Price colour legend">'
+        + '<span class="legend-item"><span class="swatch band-negative"></span>Negative &lt;0p</span>'
+        + '<span class="legend-item"><span class="swatch band-green"></span>0–' + fmt(t.greenMax) + 'p</span>'
+        + '<span class="legend-item"><span class="swatch band-yellow"></span>&gt;' + fmt(t.greenMax) + '–' + fmt(t.yellowMax) + 'p</span>'
+        + '<span class="legend-item"><span class="swatch band-orange"></span>&gt;' + fmt(t.yellowMax) + '–' + fmt(t.orangeMax) + 'p</span>'
+        + '<span class="legend-item"><span class="swatch band-red"></span>&gt;' + fmt(t.orangeMax) + 'p</span>'
+        + '</div>'
+        + (options.corrected ? '<div class="band-advisory" role="status">Invalid thresholds; using 10p / 20p / 30p defaults.</div>' : '');
+    }
+
+    function renderChart(slots, options) {
       if (!slots.length) return '<div class="muted">No half-hourly prices for this day.</div>';
       var prices = slots.map(function (s) { return s.price; });
       var max = Math.max.apply(null, prices);
@@ -157,11 +216,20 @@
         var top = s.price < 0 ? zeroTop : valueTop;
         var height = Math.max(2, Math.abs(zeroTop - valueTop));
         var cls = 'bar';
-        if (s.price < 0) cls += ' neg';
-        else if (s.cheapest) cls += ' cheap';
+        if (options.mode === 'cheapest_slots') {
+          cls += ' legacy';
+          if (s.price < 0) cls += ' legacy-negative';
+          else if (s.cheapest) cls += ' legacy-cheapest';
+        } else {
+          cls += ' band-' + s.band;
+          if (s.cheapest) cls += ' cheapest-marker';
+        }
         if (s.current) cls += ' current';
-        var title = esc(s.label + ' · ' + fmt(s.price) + 'p');
-        return '<div class="bar-slot"><div class="' + cls + '" style="top:' + top + '%;height:' + height + '%" title="' + title + '"></div></div>';
+        var description = options.mode === 'price_bands'
+          ? bandLabel(s.band) + ' price band' : (s.cheapest ? 'Cheapest highlighted slot' : 'Price slot');
+        var title = esc(s.label + ' · ' + fmt(s.price) + 'p · ' + description);
+        return '<div class="bar-slot"><div class="' + cls + '" role="img" aria-label="' + title
+          + '" style="top:' + top + '%;height:' + height + '%" title="' + title + '"></div></div>';
       }).join('');
 
       return ''
@@ -171,6 +239,7 @@
         +   '<div class="chart-col">'
         +     '<div class="chart"><div class="zero-line" style="top:' + zeroTop + '%"></div>' + bars + '</div>'
         +     '<div class="ticks"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>'
+        +     renderBandLegend(options)
         +   '</div>'
         + '</div>';
     }
@@ -215,14 +284,22 @@
       var tomorrowOk = !!(d.tomorrowAvailable && (d.tomorrow || []).length);
       if (STATE.tab === 'tomorrow' && !tomorrowOk) STATE.tab = 'today';
       var slots = slotsFor(d, STATE.tab);
+      var options = bandOptions(d);
+      var palettes = ['standard', 'colourblind', 'high_contrast'];
+      var palette = palettes.indexOf(options.palette) >= 0 ? options.palette : 'standard';
+      document.body.className = 'palette-' + palette.replace('_', '-');
 
       var level = ['plunge', 'cheap', 'normal', 'expensive'].indexOf(d.currentLevel) >= 0
         ? d.currentLevel : 'normal';
       var html = '';
       html += '<div class="head">';
       html += '<span class="name">' + esc(d.name || 'Electricity') + '</span>';
+      var currentSlot = (d.today || []).filter(function (slot) { return slot.current; })[0];
+      var currentBadge = options.mode === 'price_bands' && currentSlot
+        ? '<span class="price-band-badge band-' + currentSlot.band + '">' + bandLabel(currentSlot.band) + '</span>'
+        : '<span class="badge ' + level + '">' + level + '</span>';
       html += '<span class="now"><span class="val">' + fmt(d.currentPrice)
-        + ' <small>p/kWh</small></span><br><span class="badge ' + level + '">' + level + '</span></span>';
+        + ' <small>p/kWh</small></span><br>' + currentBadge + '</span>';
       html += '</div>';
       html += freshnessHtml(d, 'Price', 'prices');
 
@@ -237,7 +314,7 @@
       if (STATE.tab === 'tomorrow' && !tomorrowOk) {
         html += '<div class="muted">Tomorrow\u2019s prices are not published yet (usually after ~4pm).</div>';
       } else {
-        html += renderChart(slots);
+        html += renderChart(slots, options);
         html += renderBestList(slots);
       }
 
@@ -264,14 +341,27 @@
       function readSettings() {
         var deviceId = '';
         var cheapest = '';
+        var colourMode = '';
+        var greenMax = '';
+        var yellowMax = '';
+        var orangeMax = '';
+        var palette = '';
         try {
           var settings = Homey.getSettings();
           if (settings) {
             if (settings.device) deviceId = (typeof settings.device === 'object') ? (settings.device.id || '') : settings.device;
             if (settings.cheapest_count !== undefined && settings.cheapest_count !== null) cheapest = settings.cheapest_count;
+            if (settings.colour_mode) colourMode = settings.colour_mode;
+            if (settings.green_max !== undefined && settings.green_max !== null) greenMax = settings.green_max;
+            if (settings.yellow_max !== undefined && settings.yellow_max !== null) yellowMax = settings.yellow_max;
+            if (settings.orange_max !== undefined && settings.orange_max !== null) orangeMax = settings.orange_max;
+            if (settings.palette) palette = settings.palette;
           }
         } catch (e) { /* no settings */ }
-        return { deviceId: deviceId, cheapest: cheapest };
+        return {
+          deviceId: deviceId, cheapest: cheapest, colourMode: colourMode,
+          greenMax: greenMax, yellowMax: yellowMax, orangeMax: orangeMax, palette: palette
+        };
       }
 
       var loading = false;
@@ -281,7 +371,13 @@
         // Re-read settings each poll so changing "cheapest slots" updates live.
         var s = readSettings();
         try {
-          var q = '/?id=' + encodeURIComponent(s.deviceId) + '&cheapest=' + encodeURIComponent(s.cheapest);
+          var q = '/?id=' + encodeURIComponent(s.deviceId)
+            + '&cheapest=' + encodeURIComponent(s.cheapest)
+            + '&colour_mode=' + encodeURIComponent(s.colourMode)
+            + '&green_max=' + encodeURIComponent(s.greenMax)
+            + '&yellow_max=' + encodeURIComponent(s.yellowMax)
+            + '&orange_max=' + encodeURIComponent(s.orangeMax)
+            + '&palette=' + encodeURIComponent(s.palette);
           STATE.data = await Homey.api('GET', q);
           render();
           Homey.setHeight(document.body.scrollHeight);
