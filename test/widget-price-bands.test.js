@@ -58,9 +58,15 @@ test('widget band options whitelist palettes and display modes', () => {
 test('Agile widget API decorates today and tomorrow without changing cheapest metadata', async () => {
   const api = require('../widgets/agile/api.js');
   const slots = [
-    { start: 'a', price: -1, cheapest: true, current: true },
-    { start: 'b', price: 12, cheapest: false, current: false },
-    { start: 'c', price: 31, cheapest: false, current: false },
+    {
+      start: 'a', price: -1, cheapest: true, current: true,
+    },
+    {
+      start: 'b', price: 12, cheapest: false, current: false,
+    },
+    {
+      start: 'c', price: 31, cheapest: false, current: false,
+    },
   ];
   const device = {
     getData: () => ({ id: 'meter-1' }),
@@ -68,15 +74,24 @@ test('Agile widget API decorates today and tomorrow without changing cheapest me
     getDataFreshness: () => null,
     getFreshAgileDayData: async () => ({
       today: slots,
-      tomorrow: [{ start: 'd', price: 21, cheapest: true, current: false }],
+      tomorrow: [{
+        start: 'd', price: 21, cheapest: true, current: false,
+      }],
     }),
   };
-  const homey = { drivers: { getDriver: () => ({ getDevices: () => [device] }) } };
+  const homey = {
+    drivers: { getDriver: () => ({ getDevices: () => [device] }) },
+  };
   const result = await api.getData({
     homey,
     query: {
-      id: 'meter-1', cheapest: '6', green_max: '10', yellow_max: '20', orange_max: '30',
-      palette: 'high_contrast', colour_mode: 'price_bands',
+      id: 'meter-1',
+      cheapest: '6',
+      green_max: '10',
+      yellow_max: '20',
+      orange_max: '30',
+      palette: 'high_contrast',
+      colour_mode: 'price_bands',
     },
   });
 
@@ -95,10 +110,14 @@ test('Timeline widget API applies the same classifier and corrects invalid thres
     getUpcomingPrices: () => [{ start: 'a', price: 9 }, { start: 'b', price: 35 }],
     getDataFreshness: () => null,
   };
-  const homey = { drivers: { getDriver: () => ({ getDevices: () => [device] }) } };
+  const homey = {
+    drivers: { getDriver: () => ({ getDevices: () => [device] }) },
+  };
   const result = await api.getData({
     homey,
-    query: { id: 'meter-1', green_max: '30', yellow_max: '20', orange_max: '10' },
+    query: {
+      id: 'meter-1', green_max: '30', yellow_max: '20', orange_max: '10',
+    },
   });
 
   assert.deepEqual(result.prices.map((slot) => slot.band), ['green', 'red']);
