@@ -35,6 +35,8 @@ This document captures durable constraints, root causes, and workflow gotchas th
 | Flow and capability IDs are user contracts. | Preserve IDs. Add new cards or tokens rather than renaming existing IDs. |
 | Import and export meters are directional. | Keep the two expected cumulative warnings. Do not create fake opposite-direction values. |
 | Widgets execute inside Homey’s widget environment. | Read cached device methods only, escape dynamic values, and expose accessible live regions and controls. |
+| Widget colour thresholds are a cross-widget data contract. | Classify prices in one shared pure module, validate strict threshold ordering at the API boundary, and return the resolved options with the cached rows. |
+| Colour alone cannot communicate a price band. | Pair palettes with textual range legends and exact per-bar accessible labels; keep current and cheapest markers independent from band colour. |
 | Local clean install can fail generically. | Use `npx homey app install`. Retry without `--clean` if Homey reports `Missing File`. |
 
 ## API Budget and Failure Handling

@@ -1,5 +1,7 @@
 'use strict';
 
+const { widgetPriceBandOptions, withPriceBands } = require('../../lib/widgetPriceBands');
+
 module.exports = {
 
   async getData({ homey, query }) {
@@ -18,6 +20,14 @@ module.exports = {
       if (Number.isFinite(n)) cheapestCount = Math.max(0, Math.min(24, Math.round(n)));
     }
 
+    const bandOptions = widgetPriceBandOptions({
+      greenMax: query && query.green_max,
+      yellowMax: query && query.yellow_max,
+      orangeMax: query && query.orange_max,
+      palette: query && query.palette,
+      mode: query && query.colour_mode,
+    });
+
     let data;
     try {
       data = typeof device.getFreshAgileDayData === 'function'
@@ -31,6 +41,9 @@ module.exports = {
       name: device.getName(),
       freshness: typeof device.getDataFreshness === 'function' ? device.getDataFreshness() : null,
       ...data,
+      today: withPriceBands(data.today || [], bandOptions),
+      tomorrow: withPriceBands(data.tomorrow || [], bandOptions),
+      bandOptions,
     };
   },
 

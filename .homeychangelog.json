@@ -1,4 +1,7 @@
 {
+  "1.0.36": {
+    "en": "Agile Prices and Price Timeline widgets now support configurable five-band price colours: blue for negative prices, then green, yellow, orange and red using thresholds you choose. Includes standard, colour-blind-friendly and high-contrast palettes, accessible text labels, and an option to keep the classic cheapest-slot chart."
+  },
   "1.0.35": {
     "en": "New Energy Optimiser widget and Flow automation for cheap-and-green charging and peak export windows. The charge planner now selects one contiguous window, fairly normalises price versus carbon, labels every result as a forecast estimate, and returns no recommendation when price or carbon data is incomplete."
   },

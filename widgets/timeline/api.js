@@ -1,5 +1,7 @@
 'use strict';
 
+const { widgetPriceBandOptions, withPriceBands } = require('../../lib/widgetPriceBands');
+
 module.exports = {
 
   async getData({ homey, query }) {
@@ -11,10 +13,17 @@ module.exports = {
       : devices[0];
     if (wanted && !device) return { error: 'The selected electricity meter is no longer available.' };
     if (!device) return { error: 'No electricity meter added yet.' };
+    const bandOptions = widgetPriceBandOptions({
+      greenMax: query && query.green_max,
+      yellowMax: query && query.yellow_max,
+      orangeMax: query && query.orange_max,
+      palette: query && query.palette,
+    });
     return {
       name: device.getName(),
       freshness: typeof device.getDataFreshness === 'function' ? device.getDataFreshness() : null,
-      prices: device.getUpcomingPrices(12),
+      prices: withPriceBands(device.getUpcomingPrices(12), bandOptions),
+      bandOptions,
     };
   },
 
