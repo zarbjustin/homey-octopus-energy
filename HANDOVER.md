@@ -17,7 +17,10 @@ Last updated: 9 August 2026
   Standard, colour-blind-friendly, and high-contrast palettes are available. Textual range legends
   and exact per-bar accessible labels ensure colour is not the only cue. Agile Prices keeps its
   classic purple/cheapest-green mode, while price-band mode preserves current-slot and cheapest-slot
-  markers independently. The widget APIs remain cache-only and add no polling.
+  markers independently. The widget APIs remain cache-only and add no polling. PR #38 merged as
+  `57afaa3`; publish run `31325567683` passed audit, lint, 577 tests, publish validation, and upload,
+  creating Homey Build 36 and GitHub release `v1.0.36`. **Manual steps:** promote Build 36 to
+  Test/Live and install locally once npm/Homey CLI access is restored on the delivery Mac.
 - **AI-ready handover pack refreshed (25 Jul 2026).** Added repository-wide agent instructions,
   a concise current-state takeover, a current optional roadmap, and durable engineering learnings.
   `ROADMAP.md` now points to the authoritative post-v1.0.35 roadmap instead of presenting historical
