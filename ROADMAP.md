@@ -2,7 +2,8 @@
 
 > **Current status (4 October 2026):** the original engineering backlog is complete
 > through `BL-31`; S71–S72 shipped in v1.0.36, now verified Live. New reliability
-> work is planned as S73–S76, with gated S77–S80 follow-ons. Read
+> work S73–S75 is implemented and tested; S76 release/field verification is in
+> progress. S77–S80 remain gated follow-ons. Read
 > [`docs/roadmap-next.md`](docs/roadmap-next.md) and
 > [`docs/handover/sprints-73-80-spec.md`](docs/handover/sprints-73-80-spec.md)
 > for current priorities and acceptance gates. The sprint material below is historical;

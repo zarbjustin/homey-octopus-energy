@@ -229,7 +229,12 @@ test('Power Up (Free Electricity) fires announced once and starting_soon de-dupe
   const end = new Date(Date.now() + 90 * 60_000).toISOString();
   t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => []);
   t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => [{
-    id: 'pu-1', startAt: start, endAt: end, rewardPerKwh: 0, eventType: 'TURN_UP',
+    id: 'pu-1',
+    startAt: start,
+    endAt: end,
+    rewardPerKwh: 0,
+    eventType: 'TURN_UP',
+    joined: false, // Power Up eligibility is not gated by Saving Session joining.
   }]);
 
   const poller = new SavingSessionsPoller(app);
@@ -277,7 +282,12 @@ test('Power Up reminder is suppressed when notify_free_electricity is off (BL-21
   const end = new Date(now + 25 * 60_000).toISOString();
   t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => []);
   t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => [{
-    id: 'pu-quiet', startAt: start, endAt: end, rewardPerKwh: 0, eventType: 'TURN_UP',
+    id: 'pu-quiet',
+    startAt: start,
+    endAt: end,
+    rewardPerKwh: 0,
+    eventType: 'TURN_UP',
+    joined: false,
   }]);
 
   await new SavingSessionsPoller(app).poll();

@@ -59,6 +59,33 @@ Execution branch: `fix/reliability-s73-s76`. S77–S80 are not in scope.
 
 ## S76
 
-In progress. Installation, GitHub delivery, Homey publication, channel promotion,
-48-hour soak and reporter confirmation are distinct gates, not implied by tests.
-No physical charging control or public community message is authorised here.
+Integration review added regressions/fences for credential rotation and malformed
+legacy state. Retired timed records prune after 24 hours; bounded identity/lifecycle
+tombstones remain to prevent reannouncement if a retired provider ID is rescheduled.
+Power Up lifecycle remains ungated by Saving Session enrollment.
+
+Final local integration gate: build, **615 passing tests**, lint, zero production
+audit findings, publish validation, and diff check. Only the existing two
+cumulative-direction warnings. This is code-tested, not field-confirmed.
+
+Pre-install readback: 4 October 2026 19:54 UTC, Pro software 13.5.1, app v1.0.36
+enabled/not crashed, two available Octopus devices, six related standard Flows and
+five Advanced Flows. Identity/settings/Flow digests captured locally for comparison;
+no identifiers, settings or raw payloads committed. `scripts/reliability-smoke.js`
+is a read-only repeatable check, excluded from app packaging.
+
+Installation, GitHub delivery, Homey publication, channel promotion, 48-hour soak
+and reporter confirmation remain distinct gates, not implied by tests. The user
+approved local install, PR delivery and Draft/Test publication. No physical charging
+control or public community message is authorised here.
+
+Field matrix pending: real dashboard interaction/palette/selection persistence,
+unavailable tariff/account types, live session announcement recurrence, IOG night
+boundary, 48-hour recovery/request-count soak and reporter follow-up. No synthetic
+session will be injected into the production Pro or its Flows. Automated fixtures
+cover these failure/boundary contracts; fixtures are not physical field proof.
+
+Rollback: prefer a forward fix on the same app/device IDs, preserving v2 ledgers
+and settings. Do not clean-install, purge state, replace meters or automatically
+revert to v1.0.36: that version's history replay defect remains. Returning to Live
+v1.0.36 requires an explicit decision about that risk, not an assumed safe rollback.

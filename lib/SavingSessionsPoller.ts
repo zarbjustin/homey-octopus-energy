@@ -79,14 +79,17 @@ export class SavingSessionsPoller extends AccountPoller {
     const allState = (validRoot ? structuredClone(stored) : {}) as Record<string, PollerState>;
     const key = opaqueKeyMigrating(this.app.homey, allState as Record<string, unknown>, creds.accountNumber);
     const state = allState[key];
-    const corrupt = (!!stored && !validRoot) || (!!state && (!Array.isArray(state.known)
+    const corrupt = (!!stored && !validRoot) || (state !== undefined && (state === null
+      || typeof state !== 'object' || Array.isArray(state) || !Array.isArray(state.known)
       || !Array.isArray(state.started) || !Array.isArray(state.ended)));
     const saving = reconcileSessions(sessions, state, Date.now(), corrupt);
     let free: ReturnType<typeof reconcileSessions> | undefined;
     let freeElectricityLastError: string | undefined;
     try {
       const sessionsFree = await client.getFreeElectricitySessions(creds.accountNumber);
-      free = reconcileSessions(sessionsFree, state ? {
+      // Power Ups do not require Saving Session enrollment. The API already
+      // filters regional eligibility; retain the existing ungated lifecycle.
+      free = reconcileSessions(sessionsFree.map((s) => ({ ...s, joined: true })), state ? {
         records: state.feRecords,
         known: state.feKnown,
         started: state.feStarted,

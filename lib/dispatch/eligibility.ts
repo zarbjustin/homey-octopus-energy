@@ -39,8 +39,11 @@ export function dispatchFailure(err: unknown, now = Date.now()): DispatchEligibi
 export function validDispatchRows(value: unknown): value is Array<{ start?: string; end?: string }> {
   return Array.isArray(value) && value.every((row) => {
     if (!row || typeof row !== 'object') return false;
-    const start = Date.parse(row.start ?? row.startDt);
-    const end = Date.parse(row.end ?? row.endDt);
+    const rawStart = row.start ?? row.startDt;
+    const rawEnd = row.end ?? row.endDt;
+    if (typeof rawStart !== 'string' || typeof rawEnd !== 'string') return false;
+    const start = Date.parse(rawStart);
+    const end = Date.parse(rawEnd);
     return Number.isFinite(start) && Number.isFinite(end) && end > start;
   });
 }

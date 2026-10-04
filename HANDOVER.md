@@ -10,6 +10,18 @@ Last updated: 4 October 2026
 
 ## Current state
 
+- **S73–S76 execution (4 Oct 2026) — implementation complete through S75;
+  integration and delivery in progress.** S73 (`b8e7f11`) adds history-safe,
+  persisted lifecycle attempts; S74 (`400ddce`) removes widget-driven acquisition
+  and adds background cooldowns; S75 (`7674c84`) adds evidence-based dispatch
+  eligibility and fail-closed incomplete snapshots. Full gates passed with
+  591/604/612 tests respectively. CLI 4.3.1 is authenticated; the configured Pro
+  was read back running v1.0.36, with two available Octopus meters. No production
+  Flow was manually triggered or edited. The user approved install, PR delivery
+  and Draft/Test publication; Live remains separately approved. Actual evidence
+  and unresolved field gates:
+  [`docs/handover/sprints-73-76-execution.md`](docs/handover/sprints-73-76-execution.md).
+
 - **4 October 2026 — S73–S80 roadmap defined; not implemented.** Community feedback
   and twelve Homey manual diagnostics were reviewed. Build 36 is now verified Live;
   local installation and outstanding field checks remain unverified. S73–S76 plan

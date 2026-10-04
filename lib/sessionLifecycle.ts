@@ -62,25 +62,31 @@ export function reconcileSessions(input: SavingSession[], previous: Partial<Sess
   const records = new Map<string, SessionRecord>();
   const oldRecords = Array.isArray(previous?.records) ? previous.records : [];
   // Invalid persisted records suppress discovery notifications for this cycle.
-  const quiet = corrupt || oldRecords.some((r) => !isRecord(r));
+  const quiet = corrupt || oldRecords.some((r) => !isRecord(r))
+    || ['records', 'known', 'started', 'ended', 'startingSoon'].some((key) => {
+      const value = (previous as Record<string, unknown> | undefined)?.[key];
+      return value !== undefined && (!Array.isArray(value)
+        || (key !== 'records' && value.some((v) => typeof v !== 'string')));
+    });
   for (const r of oldRecords.filter(isRecord)) {
     if (r.end + RETENTION_MS < now) counts.pruned += 1;
     else if (!records.has(r.id)) records.set(r.id, { ...r, soon: [...r.soon] });
   }
-  const retainedIds = new Set(records.keys());
-  const expiredIds = new Set(oldRecords.filter(isRecord)
-    .filter((r) => !retainedIds.has(r.id)).map((r) => r.id));
-  const known = new Set(strings(previous?.known).filter((id) => !expiredIds.has(id)));
-  const started = new Set(strings(previous?.started).filter((id) => !expiredIds.has(id)));
-  const ended = new Set(strings(previous?.ended).filter((id) => !expiredIds.has(id)));
-  const startingSoon = new Set(strings(previous?.startingSoon)
-    .filter((key) => ![...expiredIds].some((id) => key.startsWith(`${id}:`))));
+  // Compact tombstones preserve identity if a provider later reschedules a
+  // retired ID. Admit at most 1024 identities; reaching that safety bound stops
+  // untrackable new emissions, rather than deleting seen IDs to make room.
+  const known = new Set(strings(previous?.known));
+  const started = new Set(strings(previous?.started));
+  const ended = new Set(strings(previous?.ended));
+  const startingSoon = new Set(strings(previous?.startingSoon));
   const feed = new Map<string, SavingSession>();
   const ambiguous = new Set<string>();
   for (const s of input) {
     if (!s || typeof s.id !== 'string' || !s.id || s.id.length > 256
       || !Number.isFinite(Date.parse(s.startAt)) || !Number.isFinite(Date.parse(s.endAt))
-      || Date.parse(s.endAt) <= Date.parse(s.startAt) || !Number.isFinite(s.rewardPerKwh)) {
+      || Date.parse(s.endAt) <= Date.parse(s.startAt) || !Number.isFinite(s.rewardPerKwh)
+      || (s.joined !== undefined && typeof s.joined !== 'boolean')) {
+      if (s && typeof s.id === 'string') ambiguous.add(s.id);
       counts.suppressed += 1;
       continue;
     }
@@ -104,11 +110,6 @@ export function reconcileSessions(input: SavingSession[], previous: Partial<Sess
         existing.start = start;
         existing.end = end;
         existing.joined = s.joined !== false;
-      } else {
-        known.delete(s.id);
-        started.delete(s.id);
-        ended.delete(s.id);
-        for (const key of startingSoon) if (key.startsWith(`${s.id}:`)) startingSoon.delete(key);
       }
       continue;
     }
@@ -139,6 +140,7 @@ export function reconcileSessions(input: SavingSession[], previous: Partial<Sess
       // Upgrade corruption and first discovery of active sessions seed silently.
       r.announced = true;
       if (start <= now) r.started = true;
+      if (quiet) counts.suppressed += 1;
     }
     if (!r.announced && start > now) {
       r.announced = true;

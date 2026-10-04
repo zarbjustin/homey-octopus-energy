@@ -155,14 +155,15 @@ export class DispatchPoller extends AccountPoller {
       const evidence = app.getDispatchEligibility?.(creds.accountNumber) ?? {
         state: 'eligible' as const, reason: 'legacy-supported' as const, observedAt: new Date().toISOString(),
       };
-      this.eligibility.set(creds.accountNumber, evidence);
+      this.recordEligibility(creds.accountNumber, evidence);
       ok = evidence.state === 'eligible';
+      if (evidence.state === 'ineligible' || evidence.state === 'unknown') this.lastError.delete(creds.accountNumber);
       if (ok && !planned.length) this.emptyPlans.add(creds.accountNumber);
       else this.emptyPlans.delete(creds.accountNumber);
     } catch (err) {
       ok = false;
       this.emptyPlans.delete(creds.accountNumber);
-      this.eligibility.set(creds.accountNumber,
+      this.recordEligibility(creds.accountNumber,
         app.getDispatchEligibility?.(creds.accountNumber) ?? dispatchFailure(err));
       this.logErrorOnce(creds, err);
     }
@@ -175,7 +176,7 @@ export class DispatchPoller extends AccountPoller {
         completed = null; // never infer finalised windows from a failed read
         ok = false;
         this.emptyPlans.delete(creds.accountNumber);
-        this.eligibility.set(creds.accountNumber, dispatchFailure(err));
+        this.recordEligibility(creds.accountNumber, dispatchFailure(err));
         this.logErrorOnce(creds, err);
       }
     }
@@ -253,6 +254,14 @@ export class DispatchPoller extends AccountPoller {
       this.lastError.set(creds.accountNumber, message);
       this.app.error('Dispatch poll failed:', message);
     }
+  }
+
+  private recordEligibility(accountNumber: string, value: DispatchEligibility): void {
+    const previous = this.eligibility.get(accountNumber);
+    if (previous?.state !== value.state || previous?.reason !== value.reason) {
+      this.app.log?.('Dispatch eligibility transition:', value.state, value.reason);
+    }
+    this.eligibility.set(accountNumber, value);
   }
 
   /** Aggregate, identifier-free diagnostics (no account numbers or device ids). */

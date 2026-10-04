@@ -6,6 +6,20 @@ This document captures durable constraints, root causes, and workflow gotchas th
 
 ## Data Authority and Trust
 
+- Historical session filtering must precede emission. Record lifecycle attempts
+  before firing Flows; retention cannot remove still-actionable identities. Keep
+  bounded seen-ID tombstones when pruning timed records so a retired ID's later
+  reschedule cannot reannounce. Overflow is an explicit fail-closed diagnostic.
+- Widget `get` methods can fetch transitively. Cache-only API tests must execute
+  real device presentation getters on cold/stale/error paths, not just mock APIs.
+- Dispatch absence is not enrollment evidence. Only complete validated snapshots
+  can cancel or end prior intent; typed eligibility remains separate from freshness.
+- Fence account cache writes and in-flight cleanup against credential rotation,
+  not only device refresh generations. An old promise must not clear a new one.
+- Homey CLI 4.3.1 is Node-22 compatible; current CLI 4.5.2 requires Node 24.
+  CLI 4.3.1 can truncate large JSON when piping because its process exits before
+  stdout drains. Use `--jq` source filtering for scoped, privacy-safe readback.
+
 | Learning | Required behavior | Evidence |
 |---|---|---|
 | Octopus REST consumption is delayed settlement data. | Never show missing current-day data as zero. Use `null` or unavailable wording. | `refreshTodaySoFar` in `lib/OctopusMeterDevice.ts` |

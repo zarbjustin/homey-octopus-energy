@@ -6,17 +6,18 @@ Last updated: 4 October 2026
 
 The original engineering backlog is complete through `BL-31`. Configurable price
 bands shipped in S71–S72 / v1.0.36. The Homey publishing portal was checked on
-4 October: Build 36 is **Live**. Local installation and complete field verification
-have not been confirmed by this review.
+4 October: Build 36 is **Live**. S73–S75 are now implemented and tested; S76
+delivery and field verification are in progress. See the
+[`execution record`](handover/sprints-73-76-execution.md) for actual evidence.
 
 The October community and diagnostic review identified new reliability work.
 The next phase is **reliable events, cache-only widgets, and honest dispatch
 eligibility**, before further product expansion.
 
-This is a planning deliverable, not an implementation or release. S73–S76 are the
-recommended near-term scope. S77–S80 remain proposed follow-ons requiring a later
-priority decision. Nothing below authorises unattended publishing, community
-posting, live charging control, or device repair.
+The user authorised S73–S76 execution, local installation, GitHub PR delivery and
+Draft/Test publication. S77–S80 remain proposed follow-ons requiring a later priority
+decision. Live promotion, community posting, live charging control and device repair
+remain separately approved actions.
 
 The task-level specification, new backlog `BL-32`–`BL-39`, acceptance criteria,
 evidence, dependencies and release gates are in
@@ -26,10 +27,10 @@ evidence, dependencies and release gates are in
 
 | Phase | Sprint | Outcome | Priority / size | Dependency | Status |
 |---|---|---|---|---|---|
-| Reliability | S73 — Event lifecycle and announcement deduplication | Saving Sessions and Power Ups do not replay historical events or repeat announcements after polling/restart | P1 / M | None | Planned first |
-| Reliability | S74 — Cache-only widgets and bounded recovery | Opening, refreshing or configuring a widget causes zero outbound API requests; background recovery is bounded | P1 / M–L | None; release after S73 preferred | Planned |
-| Reliability | S75 — Dispatch eligibility and graceful degradation | Unsupported accounts are distinguished from unknown/degraded state without false charging/cancellation signals | P2 / M | None; reuse S74 recovery conventions | Planned |
-| Release confidence | S76 — Field validation and support closure | A verified release candidate, migration/restart evidence, and an explicit record of remaining field gaps | P1 / M | S73–S75 | Planned gate |
+| Reliability | S73 — Event lifecycle and announcement deduplication | Saving Sessions and Power Ups do not replay historical events or repeat announcements after polling/restart | P1 / M | None | Implemented, tested |
+| Reliability | S74 — Cache-only widgets and bounded recovery | Opening, refreshing or configuring a widget causes zero outbound API requests; background recovery is bounded | P1 / M–L | None; release after S73 preferred | Implemented, tested |
+| Reliability | S75 — Dispatch eligibility and graceful degradation | Unsupported accounts are distinguished from unknown/degraded state without false charging/cancellation signals | P2 / M | None; reuse S74 recovery conventions | Implemented, tested |
+| Release confidence | S76 — Field validation and support closure | A verified release candidate, migration/restart evidence, and an explicit record of remaining field gaps | P1 / M | S73–S75 | In progress; field gates pending |
 | Maintainability | S77 — Release and maintenance hygiene | SHA-pinned workflow upkeep, runbook validation, translation inventory, and an explicit façade-cleanup decision | P2 / S–M | S76; urgent security fixes may pre-empt | Proposed |
 | Supportability | S78 — Health, onboarding and trust | Existing settings/widgets explain freshness, eligibility, failure and next steps using cached diagnostics | P2 / M | S74–S76 | Proposed |
 | Product growth | S79 — Paired import/export opportunities | A complete-horizon solar/battery recommendation with eligibility and estimate labels | P2 / L | S76, scoped feasibility review | Proposed |
@@ -52,7 +53,8 @@ availability and the S73 migration design are checked.
 | R5 — Product differentiation | S79–S80, if prioritised | Recommendation feasibility, complete-data gates and estimate wording verified |
 
 Release versions are assigned through the repository's release workflow when
-implementation is ready. No version bump or publish is part of this plan.
+implementation is ready. The authorised reliability delivery is using that workflow;
+no manual Live promotion is implied.
 
 ## Operational Verification Still Required
 

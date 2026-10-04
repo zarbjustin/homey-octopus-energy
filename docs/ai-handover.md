@@ -9,31 +9,33 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 | Field | Value |
 |---|---|
 | Repository | `zarbjustin/homey-octopus-energy` |
-| Branch | `main` |
+| Branch | `fix/reliability-s73-s76` (release candidate) |
 | App version | `1.0.36` |
 | Homey build | `36` |
 | GitHub release | [`v1.0.36`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.36) |
 | Publish workflow | `31325567683` |
-| Local deployment | Unverified; August handover recorded an npm/CLI tooling block, not re-tested in October planning |
-| Last recorded release test baseline | 577 passing; full suite not rerun for this documentation-only plan |
+| Local deployment | CLI authenticated, Pro selected; v1.0.36 running, 2 Octopus devices available; candidate installation pending |
+| Last recorded release test baseline | 615 passing final integration gate; build/lint/audit/publish validation green |
 | Original formal backlog | Complete through `BL-31` |
-| Next phase | S73–S76 reliability plan; `BL-32`–`BL-35` planned, not implemented |
+| Next phase | S73–S75 implemented/tested; S76 delivery and field gates in progress |
 | Homey channel | Build 36 observed Live on 4 October 2026 |
 
 ## Immediate Next Work
 
-Read [`handover/sprints-73-80-spec.md`](handover/sprints-73-80-spec.md) and start
-with S73 only when implementation is requested. The plan prioritises event
-deduplication, cache-only widgets and dispatch eligibility; S76 closes field and
-release verification. S77–S80 are proposed later phases, not authorised execution.
+Read [`handover/sprints-73-76-execution.md`](handover/sprints-73-76-execution.md)
+for actual execution evidence and [`handover/sprints-73-80-spec.md`](handover/sprints-73-80-spec.md)
+for the original acceptance contract. S73–S75 are implemented, not yet released.
+The user authorised local install, GitHub PR delivery and Draft/Test publication;
+Live promotion, public posting and charging writes remain separate approval steps.
+S77–S80 are proposed later phases, not authorised execution.
 
 Build 36's promotion is closed: the publishing portal showed **Live** on
 4 October 2026. Future builds still require separate channel verification:
 
 <https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/36>
 
-Local Homey Pro installation and remaining field checks are not confirmed by the
-October review. Do not infer deployment from source, a GitHub release or portal status.
+Candidate installation and field checks are tracked separately. Do not infer
+deployment from source, a GitHub release or portal status.
 
 ## Recommended Reading Order
 

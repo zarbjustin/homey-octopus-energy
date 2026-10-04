@@ -4,7 +4,7 @@ import Homey from 'homey';
 import { SavingSessionsPoller } from './lib/SavingSessionsPoller';
 import { DispatchPoller } from './lib/DispatchPoller';
 import {
-  Dispatch, KrakenClient, AccountIogTariff, IogResolveDiagnostic,
+  Dispatch, KrakenClient, AccountIogTariff, IogResolveDiagnostic, KrakenApiError,
 } from './lib/KrakenClient';
 import { SmartFlexDevice, DispatchView, DispatchEligibility } from './lib/dispatch/types';
 import { deviceEligibility, dispatchFailure } from './lib/dispatch/eligibility';
@@ -276,12 +276,7 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     const client = this.getKrakenClient(apiKey, accountNumber);
     const eligibility = this.dispatchEligibility.get(accountNumber);
     if (eligibility?.retryAt && Date.now() < eligibility.retryAt) return [];
-    let recovery = this.dispatchRecovery.get(accountNumber);
-    if (!recovery) {
-      recovery = new BackgroundRecovery();
-      this.dispatchRecovery.set(accountNumber, recovery);
-      this.trimMap(this.dispatchRecovery);
-    }
+    const recovery = this.dispatchRecoveryFor(accountNumber);
     if (!recovery.allowed('dispatch')) throw new Error('Dispatch acquisition paused; retaining previous state');
     const cached = this.flexPlannedCache.get(accountNumber);
     if (cached && Date.now() - cached.ts < 60_000) return cached.value;
@@ -301,13 +296,13 @@ module.exports = class OctopusEnergyApp extends Homey.App {
           // behaviour (the only case where the account feed is authoritative).
           const legacy = await client.getPlannedDispatches(accountNumber);
           const verified = legacy.length > 0 || this.verifiedLegacyDispatch.get(accountNumber);
+          publishEvidence(verified ? {
+            state: 'eligible', reason: 'legacy-supported', observedAt: new Date().toISOString(),
+          } : evidence);
           if (verified) {
             this.verifiedLegacyDispatch.set(accountNumber, true);
             this.trimMap(this.verifiedLegacyDispatch);
           }
-          publishEvidence(verified ? {
-            state: 'eligible', reason: 'legacy-supported', observedAt: new Date().toISOString(),
-          } : evidence);
           return legacy.map((d) => ({
             deviceId: 'account', start: d.start, end: d.end, kind: 'unknown' as const,
           }));
@@ -381,19 +376,45 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     this.trimMap(this.dispatchEligibility);
   }
 
+  private dispatchRecoveryFor(accountNumber: string): BackgroundRecovery {
+    let recovery = this.dispatchRecovery.get(accountNumber);
+    if (!recovery) {
+      recovery = new BackgroundRecovery();
+      this.dispatchRecovery.set(accountNumber, recovery);
+      this.trimMap(this.dispatchRecovery);
+    }
+    return recovery;
+  }
+
   /** Completed dispatch windows (with kWh delta) shared for four minutes. */
   async getCachedCompletedWindows(apiKey: string, accountNumber: string): Promise<CompletedInput[]> {
+    const client = this.getKrakenClient(apiKey, accountNumber);
+    const recovery = this.dispatchRecoveryFor(accountNumber);
+    if (!recovery.allowed('completed')) {
+      throw new KrakenApiError(recovery.state('completed')?.status ?? 0,
+        'Completed dispatch acquisition paused; retaining previous state');
+    }
     const cached = this.completedWindowCache.get(accountNumber);
     if (cached && Date.now() - cached.ts < 4 * 60_000) return cached.value;
     const inflight = this.completedWindowInflight.get(accountNumber);
     if (inflight) return inflight;
-    const request = this.getKrakenClient(apiKey, accountNumber).getCompletedDispatchWindows(accountNumber)
+    const request = client.getCompletedDispatchWindows(accountNumber)
       .then((value) => {
+        if (this.krakenClients.get(accountNumber)?.client !== client) {
+          throw new Error('Completed dispatch read superseded by credential change');
+        }
+        recovery.success('completed');
         this.completedWindowCache.set(accountNumber, { value, ts: Date.now() });
         this.trimMap(this.completedWindowCache);
         return value;
       })
-      .finally(() => this.completedWindowInflight.delete(accountNumber));
+      .catch((err) => {
+        if (this.krakenClients.get(accountNumber)?.client === client) recovery.failure('completed', err);
+        throw err;
+      })
+      .finally(() => {
+        if (this.completedWindowInflight.get(accountNumber) === request) this.completedWindowInflight.delete(accountNumber);
+      });
     this.completedWindowInflight.set(accountNumber, request);
     return request;
   }

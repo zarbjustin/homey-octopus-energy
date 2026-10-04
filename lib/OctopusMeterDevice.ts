@@ -807,11 +807,14 @@ export class OctopusMeterDevice extends Homey.Device {
 
   private async runReporting(label: string, area: string, fn: () => Promise<unknown>): Promise<void> {
     if (!this.backgroundRecovery().allowed(area)) return;
+    const generation = this.refreshGeneration;
     try {
       await fn();
+      if (this.isStaleRefresh(generation)) return;
       this.backgroundRecovery().success(area);
       this.recordIntegrationDiagnostic(area);
     } catch (err) {
+      if (this.isStaleRefresh(generation)) return;
       this.backgroundRecovery().failure(area, err);
       this.recordIntegrationDiagnostic(area, err);
       if (isBudgetError(err)) {

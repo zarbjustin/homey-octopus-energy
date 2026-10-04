@@ -89,6 +89,18 @@ test('expired records prune by time without resurrecting history', () => {
   const r = reconcileSessions([event('pruned', -10, 10)], undefined, now);
   const pruned = reconcileSessions([event('pruned', -10, 10)], r.ledger, now + 25 * 3600_000);
   assert.equal(pruned.counts.pruned, 1);
-  assert.equal(pruned.ledger.known.length, 0);
+  assert.deepEqual(pruned.ledger.known, ['pruned'], 'bounded identity tombstone survives date pruning');
   assert.deepEqual(pruned.emissions, []);
+  const rescheduled = {
+    ...event('pruned'),
+    startAt: new Date(now + 27 * 3600_000).toISOString(),
+    endAt: new Date(now + 28 * 3600_000).toISOString(),
+  };
+  assert.equal(announced(reconcileSessions([rescheduled], pruned.ledger, now + 25 * 3600_000)).length, 0);
+});
+
+test('malformed legacy dedup arrays seed quietly rather than replaying announcements', () => {
+  for (const prior of [{ known: 'broken' }, { started: [123] }, { records: null }]) {
+    assert.deepEqual(reconcileSessions([event('quiet')], prior, now).emissions, []);
+  }
 });

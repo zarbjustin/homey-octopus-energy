@@ -4,9 +4,11 @@ Last updated: 4 October 2026
 
 ## Scope and Baseline
 
-This specification answers the user's request to define the next sprints after
-reviewing community feedback and Homey publishing diagnostics. It records planned
-work only: no production code, app version, Flow, device or release was changed.
+This specification records the original planning contract following the community
+and diagnostic review. That planning turn changed no runtime code or release.
+Execution is now authorised: S73–S75 are implemented and tested, with S76 delivery
+in progress. Current evidence and remaining gates are in the
+[`execution record`](sprints-73-76-execution.md); the baseline below is historical.
 
 - Repository baseline: `main`, `2da305a`, v1.0.36; fetched remote agrees.
 - Original backlog `BL-01`–`BL-31` is historical delivered scope; do not reopen it

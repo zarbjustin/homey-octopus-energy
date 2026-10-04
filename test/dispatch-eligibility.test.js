@@ -139,3 +139,52 @@ test('unrelated partial GraphQL errors with intact device data remain fatal', as
   t.mock.method(client, 'post', async () => ({ data: { devices: [] }, errors: [{ message: 'Account is not enrolled' }] }));
   await assert.rejects(client.getDevices('account'), /not enrolled/);
 });
+
+test('credential rotation fences an old in-flight plan from overwriting new eligibility/cache', async (t) => {
+  t.mock.method(KrakenClient.prototype, 'getDevices', async () => [ev()]);
+  let release;
+  let started;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const entered = new Promise((resolve) => {
+    started = resolve;
+  });
+  t.mock.method(KrakenClient.prototype, 'getFlexPlannedDispatches', async function fetchPlan() {
+    if (this.apiKey === 'old') {
+      started();
+      await gate;
+      return [{
+        deviceId: 'synthetic', start: '2026-10-04T23:00Z', end: '2026-10-05T05:00Z', kind: 'SMART',
+      }];
+    }
+    return [];
+  });
+  const app = new App();
+  const old = app.getFlexPlanned('old', 'account');
+  await entered;
+  await app.getFlexPlanned('new', 'account');
+  release();
+  await assert.rejects(old, /credential change/);
+  assert.deepEqual(app.flexPlannedCache.get('account').value, []);
+  assert.equal(app.getDispatchEligibility('account').state, 'eligible');
+});
+
+test('completed-read auth failures pause retries without affecting another account', async (t) => {
+  let calls = 0;
+  t.mock.method(KrakenClient.prototype, 'getCompletedDispatchWindows', async function fetchCompleted() {
+    calls += 1;
+    if (this.apiKey === 'bad') throw new KrakenApiError(403, 'Auth');
+    return [];
+  });
+  const app = new App();
+  await assert.rejects(app.getCachedCompletedWindows('bad', 'first'));
+  for (let i = 0; i < 10; i += 1) {
+    await assert.rejects(app.getCachedCompletedWindows('bad', 'first'),
+      (err) => err.status === 403);
+  }
+  assert.equal(calls, 1);
+  await app.getCachedCompletedWindows('good', 'second');
+  await app.getCachedCompletedWindows('rotated', 'first');
+  assert.equal(calls, 3);
+});
