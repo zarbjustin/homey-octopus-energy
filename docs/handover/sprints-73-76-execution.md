@@ -112,6 +112,15 @@ the soak and reporter confirmation are not. The user approved install, PR delive
 and Draft/Test publication. No physical charging control or public community
 message is authorised here.
 
+The user subsequently authorised hourly **read-only** soak checks in this chat.
+Heartbeat `octopus-s76-read-only-soak` is active until 6 October 2026 20:30 UTC;
+the first check after 20:10 UTC reports coverage and disables it. Mac/Codex must
+remain running. Only cached, scoped Homey data is read; redacted observations stay
+in local artifacts outside Git. Unchanged state stays quiet. No restart, refresh,
+Flow/setting edit, charging write, publishing, repair or Git write is authorised
+by the monitor. Hourly sampling cannot prove exact request counts or every event
+edge. Scheduling is not soak completion; gaps must be reported.
+
 Field matrix pending: real dashboard interaction/palette/selection persistence,
 unavailable tariff/account types, live session announcement recurrence, IOG night
 boundary, 48-hour recovery/request-count soak and reporter follow-up. No synthetic
