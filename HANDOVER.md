@@ -1,6 +1,6 @@
 # Project Handover
 
-Last updated: 9 August 2026
+Last updated: 4 October 2026
 
 > **AI/LLM takeover:** start with [`docs/ai-handover.md`](docs/ai-handover.md), then read
 > [`AGENTS.md`](AGENTS.md), [`docs/roadmap-next.md`](docs/roadmap-next.md), and
@@ -10,6 +10,18 @@ Last updated: 9 August 2026
 
 ## Current state
 
+- **4 October 2026 — S73–S80 roadmap defined; not implemented.** Community feedback
+  and twelve Homey manual diagnostics were reviewed. Build 36 is now verified Live;
+  local installation and outstanding field checks remain unverified. S73–S76 plan
+  announcement lifecycle/deduplication, cache-only widget recovery, dispatch
+  eligibility, and release/support closure. S77–S80 are gated maintenance,
+  supportability, solar/export and advice proposals. An isolated replay confirmed
+  that 51 expired sessions produce repeat announcements because only 50 known IDs
+  are retained; the reporter-specific cause is not yet established. The portal's
+  zero automatic crash counts do not close functional bugs. Current priorities:
+  [`docs/roadmap-next.md`](docs/roadmap-next.md); task-level acceptance gates:
+  [`docs/handover/sprints-73-80-spec.md`](docs/handover/sprints-73-80-spec.md).
+  No runtime code, version, local device, public post or release was changed.
 - **v1.0.36 (9 Aug 2026) — DELIVERED: configurable widget price bands (S71–S72).**
   Enhanced the existing Agile Prices and Price Timeline widgets following Homey Community feedback.
   Both widgets now use the shared `lib/widgetPriceBands.js` classifier: negative, green, yellow,

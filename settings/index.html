@@ -205,6 +205,10 @@
           if (value.freeElectricityLastError) {
             message += `; Free Electricity (Power Up): ${value.freeElectricityLastError}`;
           }
+          for (const [label, counts] of [['Saving', value.saving], ['Power Up', value.freeElectricity]]) {
+            if (counts) message += `; ${label}: ${counts.valid} valid, ${counts.expired} expired, `
+              + `${counts.tracked} tracked, ${counts.suppressed} suppressed, ${counts.overflow} overflow`;
+          }
           detail.textContent = message;
           item.append(title, detail);
           status.appendChild(item);

@@ -260,8 +260,8 @@ test('Power Up marks feActiveUntil while running and clears once it ends (BL-21 
   const k = opaqueKey(app.homey, 'A-ONE');
   const state = app.homey.settings.get('saving_sessions_state_v2');
   assert.ok(state[k].feActiveUntil > Date.now(), 'feActiveUntil is set while the session runs');
-  assert.equal(app.fired.filter((e) => e.id === 'free_electricity_started').length, 1);
-  assert.equal(notes.length, 1, 'a reminder notification is sent by default');
+  assert.equal(app.fired.filter((e) => e.id === 'free_electricity_started').length, 0);
+  assert.equal(notes.length, 0, 'first discovery of an active event seeds silently');
 });
 
 test('Power Up reminder is suppressed when notify_free_electricity is off (BL-21)', async (t) => {
@@ -271,16 +271,20 @@ test('Power Up reminder is suppressed when notify_free_electricity is off (BL-21
     notes.push(n);
   };
   app.homey.settings.set('notify_free_electricity', false);
-  const start = new Date(Date.now() - 5 * 60_000).toISOString();
-  const end = new Date(Date.now() + 25 * 60_000).toISOString();
+  const now = Date.now();
+  t.mock.timers.enable({ apis: ['Date'], now });
+  const start = new Date(now + 5 * 60_000).toISOString();
+  const end = new Date(now + 25 * 60_000).toISOString();
   t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => []);
   t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => [{
     id: 'pu-quiet', startAt: start, endAt: end, rewardPerKwh: 0, eventType: 'TURN_UP',
   }]);
 
   await new SavingSessionsPoller(app).poll();
+  t.mock.timers.tick(6 * 60_000);
+  await new SavingSessionsPoller(app).poll();
 
-  assert.equal(app.fired.filter((e) => e.id === 'free_electricity_started').length, 1, 'trigger still fires');
+  assert.equal(app.fired.filter((e) => e.id === 'free_electricity_started').length, 1, 'observed transition fires');
   assert.equal(notes.length, 0, 'notification is suppressed when the toggle is off');
 });
 
@@ -293,6 +297,58 @@ test('Saving Session diagnostics redact the API key from errors', async (t) => {
 
   const diagnostics = app.homey.settings.get('saving_sessions_diagnostics_v1');
   assert.equal(diagnostics[opaqueKey(app.homey, 'A-ONE')].lastError, 'Request failed for [redacted]');
+});
+
+for (const count of [51, 100, 500]) {
+  test(`both session poller feeds ignore ${count} expired rows across restart`, async (t) => {
+    const app = fakeApp([{ apiKey: 'key', accountNumber: 'A-ONE' }]);
+    const feed = Array.from({ length: count }, (_, i) => ({
+      id: `old-${i}`,
+      startAt: new Date(Date.now() - 7200_000).toISOString(),
+      endAt: new Date(Date.now() - 3600_000).toISOString(),
+      rewardPerKwh: 0,
+    }));
+    t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => feed);
+    t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => feed);
+    await new SavingSessionsPoller(app).poll();
+    await new SavingSessionsPoller(app).poll();
+    assert.deepEqual(app.fired, []);
+    const diagnostics = app.homey.settings.get('saving_sessions_diagnostics_v1')[opaqueKey(app.homey, 'A-ONE')];
+    assert.equal(diagnostics.saving.expired, count);
+    assert.equal(diagnostics.freeElectricity.expired, count);
+    assert.doesNotMatch(JSON.stringify(diagnostics), /old-0|A-ONE/);
+  });
+}
+
+test('session persistence precedes triggers and a failed write emits nothing', async (t) => {
+  const app = fakeApp([{ apiKey: 'key', accountNumber: 'A-ONE' }]);
+  t.mock.method(KrakenClient.prototype, 'getSavingSessions', async () => [{
+    id: 'future',
+    startAt: new Date(Date.now() + 3600_000).toISOString(),
+    endAt: new Date(Date.now() + 7200_000).toISOString(),
+    rewardPerKwh: 100,
+  }]);
+  t.mock.method(KrakenClient.prototype, 'getFreeElectricitySessions', async () => []);
+  const originalSet = app.homey.settings.set;
+  app.homey.settings.set = (key, value) => {
+    if (key === 'saving_sessions_state_v2') throw new Error('Disk failure');
+    return originalSet(key, value);
+  };
+  await new SavingSessionsPoller(app).poll();
+  assert.deepEqual(app.fired, []);
+  app.homey.settings.set = originalSet;
+  app.homey.flow.getTriggerCard = (id) => ({
+    trigger: async () => {
+      const state = app.homey.settings.get('saving_sessions_state_v2')[opaqueKey(app.homey, 'A-ONE')];
+      assert.ok(state.known.includes('future'));
+      app.fired.push({ id });
+      throw new Error('Flow rejected');
+    },
+  });
+  await new SavingSessionsPoller(app).poll();
+  const attempts = app.fired.length;
+  await new SavingSessionsPoller(app).poll();
+  assert.equal(app.fired.length, attempts, 'failed Flow is not retried');
 });
 
 test('dispatch failures are logged once and redacted', async (t) => {
