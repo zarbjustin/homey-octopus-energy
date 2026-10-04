@@ -103,7 +103,11 @@ Key commits:
   event or manual Flow trigger was used.
 - Dispatch is currently degraded; provider recovery/enrollment not established.
   Running/not-crashed is not proof of provider health or physical charging.
-- S76 soak and reporter confirmation remain open. No recurring monitor is scheduled.
+- S76 soak and reporter confirmation remain open. The user authorised an hourly
+  read-only heartbeat in this chat, `octopus-s76-read-only-soak`, through 6 October
+  2026 20:30 UTC; final check after 20:10 UTC reports coverage and disables it.
+  Mac/Codex must stay running. Cached diagnostics only, no app/Flow/charging writes;
+  incomplete observations cannot establish a successful soak.
 
 ## October Reliability Review
 
