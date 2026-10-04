@@ -1,7 +1,8 @@
 'use strict';
 
 import Homey from 'homey';
-import { OctopusClient, FuelType } from './OctopusClient';
+import { OctopusClient, FuelType, OctopusApiError } from './OctopusClient';
+import { BackgroundRecovery } from './BackgroundRecovery';
 import { KrakenClient, AccountIogTariff, IogResolveDiagnostic } from './KrakenClient';
 import { isBudgetError } from './KrakenBudget';
 import { opaqueKeyMigrating, opaqueKey } from './diagnosticsKey';
@@ -171,6 +172,10 @@ export class OctopusMeterDevice extends Homey.Device {
   private previousProjectedCost: number | null = null;
 
   private dailyUsageCache: { ts: number; days: number; value: DailyUsage[] } | null = null;
+
+  private recovery?: BackgroundRecovery;
+
+  private effectiveRateCache: { ts: number; value: EffectiveRateResult | null } | null = null;
 
   private previousStanding: number | null = null;
 
@@ -382,7 +387,7 @@ export class OctopusMeterDevice extends Homey.Device {
    * so this is usage — not cost (which needs raw settled half-hours + rates).
    * The partial current day is excluded; fails closed to the last cache / [].
    */
-  async getSettledDailyUsage(days = 7): Promise<DailyUsage[]> {
+  async getSettledDailyUsage(days = 7, throwOnError = false, generation?: number): Promise<DailyUsage[]> {
     const s = this.store();
     if (!s.mpxn || !s.serial) return [];
     const n = Math.max(1, Math.min(31, Math.floor(days)));
@@ -399,11 +404,49 @@ export class OctopusMeterDevice extends Homey.Device {
         .filter((r) => Number.isFinite(Date.parse(r.interval_end)) && Date.parse(r.interval_end) <= now)
         .map((r) => ({ date: r.interval_start, kWh: Number(this.toEnergyUnit(r.consumption).toFixed(2)) }))
         .slice(-n);
-      this.dailyUsageCache = { ts: now, days: n, value };
+      if (!this.supersededDuringReporting(generation)) this.dailyUsageCache = { ts: now, days: n, value };
       return value;
     } catch (err) {
+      if (throwOnError) throw err;
       return this.dailyUsageCache?.value ?? [];
     }
+  }
+
+  /** Presentation getters are strictly cache-only, including cold/error paths. */
+  getCachedSettledDailyUsage(days = 7): DailyUsage[] | null {
+    const cached = this.dailyUsageCache;
+    return cached && cached.days === days ? structuredClone(cached.value) : null;
+  }
+
+  getCachedEffectiveRateView(): EffectiveRateResult | null {
+    if (!this.effectiveRateOptIn()) return null;
+    const cached = this.effectiveRateCache;
+    if (!cached || Date.now() - cached.ts > 30 * 60_000) return null;
+    // Never retain an estimate across an elapsed pricing half-hour.
+    if (Math.floor(cached.ts / 1800_000) !== Math.floor(Date.now() / 1800_000)) return null;
+    return structuredClone(cached.value);
+  }
+
+  getPresentationFreshness() {
+    const view = (ts: number | undefined, ttl: number) => {
+      let state: FreshnessState = 'unknown';
+      if (ts !== undefined) state = Date.now() - ts >= ttl ? 'stale' : 'current';
+      return {
+        updatedAt: ts === undefined ? null : new Date(ts).toISOString(),
+        state,
+        ageMs: ts === undefined ? null : Math.max(0, Date.now() - ts),
+      };
+    };
+    return {
+      dailyUsage: view(this.dailyUsageCache?.ts, 3 * 3600_000),
+      effectiveRate: view(this.effectiveRateCache?.ts, 30 * 60_000),
+      recovery: this.backgroundRecovery().snapshot(),
+    };
+  }
+
+  private backgroundRecovery(): BackgroundRecovery {
+    if (!this.recovery) this.recovery = new BackgroundRecovery(this.getStoreValue?.('backgroundRecoveryV1'));
+    return this.recovery;
   }
 
   /** Whether a data source is stale (a last value exists but is past its refresh
@@ -533,20 +576,10 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   /**
-   * Return Agile widget data, refreshing first when cached rates no longer cover
-   * the current day/current half-hour. This prevents stale overnight caches from
-   * rendering an empty widget until the next scheduled poll.
+   * Compatibility alias. Even an empty cache must never refresh from a widget.
    */
   async getFreshAgileDayData(cheapestCount = 6): Promise<AgileDayData> {
-    let data = this.getAgileDayData(cheapestCount);
-    if (data.today.length > 0 && data.currentStart) return data;
-
-    await this.refresh();
-    data = this.getAgileDayData(cheapestCount);
-    if (data.today.length === 0 || !data.currentStart) {
-      throw new Error('No current price data yet.');
-    }
-    return data;
+    return this.getAgileDayData(cheapestCount);
   }
 
   /** Local HH:MM label for an instant, in the Homey timezone. */
@@ -601,6 +634,10 @@ export class OctopusMeterDevice extends Homey.Device {
     this.previousMonthCost = null;
     this.previousProjectedCost = null;
     this.previousStanding = null;
+    this.dailyUsageCache = null;
+    this.effectiveRateCache = null;
+    this.recovery = new BackgroundRecovery();
+    await this.setStoreValue('backgroundRecoveryV1', {});
     this.lastTariffCheck = 0;
     this.lastForcedRecoveryAt = 0;
     this.lastStandingRefresh = 0;
@@ -638,6 +675,10 @@ export class OctopusMeterDevice extends Homey.Device {
     // recreate the very key-thrash we are fixing); let it reject so the caller's
     // per-sibling try/catch records it and the sibling is retried on next repair.
     await this.setStoreValue('apiKey', apiKey);
+    this.dailyUsageCache = null;
+    this.effectiveRateCache = null;
+    this.recovery = new BackgroundRecovery();
+    await this.setStoreValue('backgroundRecoveryV1', {});
     this.buildClients();
     await this.onCredentialsApplied().catch((err) => this.error(err));
   }
@@ -704,12 +745,21 @@ export class OctopusMeterDevice extends Homey.Device {
     let priceOk = false;
     let firstErr: unknown = null;
     const run = async (label: string, area: string, fn: () => Promise<void>): Promise<boolean> => {
+      if (!this.backgroundRecovery().allowed(area)) {
+        const blocked = this.backgroundRecovery().state(area);
+        if (!firstErr) firstErr = new OctopusApiError(blocked?.status ?? 0, 'Background recovery paused');
+        return false;
+      }
       try {
         await fn();
+        if (this.isStaleRefresh(generation)) return false;
+        this.backgroundRecovery().success(area);
         this.recordIntegrationDiagnostic(area);
         ok = true;
         return true;
       } catch (err) {
+        if (this.isStaleRefresh(generation)) return false;
+        this.backgroundRecovery().failure(area, err);
         this.recordIntegrationDiagnostic(area, err);
         // A budget skip is a deliberate freshness-preserving skip (retain the
         // last value), NOT a fault: don't log it as an error and don't let it
@@ -719,7 +769,7 @@ export class OctopusMeterDevice extends Homey.Device {
           return false;
         }
         if (!firstErr) firstErr = err;
-        this.error(`${label} failed:`, err);
+        this.error(`${label} failed:`, this.redactedError(err));
         return false;
       }
     };
@@ -740,25 +790,35 @@ export class OctopusMeterDevice extends Homey.Device {
     await this.runReporting('Billing-summary refresh', 'billing_summary', () => this.refreshBillingSummary(generation));
     await this.runReporting('Points refresh', 'points', () => this.refreshPoints());
     await this.runReporting('Tariff-change check', 'tariff', () => this.checkTariffChange());
+    await this.runReporting('Widget history', 'daily_usage', () => this.getSettledDailyUsage(7, true, generation));
+    await this.runReporting('Effective-rate snapshot', 'effective_rate', async () => {
+      const value = await this.getEffectiveRateView(true);
+      if (!this.isStaleRefresh(generation)) this.effectiveRateCache = { ts: Date.now(), value };
+    });
 
     try {
       await this.setHealth(ok, priceOk, firstErr);
     } finally {
       this.flushIntegrationDiagnostics();
+      await this.setStoreValue?.('backgroundRecoveryV1', this.backgroundRecovery().snapshot())
+        .catch(() => this.error('Could not persist background recovery state'));
     }
   }
 
   private async runReporting(label: string, area: string, fn: () => Promise<unknown>): Promise<void> {
+    if (!this.backgroundRecovery().allowed(area)) return;
     try {
       await fn();
+      this.backgroundRecovery().success(area);
       this.recordIntegrationDiagnostic(area);
     } catch (err) {
+      this.backgroundRecovery().failure(area, err);
       this.recordIntegrationDiagnostic(area, err);
       if (isBudgetError(err)) {
         this.log(`${label} skipped to protect the API budget; keeping the last value.`);
         return;
       }
-      this.error(`${label} failed:`, err);
+      this.error(`${label} failed:`, this.redactedError(err));
     }
   }
 
@@ -1437,7 +1497,7 @@ export class OctopusMeterDevice extends Homey.Device {
    * equals the authoritative household base; EV device rates are returned
    * separately and never folded in. Never a bill or settled price.
    */
-  async getEffectiveRateView(): Promise<EffectiveRateResult | null> {
+  async getEffectiveRateView(throwOnError = false): Promise<EffectiveRateResult | null> {
     const s = this.store();
     if (s.fuel !== 'electricity' || s.isExport || !this.isIntelligentGoTariff()) return null;
     // Opt-in: the estimate is off by default and only computed when the user has
@@ -1456,6 +1516,7 @@ export class OctopusMeterDevice extends Homey.Device {
         };
       }
     } catch (err) {
+      if (throwOnError) throw err;
       tariff = null; // fail closed
     }
 

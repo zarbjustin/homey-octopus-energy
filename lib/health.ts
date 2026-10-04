@@ -37,7 +37,8 @@ export function refreshHealthDecision(
   }
 
   const raw = err instanceof Error ? err.message : String(err ?? '');
-  const authenticationFailure = /401|authenticat|api key/i.test(raw);
+  const status = (err as { status?: number } | null)?.status;
+  const authenticationFailure = status === 401 || status === 403 || /401|authenticat|api key/i.test(raw);
 
   // A price-only degradation: connectivity and authentication are fine (at
   // least one other integration succeeded, no auth error) but the current

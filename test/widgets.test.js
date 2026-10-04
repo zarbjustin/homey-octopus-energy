@@ -161,7 +161,7 @@ test('summary widget populates the S44 effective-price hook from the device', as
     getDispatchView: () => ({
       activeNow: true, active: [], next: null, recentFinalised: [{ start: 'x', end: 'y', delta: 2.3 }],
     }),
-    getEffectiveRateView: async () => effective,
+    getCachedEffectiveRateView: () => effective,
   };
   const homey = { drivers: { getDriver: () => ({ getDevices: () => [device] }) } };
   const data = await api.getData({ homey, query: { id: 'd1' } });

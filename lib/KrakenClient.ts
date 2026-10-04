@@ -28,6 +28,24 @@ interface GraphQLResponse<T> {
   errors?: Array<{ message: string; extensions?: { errorCode?: string } }>;
 }
 
+export class KrakenApiError extends Error {
+
+  constructor(public status: number, message: string, public retryAfterMs?: number) {
+    super(message);
+    this.name = 'KrakenApiError';
+  }
+
+}
+
+export class KrakenFieldError extends Error {
+
+  constructor(message: string, public code?: string) {
+    super(message);
+    this.name = 'KrakenFieldError';
+  }
+
+}
+
 export interface SavingSession {
   id: string;
   startAt: string;
@@ -237,14 +255,18 @@ export class KrakenClient {
           // Rate limited: open the account backoff gate and stop — do NOT retry
           // inline (that only deepens the throttling).
           bucket.penalise();
-          throw new Error('Kraken rate limited (429)');
+          const retry = res.headers.get('retry-after');
+          const retryAfterMs = retry && /^\d+$/.test(retry) ? Number(retry) * 1000
+            : Math.max(0, Date.parse(retry || '') - Date.now());
+          throw new KrakenApiError(429, 'Kraken rate limited (429)',
+            Number.isFinite(retryAfterMs) ? retryAfterMs : undefined);
         }
         if (res.status >= 500) {
-          throw new Error(`Transient Kraken error ${res.status}`);
+          throw new KrakenApiError(res.status, `Transient Kraken error ${res.status}`);
         }
         if (!res.ok) {
           const body = await res.text().catch(() => '');
-          throw new Error(`Kraken request failed (${res.status}): ${body.slice(0, 200)}`);
+          throw new KrakenApiError(res.status, `Kraken request failed (${res.status}): ${body.slice(0, 200)}`);
         }
         const json = await res.json() as GraphQLResponse<T>;
         bucket.reward();
@@ -252,9 +274,13 @@ export class KrakenClient {
       } catch (err) {
         lastErr = err;
         if (isBudgetError(err)) throw err;
-        if (err instanceof Error && /rate limited \(429\)/.test(err.message)) throw err;
-        const transient = err instanceof Error && /Transient Kraken error|fetch failed|network|abort/i.test(err.message);
-        if (!transient || attempt === maxAttempts - 1) throw err;
+        if (err instanceof KrakenApiError && err.status === 429) throw err;
+        const transient = (err instanceof KrakenApiError && err.status >= 500)
+          || err instanceof TypeError || (err instanceof Error && err.name === 'AbortError');
+        if (!transient || attempt === maxAttempts - 1) {
+          if (transient && !(err instanceof KrakenApiError)) throw new KrakenApiError(0, 'Kraken network request failed');
+          throw err;
+        }
         await new Promise((resolve) => {
           globalThis.setTimeout(resolve, 2 ** attempt * 1000);
         });
@@ -284,7 +310,9 @@ export class KrakenClient {
         headers.Authorization = await this.getToken();
         const retryJson = await this.post<T>(headers, query, variables, url, priority);
         if (retryJson.errors?.length && !(allowPartial?.(retryJson.data) ?? false)) {
-          throw new Error(retryJson.errors[0].message);
+          const e = retryJson.errors[0];
+          if (e.extensions?.errorCode === 'KT-CT-1124') throw new KrakenApiError(401, 'Kraken authentication failed');
+          throw new KrakenFieldError(e.message, e.extensions?.errorCode);
         }
         return retryJson.data as T;
       }
@@ -298,7 +326,9 @@ export class KrakenClient {
       // dispatches") the validator rejects it, so we throw and the caller retains
       // prior state / falls back.
       if (!(allowPartial?.(json.data) ?? false)) {
-        throw new Error(json.errors[0].message);
+        const e = json.errors[0];
+        if (e.extensions?.errorCode === 'KT-CT-1124') throw new KrakenApiError(401, 'Kraken authentication failed');
+        throw new KrakenFieldError(e.message, e.extensions?.errorCode);
       }
     }
     return json.data as T;
