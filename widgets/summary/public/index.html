@@ -87,10 +87,15 @@
       const disp = d && d.dispatch;
       if (!disp) return '';
       let html = '';
+      if (disp.eligibility) {
+        html += '<div class="muted">Dispatch eligibility: ' + esc(disp.eligibility.state)
+          + ' · ' + esc(disp.eligibility.reason) + '</div>';
+      }
       if (disp.activeNow) {
         html += '<div class="disp">' + esc('Smart charging now') + badge('Planned', 'b-planned') + '</div>';
       } else if (disp.next) {
-        html += '<div class="disp">' + esc('Next planned: ' + shortTime(disp.next.start) + '–' + shortTime(disp.next.end)) + badge('Planned', 'b-planned') + '</div>';
+        html += '<div class="disp">' + esc('Next planned: ' + shortTime(disp.next.start) + '–' + shortTime(disp.next.end))
+          + (disp.freshness === 'stale' ? badge('Stale intent', 'b-stale') : badge('Planned', 'b-planned')) + '</div>';
       }
       if (disp.recentFinalised && disp.recentFinalised.length) {
         const f = disp.recentFinalised[0];
@@ -134,12 +139,16 @@
     }
     function breakdownHtml(d) {
       var b = d && d.breakdown;
-      if (!b || !b.length) return '';
+      if (!b || !b.length) return '<div class="k">Settled history pending background refresh.</div>';
+      var freshness = d.presentation && d.presentation.dailyUsage;
+      var age = freshness && freshness.updatedAt
+        ? '<div class="k">History: ' + esc(freshness.state) + ' · updated '
+          + esc(new Date(freshness.updatedAt).toLocaleString()) + '</div>' : '';
       var parts = '';
       for (var i = 0; i < b.length; i++) {
         parts += '<span style="opacity:.85"><b>' + esc(dow(b[i].date)) + '</b> ' + n(b[i].kWh) + '</span>';
       }
-      return '<div style="margin-top:8px"><div class="k">Last 7 days \u00b7 kWh (settled)</div>'
+      return age + '<div style="margin-top:8px"><div class="k">Last 7 days \u00b7 kWh (settled)</div>'
         + '<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:11px;margin-top:3px">' + parts + '</div></div>';
     }
     function render(d) {

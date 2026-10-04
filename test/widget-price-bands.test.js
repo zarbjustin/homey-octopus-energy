@@ -72,7 +72,7 @@ test('Agile widget API decorates today and tomorrow without changing cheapest me
     getData: () => ({ id: 'meter-1' }),
     getName: () => 'Meter',
     getDataFreshness: () => null,
-    getFreshAgileDayData: async () => ({
+    getAgileDayData: () => ({
       today: slots,
       tomorrow: [{
         start: 'd', price: 21, cheapest: true, current: false,

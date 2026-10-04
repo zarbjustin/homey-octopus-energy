@@ -1,20 +1,32 @@
 'use strict';
 
 import { AccountPoller } from './AccountPoller';
-import { SavingSession } from './KrakenClient';
 import { isBudgetError } from './KrakenBudget';
 import { opaqueKey, opaqueKeyMigrating } from './diagnosticsKey';
-import { redactSecrets, maskAccount as maskAccountId } from './redact';
+import { redactSecrets } from './redact';
+import { reconcileSessions, SessionLedger, SessionEmission } from './sessionLifecycle';
 
-interface PollerState {
-  known: string[];
-  started: string[];
-  ended: string[];
-  startingSoon?: string[];
+const SESSION_CARDS = {
+  saving_session: {
+    announced: 'saving_session_announced',
+    starting_soon: 'saving_session_starting_soon',
+    started: 'saving_session_started',
+    ended: 'saving_session_ended',
+  },
+  free_electricity: {
+    announced: 'free_electricity_announced',
+    starting_soon: 'free_electricity_starting_soon',
+    started: 'free_electricity_started',
+    ended: 'free_electricity_ended',
+  },
+};
+
+interface PollerState extends SessionLedger {
   feKnown?: string[];
   feStartingSoon?: string[];
   feStarted?: string[];
   feEnded?: string[];
+  feRecords?: SessionLedger['records'];
   feActiveUntil?: number;
 }
 
@@ -25,183 +37,123 @@ interface PollDiagnostics {
   sessionCount?: number;
   freeElectricityCount?: number;
   freeElectricityLastError?: string;
+  saving?: ReturnType<typeof reconcileSessions>['counts'];
+  freeElectricity?: ReturnType<typeof reconcileSessions>['counts'];
+  triggerAttempts?: number;
 }
 
-/**
- * Polls Octopus "Saving Sessions" + Free Electricity for the account and fires
- * app-level Flow triggers. Best-effort: any error yields no triggers that cycle.
- */
+/** Account-scoped, persisted at-most-once lifecycle attempts; no historical replay. */
 export class SavingSessionsPoller extends AccountPoller {
 
   protected readonly intervalMs = 15 * 60_000;
 
   protected async poll(): Promise<void> {
     for (const creds of this.accounts()) {
-      // Keep account state writes ordered and deterministic.
-      // eslint-disable-next-line no-await-in-loop
-      await this.pollAccount(creds);
+      // Keep writes ordered; failed persistence cannot emit or block siblings.
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await this.pollAccount(creds);
+      } catch (err) {
+        this.app.error('Session persistence failed; lifecycle attempts suppressed:',
+          redactSecrets(err, [creds.apiKey, creds.accountNumber]));
+      }
     }
   }
 
   private async pollAccount(creds: { apiKey: string; accountNumber: string }): Promise<void> {
     const client = this.kraken(creds);
     const attemptedAt = new Date().toISOString();
-    let sessions: SavingSession[] = [];
+    let sessions;
     try {
       sessions = await client.getSavingSessions(creds.accountNumber);
     } catch (err) {
-      // A budget skip is an expected, freshness-preserving skip — record the
-      // attempt and clear any prior error (it is not currently failing).
-      if (isBudgetError(err)) {
-        const previous = this.diagnosticFor(creds.accountNumber);
-        this.updateDiagnostics(creds.accountNumber, {
-          ...previous, lastAttempt: attemptedAt, lastError: undefined,
-        });
-        return;
-      }
-      const message = this.errorMessage(err, creds.apiKey);
       const previous = this.diagnosticFor(creds.accountNumber);
-      if (previous?.lastError !== message) {
-        this.app.error(`Saving Sessions poll failed for ${this.maskAccount(creds.accountNumber)}:`, err);
-      }
-      this.updateDiagnostics(creds.accountNumber, {
-        ...previous,
-        lastAttempt: attemptedAt,
-        lastError: message,
-      });
+      const message = isBudgetError(err) ? undefined
+        : redactSecrets(err, [creds.apiKey, creds.accountNumber]);
+      if (message && previous?.lastError !== message) this.app.error('Saving Sessions poll failed:', message);
+      this.updateDiagnostics(creds.accountNumber, { ...previous, lastAttempt: attemptedAt, lastError: message });
       return;
     }
-
-    const allState = (this.app.homey.settings.get('saving_sessions_state_v2') || {}) as Record<string, PollerState>;
-    const stateKey = opaqueKeyMigrating(this.app.homey, allState as Record<string, unknown>, creds.accountNumber);
-    const state: PollerState = allState[stateKey]
-      || { known: [], started: [], ended: [] };
-    state.feStarted = state.feStarted ?? [];
-    state.feEnded = state.feEnded ?? [];
-    state.feKnown = state.feKnown ?? [];
-    state.feStartingSoon = state.feStartingSoon ?? [];
-    state.startingSoon = state.startingSoon ?? [];
-    const now = Date.now();
-
-    for (const s of sessions) {
-      const start = new Date(s.startAt).getTime();
-      const end = new Date(s.endAt).getTime();
-      const tokens = { start: this.fmt(s.startAt), end: this.fmt(s.endAt), reward: s.rewardPerKwh };
-
-      if (!state.known.includes(s.id)) {
-        state.known.push(s.id);
-        this.fire('saving_session_announced', tokens);
-      }
-      if (s.joined === false) continue;
-      if (now < start) {
-        const minutesUntil = Math.round((start - now) / 60_000);
-        if (minutesUntil <= 245) {
-          // De-dup: fire at most once per session per 15-minute bucket. This
-          // preserves the per-Flow lead-time window (listener gates on
-          // minutesUntil) while suppressing duplicate fires from an extra poll
-          // or app restart landing inside the same window.
-          const soonKey = `${s.id}:${Math.floor(minutesUntil / 15)}`;
-          if (!state.startingSoon.includes(soonKey)) {
-            state.startingSoon.push(soonKey);
-            this.fire('saving_session_starting_soon', tokens, { minutesUntil });
-          }
-        }
-      }
-      if (now >= start && now < end && !state.started.includes(s.id)) {
-        state.started.push(s.id);
-        this.fire('saving_session_started', { end: tokens.end, reward: tokens.reward });
-        const enabled = this.app.homey.settings.get('notify_saving_sessions');
-        if (enabled === undefined || enabled === null || enabled) {
-          this.app.homey.notifications.createNotification({
-            excerpt: this.app.homey.__('notification.saving_session_started'),
-          }).catch((err) => this.app.error('Notification failed:', err));
-        }
-      }
-      if (now >= end && !state.ended.includes(s.id)) {
-        state.ended.push(s.id);
-        this.fire('saving_session_ended', {});
-      }
-    }
-
-    // Free Electricity sessions (best-effort, separate from Saving Sessions).
-    let freeElectricityCount = 0;
+    const stored = this.app.homey.settings.get('saving_sessions_state_v2');
+    const validRoot = stored && typeof stored === 'object' && !Array.isArray(stored);
+    const allState = (validRoot ? structuredClone(stored) : {}) as Record<string, PollerState>;
+    const key = opaqueKeyMigrating(this.app.homey, allState as Record<string, unknown>, creds.accountNumber);
+    const state = allState[key];
+    const corrupt = (!!stored && !validRoot) || (state !== undefined && (state === null
+      || typeof state !== 'object' || Array.isArray(state) || !Array.isArray(state.known)
+      || !Array.isArray(state.started) || !Array.isArray(state.ended)));
+    const saving = reconcileSessions(sessions, state, Date.now(), corrupt);
+    let free: ReturnType<typeof reconcileSessions> | undefined;
     let freeElectricityLastError: string | undefined;
     try {
-      const fe = await client.getFreeElectricitySessions(creds.accountNumber);
-      freeElectricityCount = fe.length;
-      let feActiveUntil = 0;
-      for (const s of fe) {
-        const start = new Date(s.startAt).getTime();
-        const end = new Date(s.endAt).getTime();
-        const feTokens = { start: this.fmt(s.startAt), end: this.fmt(s.endAt) };
-        if (now >= start && now < end) feActiveUntil = Math.max(feActiveUntil, end);
-
-        if (!state.feKnown.includes(s.id)) {
-          state.feKnown.push(s.id);
-          this.fire('free_electricity_announced', feTokens);
-        }
-        if (now < start) {
-          const minutesUntil = Math.round((start - now) / 60_000);
-          if (minutesUntil <= 245) {
-            // Same per-15-minute-bucket de-dup as saving sessions (see BL-20):
-            // preserves per-Flow lead times while suppressing restart/extra-poll
-            // duplicates.
-            const soonKey = `${s.id}:${Math.floor(minutesUntil / 15)}`;
-            if (!state.feStartingSoon.includes(soonKey)) {
-              state.feStartingSoon.push(soonKey);
-              this.fire('free_electricity_starting_soon', feTokens, { minutesUntil });
-            }
-          }
-        }
-        if (now >= start && now < end && !state.feStarted.includes(s.id)) {
-          state.feStarted.push(s.id);
-          this.fire('free_electricity_started', { end: this.fmt(s.endAt) });
-          const enabled = this.app.homey.settings.get('notify_free_electricity');
-          if (enabled === undefined || enabled === null || enabled) {
-            this.app.homey.notifications.createNotification({
-              excerpt: this.app.homey.__('notification.free_electricity_started'),
-            }).catch((err) => this.app.error('Notification failed:', err));
-          }
-        }
-        if (now >= end && !state.feEnded.includes(s.id)) {
-          state.feEnded.push(s.id);
-          this.fire('free_electricity_ended', {});
-        }
-      }
-      state.feActiveUntil = feActiveUntil;
+      const sessionsFree = await client.getFreeElectricitySessions(creds.accountNumber);
+      // Power Ups do not require Saving Session enrollment. The API already
+      // filters regional eligibility; retain the existing ungated lifecycle.
+      free = reconcileSessions(sessionsFree.map((s) => ({ ...s, joined: true })), state ? {
+        records: state.feRecords,
+        known: state.feKnown,
+        started: state.feStarted,
+        ended: state.feEnded,
+        startingSoon: state.feStartingSoon,
+      } : undefined, Date.now(), corrupt);
     } catch (err) {
-      // Free Electricity is not enabled for every account; retain the status for diagnostics.
-      freeElectricityLastError = this.errorMessage(err, creds.apiKey);
+      freeElectricityLastError = redactSecrets(err, [creds.apiKey, creds.accountNumber]);
     }
-
-    // Keep the persisted id lists bounded.
-    const trim = (arr: string[]) => arr.slice(-50);
-    allState[stateKey] = {
-      known: trim(state.known),
-      started: trim(state.started),
-      ended: trim(state.ended),
-      startingSoon: trim(state.startingSoon),
-      feKnown: trim(state.feKnown),
-      feStartingSoon: trim(state.feStartingSoon),
-      feStarted: trim(state.feStarted),
-      feEnded: trim(state.feEnded),
-      feActiveUntil: state.feActiveUntil,
+    allState[key] = {
+      ...state,
+      ...saving.ledger,
+      ...(free ? {
+        feRecords: free.ledger.records,
+        feKnown: free.ledger.known,
+        feStartingSoon: free.ledger.startingSoon,
+        feStarted: free.ledger.started,
+        feEnded: free.ledger.ended,
+        feActiveUntil: free.activeUntil,
+      } : {}),
     };
+    // Persist before dispatch: a failed write emits nothing; a failed Flow is never retried.
     this.app.homey.settings.set('saving_sessions_state_v2', allState);
+    for (const event of saving.emissions) this.emitSession('saving_session', event);
+    for (const event of free?.emissions || []) this.emitSession('free_electricity', event);
     this.updateDiagnostics(creds.accountNumber, {
       lastAttempt: attemptedAt,
       lastSuccess: new Date().toISOString(),
       sessionCount: sessions.length,
-      freeElectricityCount,
+      freeElectricityCount: free?.counts.returned,
       freeElectricityLastError,
+      saving: saving.counts,
+      freeElectricity: free?.counts,
+      triggerAttempts: saving.emissions.length + (free?.emissions.length || 0),
     });
   }
 
-  private diagnostics(): Record<string, PollDiagnostics> {
-    return (this.app.homey.settings.get('saving_sessions_diagnostics_v1') || {}) as Record<string, PollDiagnostics>;
+  private emitSession(prefix: 'saving_session' | 'free_electricity', event: SessionEmission): void {
+    const r = event.session;
+    const tokens: Record<string, string | number> = {};
+    if (event.kind === 'announced' || event.kind === 'starting_soon') {
+      tokens.start = this.fmt(new Date(r.start).toISOString());
+    }
+    if (event.kind !== 'ended') {
+      tokens.end = this.fmt(new Date(r.end).toISOString());
+      if (prefix === 'saving_session') tokens.reward = r.reward;
+    }
+    this.fire(SESSION_CARDS[prefix][event.kind], tokens,
+      event.minutesUntil === undefined ? undefined : { minutesUntil: event.minutesUntil });
+    if (event.kind === 'started') {
+      const setting = prefix === 'saving_session' ? 'notify_saving_sessions' : 'notify_free_electricity';
+      const enabled = this.app.homey.settings.get(setting);
+      if (enabled === undefined || enabled === null || enabled) {
+        this.app.homey.notifications.createNotification({
+          excerpt: this.app.homey.__(`notification.${prefix}_started`),
+        }).catch(() => this.app.error('Session notification attempt failed'));
+      }
+    }
   }
 
-  /** Current diagnostic for an account, tolerant of a not-yet-migrated raw key. */
+  private diagnostics(): Record<string, PollDiagnostics> {
+    return structuredClone(this.app.homey.settings.get('saving_sessions_diagnostics_v1') || {});
+  }
+
   private diagnosticFor(accountNumber: string): PollDiagnostics | undefined {
     const all = this.diagnostics();
     return all[opaqueKey(this.app.homey, accountNumber)] ?? all[accountNumber];
@@ -212,13 +164,5 @@ export class SavingSessionsPoller extends AccountPoller {
     const key = opaqueKeyMigrating(this.app.homey, all as Record<string, unknown>, accountNumber);
     all[key] = value;
     this.app.homey.settings.set('saving_sessions_diagnostics_v1', all);
-  }
-
-  private errorMessage(err: unknown, secret: string): string {
-    return redactSecrets(err, [secret]);
-  }
-
-  private maskAccount(accountNumber: string): string {
-    return maskAccountId(accountNumber);
   }
 }

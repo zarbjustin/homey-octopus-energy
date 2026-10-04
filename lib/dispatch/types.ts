@@ -78,7 +78,18 @@ export interface DispatchFinalised {
   delta: number | null;
 }
 
+export interface DispatchEligibility {
+  state: 'eligible' | 'ineligible' | 'unknown' | 'degraded';
+  reason: 'device-supported' | 'legacy-supported' | 'no-device' | 'unsupported-category'
+    | 'unknown-device' | 'authentication' | 'throttled' | 'transient' | 'provider-error'
+    | 'schema' | 'partial-failure';
+  observedAt: string;
+  retryAt?: number;
+}
+
 export interface DispatchView {
+  /** Separate from data freshness; sanitised evidence, never provider payloads. */
+  eligibility?: DispatchEligibility;
   activeNow: boolean;
   /** Whether an active dispatch window is specifically a BOOST (user/bump charge)
    *  rather than a SMART window. Read-only intent — never a settlement claim.

@@ -65,6 +65,10 @@ test('dispatch account view is deviceId-free and clock-accurate', () => {
     lastCompletedEnd: 0,
   });
   poller.recentCompleted.set('A-ONE', [{ start: '2026-07-19T23:30:00Z', end: '2026-07-20T05:30:00Z', delta: 3.2 }]);
+  poller.lastObservedAt.set('A-ONE', now);
+  poller.eligibility.set('A-ONE', {
+    state: 'eligible', reason: 'device-supported', observedAt: new Date(now).toISOString(),
+  });
 
   const view = poller.getAccountView('A-ONE');
   assert.equal(view.activeNow, true);

@@ -22,11 +22,13 @@ Read these files before planning or changing code:
 
 ## Current Baseline
 
-- App version: `1.0.35`.
-- Homey App Store build: `35`.
-- GitHub release: `v1.0.35`.
-- Formal engineering backlog: complete through `BL-31`.
-- Test baseline: 570 tests.
+- App version: `1.0.36`.
+- Homey App Store build: `36` (observed Live on 4 October 2026).
+- GitHub release: `v1.0.36`.
+- Original formal engineering backlog: complete through `BL-31`; new S73–S76
+  reliability S73–S75 is implemented on the execution branch; S76 is in progress.
+  Read `docs/handover/sprints-73-76-execution.md` for actual evidence and field gaps.
+- Last validated integration baseline: 615 passing tests; field gates remain open.
 - Runtime: Node.js 22, TypeScript, Homey Software Development Kit (SDK) v3.
 
 ## Non-Negotiable Product Rules

@@ -1,9 +1,12 @@
 # Octopus Energy for Homey — Build Roadmap
 
-> **Current status (25 Jul 2026):** the formal engineering backlog is complete through
-> `BL-31` and shipped in v1.0.35. Read
-> [`docs/roadmap-next.md`](docs/roadmap-next.md) for current operational work and optional
-> future phases. The sprint material below is retained as historical design and delivery context;
+> **Current status (4 October 2026):** the original engineering backlog is complete
+> through `BL-31`; S71–S72 shipped in v1.0.36, now verified Live. New reliability
+> work S73–S75 is implemented and tested; S76 release/field verification is in
+> progress. S77–S80 remain gated follow-ons. Read
+> [`docs/roadmap-next.md`](docs/roadmap-next.md) and
+> [`docs/handover/sprints-73-80-spec.md`](docs/handover/sprints-73-80-spec.md)
+> for current priorities and acceptance gates. The sprint material below is historical;
 > its old “future”, “unreleased”, and “next” labels are not current.
 
 A feature-rich Homey Pro app integrating the Octopus Energy REST (and later GraphQL) API:

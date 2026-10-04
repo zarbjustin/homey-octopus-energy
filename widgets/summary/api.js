@@ -25,16 +25,16 @@ module.exports = {
     const cap = (c) => (device.hasCapability(c) ? device.getCapabilityValue(c) : null);
     let effectivePrice = null;
     try {
-      if (typeof device.getEffectiveRateView === 'function') {
-        effectivePrice = await device.getEffectiveRateView();
+      if (typeof device.getCachedEffectiveRateView === 'function') {
+        effectivePrice = device.getCachedEffectiveRateView();
       }
     } catch (e) {
       effectivePrice = null;
     }
     let breakdown = null;
     try {
-      if (typeof device.getSettledDailyUsage === 'function') {
-        breakdown = await device.getSettledDailyUsage(7);
+      if (typeof device.getCachedSettledDailyUsage === 'function') {
+        breakdown = device.getCachedSettledDailyUsage(7);
       }
     } catch (e) {
       breakdown = null;
@@ -48,6 +48,7 @@ module.exports = {
       effectivePrice,
       // BL-18b: settled 7-day usage history (backfills what Homey Insights can't).
       breakdown,
+      presentation: typeof device.getPresentationFreshness === 'function' ? device.getPresentationFreshness() : null,
       balance: cap('measure_octopus_balance'),
       usage: cap('octopus_usage_today'),
       cost: cap('octopus_cost_today'),

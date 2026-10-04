@@ -18,6 +18,7 @@ import { SmartFlexDevice, classifyKind } from './dispatch/types';
 import { normaliseDevices } from './dispatch/deviceModel';
 import { PlannedInput, CompletedInput } from './dispatch/reconcile';
 import { jwtExpiryMs } from './jwt';
+import { DispatchSchemaError, validDispatchRows } from './dispatch/eligibility';
 
 const GRAPHQL_URL = 'https://api.octopus.energy/v1/graphql/';
 
@@ -25,7 +26,25 @@ const BACKEND_GRAPHQL_URL = 'https://api.backend.octopus.energy/v1/graphql/';
 
 interface GraphQLResponse<T> {
   data?: T;
-  errors?: Array<{ message: string; extensions?: { errorCode?: string } }>;
+  errors?: Array<{ message: string; extensions?: { errorCode?: string }; path?: Array<string | number> }>;
+}
+
+export class KrakenApiError extends Error {
+
+  constructor(public status: number, message: string, public retryAfterMs?: number) {
+    super(message);
+    this.name = 'KrakenApiError';
+  }
+
+}
+
+export class KrakenFieldError extends Error {
+
+  constructor(message: string, public code?: string) {
+    super(message);
+    this.name = 'KrakenFieldError';
+  }
+
 }
 
 export interface SavingSession {
@@ -237,14 +256,18 @@ export class KrakenClient {
           // Rate limited: open the account backoff gate and stop — do NOT retry
           // inline (that only deepens the throttling).
           bucket.penalise();
-          throw new Error('Kraken rate limited (429)');
+          const retry = res.headers.get('retry-after');
+          const retryAfterMs = retry && /^\d+$/.test(retry) ? Number(retry) * 1000
+            : Math.max(0, Date.parse(retry || '') - Date.now());
+          throw new KrakenApiError(429, 'Kraken rate limited (429)',
+            Number.isFinite(retryAfterMs) ? retryAfterMs : undefined);
         }
         if (res.status >= 500) {
-          throw new Error(`Transient Kraken error ${res.status}`);
+          throw new KrakenApiError(res.status, `Transient Kraken error ${res.status}`);
         }
         if (!res.ok) {
           const body = await res.text().catch(() => '');
-          throw new Error(`Kraken request failed (${res.status}): ${body.slice(0, 200)}`);
+          throw new KrakenApiError(res.status, `Kraken request failed (${res.status}): ${body.slice(0, 200)}`);
         }
         const json = await res.json() as GraphQLResponse<T>;
         bucket.reward();
@@ -252,9 +275,13 @@ export class KrakenClient {
       } catch (err) {
         lastErr = err;
         if (isBudgetError(err)) throw err;
-        if (err instanceof Error && /rate limited \(429\)/.test(err.message)) throw err;
-        const transient = err instanceof Error && /Transient Kraken error|fetch failed|network|abort/i.test(err.message);
-        if (!transient || attempt === maxAttempts - 1) throw err;
+        if (err instanceof KrakenApiError && err.status === 429) throw err;
+        const transient = (err instanceof KrakenApiError && err.status >= 500)
+          || err instanceof TypeError || (err instanceof Error && err.name === 'AbortError');
+        if (!transient || attempt === maxAttempts - 1) {
+          if (transient && !(err instanceof KrakenApiError)) throw new KrakenApiError(0, 'Kraken network request failed');
+          throw err;
+        }
         await new Promise((resolve) => {
           globalThis.setTimeout(resolve, 2 ** attempt * 1000);
         });
@@ -269,7 +296,7 @@ export class KrakenClient {
     auth = true,
     url = this.url,
     priority: KrakenPriority = 'best',
-    allowPartial?: (data: unknown) => boolean,
+    allowPartial?: (data: unknown, errors: GraphQLResponse<T>['errors']) => boolean,
   ): Promise<T> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (auth) headers.Authorization = await this.getToken();
@@ -283,8 +310,10 @@ export class KrakenClient {
         this.token = null;
         headers.Authorization = await this.getToken();
         const retryJson = await this.post<T>(headers, query, variables, url, priority);
-        if (retryJson.errors?.length && !(allowPartial?.(retryJson.data) ?? false)) {
-          throw new Error(retryJson.errors[0].message);
+        if (retryJson.errors?.length && !(allowPartial?.(retryJson.data, retryJson.errors) ?? false)) {
+          const e = retryJson.errors[0];
+          if (e.extensions?.errorCode === 'KT-CT-1124') throw new KrakenApiError(401, 'Kraken authentication failed');
+          throw new KrakenFieldError(e.message, e.extensions?.errorCode);
         }
         return retryJson.data as T;
       }
@@ -297,8 +326,10 @@ export class KrakenClient {
       // requested field itself nulls out (e.g. "Unable to fetch planned
       // dispatches") the validator rejects it, so we throw and the caller retains
       // prior state / falls back.
-      if (!(allowPartial?.(json.data) ?? false)) {
-        throw new Error(json.errors[0].message);
+      if (!(allowPartial?.(json.data, json.errors) ?? false)) {
+        const e = json.errors[0];
+        if (e.extensions?.errorCode === 'KT-CT-1124') throw new KrakenApiError(401, 'Kraken authentication failed');
+        throw new KrakenFieldError(e.message, e.extensions?.errorCode);
       }
     }
     return json.data as T;
@@ -934,7 +965,8 @@ export class KrakenClient {
       plannedDispatches?: Array<{ start?: string; end?: string; startDt?: string; endDt?: string }>;
     }
     const data = await this.query<Resp>(query, { accountNumber }, true, this.url, 'live');
-    const list = data?.plannedDispatches ?? [];
+    const list = data?.plannedDispatches;
+    if (!validDispatchRows(list)) throw new DispatchSchemaError();
     return list
       .map((d) => ({ start: String(d.start ?? d.startDt ?? ''), end: String(d.end ?? d.endDt ?? '') }))
       .filter((d) => d.start && d.end);
@@ -979,8 +1011,14 @@ export class KrakenClient {
     // category. Any other shape (devices null/absent) still throws.
     const data = await this.query<{ devices?: unknown }>(
       query, { accountNumber }, true, this.url, 'live',
-      (d) => Array.isArray((d as { devices?: unknown } | null)?.devices),
+      (d, errors) => Array.isArray((d as { devices?: unknown } | null)?.devices)
+        && !!errors?.every((e) => e.message === 'Device status could not be fetched.'
+          || (e.path?.[0] === 'devices' && e.path?.includes('status'))),
     );
+    if (!Array.isArray(data?.devices) || data.devices.some((d) => !d || typeof d.id !== 'string' || !d.id
+      || (d.status?.currentState != null && typeof d.status.currentState !== 'string'))) {
+      throw new DispatchSchemaError();
+    }
     return normaliseDevices(data);
   }
 
@@ -996,7 +1034,8 @@ export class KrakenClient {
       }`;
     interface Row { start?: string; end?: string; type?: string }
     const data = await this.query<{ flexPlannedDispatches?: Row[] }>(query, { deviceId }, true, this.url, 'live');
-    const list = data?.flexPlannedDispatches ?? [];
+    const list = data?.flexPlannedDispatches;
+    if (!validDispatchRows(list)) throw new DispatchSchemaError();
     return list
       .filter((r) => r.start && r.end)
       .map((r) => ({
@@ -1022,7 +1061,8 @@ export class KrakenClient {
       }`;
     interface Row { start?: string; end?: string; delta?: string | number }
     const data = await this.query<{ completedDispatches?: Row[] }>(query, { accountNumber }, true, this.url, 'best');
-    const list = data?.completedDispatches ?? [];
+    const list = data?.completedDispatches;
+    if (!validDispatchRows(list)) throw new DispatchSchemaError();
     return list
       .filter((r) => r.start && r.end)
       .map((r) => {
