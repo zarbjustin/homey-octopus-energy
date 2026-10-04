@@ -6,7 +6,9 @@ import { DispatchPoller } from './lib/DispatchPoller';
 import {
   Dispatch, KrakenClient, AccountIogTariff, IogResolveDiagnostic,
 } from './lib/KrakenClient';
-import { SmartFlexDevice, DispatchView } from './lib/dispatch/types';
+import { SmartFlexDevice, DispatchView, DispatchEligibility } from './lib/dispatch/types';
+import { deviceEligibility, dispatchFailure } from './lib/dispatch/eligibility';
+import { BackgroundRecovery } from './lib/BackgroundRecovery';
 import { PlannedInput, CompletedInput } from './lib/dispatch/reconcile';
 import { LiveDemandSource, LiveDemandCreds } from './lib/LiveDemandSource';
 import { budgetDiagnostics } from './lib/KrakenBudget';
@@ -46,6 +48,12 @@ module.exports = class OctopusEnergyApp extends Homey.App {
   private flexPlannedCache = new Map<string, { value: PlannedInput[]; ts: number }>();
 
   private flexPlannedInflight = new Map<string, Promise<PlannedInput[]>>();
+
+  private dispatchEligibility = new Map<string, DispatchEligibility>();
+
+  private verifiedLegacyDispatch = new Map<string, boolean>();
+
+  private dispatchRecovery = new Map<string, BackgroundRecovery>();
 
   private completedWindowCache = new Map<string, { value: CompletedInput[]; ts: number }>();
 
@@ -89,6 +97,9 @@ module.exports = class OctopusEnergyApp extends Homey.App {
     this.deviceInflight.delete(accountNumber);
     this.flexPlannedCache.delete(accountNumber);
     this.flexPlannedInflight.delete(accountNumber);
+    this.dispatchEligibility.delete(accountNumber);
+    this.verifiedLegacyDispatch.delete(accountNumber);
+    this.dispatchRecovery.delete(accountNumber);
     this.completedWindowCache.delete(accountNumber);
     this.completedWindowInflight.delete(accountNumber);
     const iogPrefix = `${accountNumber}|`;
@@ -232,17 +243,24 @@ module.exports = class OctopusEnergyApp extends Homey.App {
 
   /** Linked smart-flex devices for an account (long TTL — the list is stable). */
   async getCachedDevices(apiKey: string, accountNumber: string): Promise<SmartFlexDevice[]> {
+    const client = this.getKrakenClient(apiKey, accountNumber);
     const cached = this.deviceCache.get(accountNumber);
     if (cached && Date.now() - cached.ts < 30 * 60_000) return cached.value;
     const inflight = this.deviceInflight.get(accountNumber);
     if (inflight) return inflight;
-    const request = this.getKrakenClient(apiKey, accountNumber).getDevices(accountNumber)
+    const request = client.getDevices(accountNumber)
       .then((value) => {
+        if (this.krakenClients.get(accountNumber)?.client !== client) {
+          throw new Error('Device discovery superseded by credential change');
+        }
+        this.dispatchEligibility.delete(accountNumber); // fresh evidence invalidates negative cache
         this.deviceCache.set(accountNumber, { value, ts: Date.now() });
         this.trimMap(this.deviceCache);
         return value;
       })
-      .finally(() => this.deviceInflight.delete(accountNumber));
+      .finally(() => {
+        if (this.deviceInflight.get(accountNumber) === request) this.deviceInflight.delete(accountNumber);
+      });
     this.deviceInflight.set(accountNumber, request);
     return request;
   }
@@ -255,21 +273,50 @@ module.exports = class OctopusEnergyApp extends Homey.App {
    * and surface the error once.
    */
   async getFlexPlanned(apiKey: string, accountNumber: string): Promise<PlannedInput[]> {
+    const client = this.getKrakenClient(apiKey, accountNumber);
+    const eligibility = this.dispatchEligibility.get(accountNumber);
+    if (eligibility?.retryAt && Date.now() < eligibility.retryAt) return [];
+    let recovery = this.dispatchRecovery.get(accountNumber);
+    if (!recovery) {
+      recovery = new BackgroundRecovery();
+      this.dispatchRecovery.set(accountNumber, recovery);
+      this.trimMap(this.dispatchRecovery);
+    }
+    if (!recovery.allowed('dispatch')) throw new Error('Dispatch acquisition paused; retaining previous state');
     const cached = this.flexPlannedCache.get(accountNumber);
     if (cached && Date.now() - cached.ts < 60_000) return cached.value;
     if (!this.flexPlannedInflight.has(accountNumber)) {
+      let planFailure: DispatchEligibility | undefined;
+      const publishEvidence = (value: DispatchEligibility): void => {
+        if (this.krakenClients.get(accountNumber)?.client !== client) {
+          throw new Error('Dispatch acquisition superseded by credential change');
+        }
+        this.setDispatchEligibility(accountNumber, value);
+      };
       const request = (async () => {
         const devices = await this.getCachedDevices(apiKey, accountNumber);
-        const client = this.getKrakenClient(apiKey, accountNumber);
+        const evidence = deviceEligibility(devices);
         if (!devices.length) {
           // No smart-flex device at all: preserve the legacy account-scoped
           // behaviour (the only case where the account feed is authoritative).
           const legacy = await client.getPlannedDispatches(accountNumber);
+          const verified = legacy.length > 0 || this.verifiedLegacyDispatch.get(accountNumber);
+          if (verified) {
+            this.verifiedLegacyDispatch.set(accountNumber, true);
+            this.trimMap(this.verifiedLegacyDispatch);
+          }
+          publishEvidence(verified ? {
+            state: 'eligible', reason: 'legacy-supported', observedAt: new Date().toISOString(),
+          } : evidence);
           return legacy.map((d) => ({
             deviceId: 'account', start: d.start, end: d.end, kind: 'unknown' as const,
           }));
         }
         const candidates = devices.filter((d) => d.participating || d.category === 'EV' || d.category === 'CHARGE_POINT');
+        if (!candidates.length) {
+          publishEvidence(evidence);
+          return [];
+        }
         // Query each candidate independently so one healthy device's plan is not
         // lost to another's transient error. BUT a per-device failure must never
         // publish a PARTIAL snapshot: the poller/reconciler treats a successful
@@ -283,21 +330,55 @@ module.exports = class OctopusEnergyApp extends Homey.App {
         );
         const rejected = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected');
         if (rejected) {
+          const failure = dispatchFailure(rejected.reason);
+          if (failure.reason === 'provider-error') failure.reason = 'partial-failure';
+          planFailure = failure;
           throw rejected.reason instanceof Error ? rejected.reason : new Error(String(rejected.reason));
         }
+        publishEvidence(evidence);
         return settled
           .filter((r): r is PromiseFulfilledResult<PlannedInput[]> => r.status === 'fulfilled')
           .flatMap((r) => r.value);
       })()
         .then((value) => {
+          if (this.krakenClients.get(accountNumber)?.client !== client) {
+            throw new Error('Dispatch acquisition superseded by credential change');
+          }
+          recovery.success('dispatch');
           this.flexPlannedCache.set(accountNumber, { value, ts: Date.now() });
           this.trimMap(this.flexPlannedCache);
           return value;
         })
-        .finally(() => this.flexPlannedInflight.delete(accountNumber));
+        .catch((err) => {
+          if (this.krakenClients.get(accountNumber)?.client === client) {
+            recovery.failure('dispatch', err);
+            this.setDispatchEligibility(accountNumber, planFailure ?? dispatchFailure(err));
+          }
+          throw err;
+        })
+        .finally(() => {
+          if (this.flexPlannedInflight.get(accountNumber) === request) this.flexPlannedInflight.delete(accountNumber);
+        });
       this.flexPlannedInflight.set(accountNumber, request);
     }
     return this.flexPlannedInflight.get(accountNumber)!;
+  }
+
+  /** Cache-only evidence for poller/widgets; never performs discovery. */
+  getDispatchEligibility(accountNumber: string): DispatchEligibility {
+    return {
+      ...(this.dispatchEligibility.get(accountNumber) ?? {
+        state: 'unknown', reason: 'no-device', observedAt: new Date().toISOString(),
+      }),
+    };
+  }
+
+  private setDispatchEligibility(accountNumber: string, value: DispatchEligibility): void {
+    const negative = value.state === 'ineligible' || value.state === 'unknown';
+    this.dispatchEligibility.set(accountNumber, {
+      ...value, ...(negative ? { retryAt: Date.now() + 30 * 60_000 } : {}),
+    });
+    this.trimMap(this.dispatchEligibility);
   }
 
   /** Completed dispatch windows (with kWh delta) shared for four minutes. */

@@ -370,6 +370,44 @@ test('dispatch failures are logged once and redacted', async (t) => {
   assert.equal(JSON.stringify(diagnostics).includes('A-ONE'), false, 'v2 diagnostics carry no account identifiers');
 });
 
+test('unknown eligibility and partial completed failure retain stale plans without false lifecycle edges', async () => {
+  const app = fakeApp([{ apiKey: 'key', accountNumber: 'A-ONE' }]);
+  const now = Date.now();
+  const plan = [{
+    deviceId: 'synthetic',
+    start: new Date(now - 60_000).toISOString(),
+    end: new Date(now + 3600_000).toISOString(),
+    kind: 'SMART',
+  }];
+  let evidence = { state: 'eligible', reason: 'device-supported', observedAt: new Date(now).toISOString() };
+  let planned = plan;
+  let completedFail = false;
+  app.getFlexPlanned = async () => planned;
+  app.getDispatchEligibility = () => evidence;
+  app.getCachedCompletedWindows = async () => {
+    if (completedFail) throw new Error('Partial read');
+    return [];
+  };
+  const poller = new DispatchPoller(app);
+  await poller.poll();
+  evidence = { ...evidence, state: 'unknown', reason: 'no-device' };
+  planned = [];
+  await poller.poll();
+  assert.equal(poller.getAccountView('A-ONE').freshness, 'stale');
+  assert.equal(poller.isActive(), false);
+  assert.equal(poller.getAccountView('A-ONE').active.length, 1, 'history is retained');
+  evidence = { ...evidence, state: 'eligible', reason: 'device-supported' };
+  completedFail = true;
+  await poller.poll();
+  assert.deepEqual(app.fired, []);
+  assert.equal(poller.getAccountView('A-ONE').eligibility.state, 'degraded');
+  completedFail = false;
+  planned = plan;
+  await poller.poll();
+  assert.equal(poller.getAccountView('A-ONE').freshness, 'current');
+  assert.equal(poller.isActive(), true);
+});
+
 test('dispatch_changed fires on a reschedule and dispatch_cancelled on removal (Sprint 44)', async () => {
   const app = fakeApp([{ apiKey: 'key-a', accountNumber: 'A-ONE' }]);
   const now = Date.now();

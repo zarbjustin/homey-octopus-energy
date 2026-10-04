@@ -230,6 +230,9 @@
         const errors = d.errors || 0;
         detail.textContent = `Last checked ${checked} - ${accounts} account(s), `
           + `${active} active now, ${planned} planned/active window(s)`
+          + `; ${d.eligible || 0} eligible, ${d.ineligible || 0} ineligible, `
+          + `${d.unknown || 0} unknown, ${d.degraded || 0} degraded, ${d.stale || 0} stale`
+          + `; ${d.successfulEmptyPlans || 0} confirmed empty plan(s)`
           + (errors ? `, ${errors} with errors` : '');
         item.append(title, detail);
         dispatchStatus.appendChild(item);

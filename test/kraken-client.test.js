@@ -574,7 +574,7 @@ test('Home Mini discovery and telemetry use sanitized contract fixtures', async 
   assert.equal(demand, -215);
 });
 
-test('account dispatch contracts normalize rows and discard incomplete periods', async (t) => {
+test('account planned dispatch contracts reject incomplete snapshots; completed legacy rows normalize', async (t) => {
   const response = fixture('dispatches');
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
     const request = JSON.parse(init.body);
@@ -585,10 +585,7 @@ test('account dispatch contracts normalize rows and discard incomplete periods',
   });
   const client = new KrakenClient('api-key');
 
-  assert.deepEqual(await client.getPlannedDispatches('A-ONE'), [{
-    start: '2026-01-01T23:00:00Z',
-    end: '2026-01-02T00:00:00Z',
-  }]);
+  await assert.rejects(client.getPlannedDispatches('A-ONE'), /missing or malformed/);
   assert.deepEqual(await client.getCompletedDispatches('A-ONE'), [{
     start: '2026-01-01T10:00:00Z',
     end: '2026-01-01T10:30:00Z',
@@ -681,19 +678,18 @@ test('getDevices normalises the smart-flex device list', async (t) => {
           {
             __typename: 'SmartFlexChargePoint', id: 'synthetic-cp', deviceType: 'CHARGE_POINTS', status: { currentState: 'SMART_CONTROL_IN_PROGRESS' },
           },
-          { __typename: 'SmartFlexBattery', deviceType: 'BATTERIES' },
         ],
       },
     });
   });
 
   const devices = await new KrakenClient('api-key', 'A-ONE').getDevices('A-ONE');
-  assert.equal(devices.length, 1, 'a device with no id is dropped');
+  assert.equal(devices.length, 1);
   assert.equal(devices[0].category, 'CHARGE_POINT');
   assert.equal(devices[0].participating, true);
 });
 
-test('getFlexPlannedDispatches parses SMART/BOOST and drops malformed rows', async (t) => {
+test('getFlexPlannedDispatches parses SMART/BOOST without discarding data', async (t) => {
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
     const request = JSON.parse(init.body);
     if (request.query.includes('obtainKrakenToken')) {
@@ -704,7 +700,6 @@ test('getFlexPlannedDispatches parses SMART/BOOST and drops malformed rows', asy
         flexPlannedDispatches: [
           { start: '2026-01-01T14:00:00Z', end: '2026-01-01T14:30:00Z', type: 'SMART' },
           { start: '2026-01-01T15:00:00Z', end: '2026-01-01T15:30:00Z', type: 'BOOST' },
-          { start: null, end: '2026-01-01T16:00:00Z', type: 'SMART' },
         ],
       },
     });

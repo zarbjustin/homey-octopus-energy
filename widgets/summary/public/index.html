@@ -87,10 +87,15 @@
       const disp = d && d.dispatch;
       if (!disp) return '';
       let html = '';
+      if (disp.eligibility) {
+        html += '<div class="muted">Dispatch eligibility: ' + esc(disp.eligibility.state)
+          + ' · ' + esc(disp.eligibility.reason) + '</div>';
+      }
       if (disp.activeNow) {
         html += '<div class="disp">' + esc('Smart charging now') + badge('Planned', 'b-planned') + '</div>';
       } else if (disp.next) {
-        html += '<div class="disp">' + esc('Next planned: ' + shortTime(disp.next.start) + '–' + shortTime(disp.next.end)) + badge('Planned', 'b-planned') + '</div>';
+        html += '<div class="disp">' + esc('Next planned: ' + shortTime(disp.next.start) + '–' + shortTime(disp.next.end))
+          + (disp.freshness === 'stale' ? badge('Stale intent', 'b-stale') : badge('Planned', 'b-planned')) + '</div>';
       }
       if (disp.recentFinalised && disp.recentFinalised.length) {
         const f = disp.recentFinalised[0];

@@ -5,12 +5,14 @@ import { AccountPoller } from './AccountPoller';
 import {
   reconcile, ReconcileState, PlannedInput, CompletedInput,
 } from './dispatch/reconcile';
-import { DispatchView, DispatchFinalised } from './dispatch/types';
+import { DispatchView, DispatchFinalised, DispatchEligibility } from './dispatch/types';
+import { dispatchFailure } from './dispatch/eligibility';
 import { FreshnessState } from './freshness';
 import { isBudgetError } from './KrakenBudget';
 import { redactSecrets } from './redact';
 
 interface DispatchApp extends Homey.App {
+  getDispatchEligibility?(accountNumber: string): DispatchEligibility;
   getFlexPlanned(apiKey: string, accountNumber: string): Promise<PlannedInput[]>;
   getCachedCompletedWindows(apiKey: string, accountNumber: string): Promise<CompletedInput[]>;
 }
@@ -41,13 +43,18 @@ export class DispatchPoller extends AccountPoller {
 
   private recentCompleted = new Map<string, DispatchFinalised[]>();
 
+  private eligibility = new Map<string, DispatchEligibility>();
+
+  private emptyPlans = new Set<string>();
+
   /** Whether a smart-charge dispatch is currently active on any account. Recomputed
    *  against the clock (via getAccountView) so a window retained across a FAILED poll
    *  is never reported active after it has actually ended, and so this condition, the
    *  `octopus_dispatching` capability, and the settings diagnostics always agree. */
   isActive(): boolean {
     for (const accountNumber of this.states.keys()) {
-      if (this.getAccountView(accountNumber).activeNow) return true;
+      const view = this.getAccountView(accountNumber);
+      if (view.activeNow && view.freshness === 'current') return true;
     }
     return false;
   }
@@ -96,9 +103,14 @@ export class DispatchPoller extends AccountPoller {
     // ~2.5 poll cycles so automations can fail closed on the freshness field.
     let freshness: FreshnessState = 'unknown';
     if (observedMs) freshness = now - observedMs > this.intervalMs * 2.5 ? 'stale' : 'current';
+    const eligibility = this.eligibility.get(accountNumber)
+      ?? { state: 'unknown' as const, reason: 'no-device' as const, observedAt: new Date(now).toISOString() };
+    if (eligibility.state !== 'eligible' && observedMs) freshness = 'stale';
+    const actionable = freshness === 'current' && eligibility.state === 'eligible';
     return {
-      activeNow: active.length > 0,
-      boostingNow: active.some((w) => w.kind === 'BOOST'),
+      eligibility,
+      activeNow: actionable && active.length > 0,
+      boostingNow: actionable && active.some((w) => w.kind === 'BOOST'),
       active,
       next: planned[0] ?? null,
       recentFinalised: finalised,
@@ -116,6 +128,9 @@ export class DispatchPoller extends AccountPoller {
         this.seeded.delete(account);
         this.lastError.delete(account);
         this.recentCompleted.delete(account);
+        this.eligibility.delete(account);
+        this.emptyPlans.delete(account);
+        this.lastObservedAt.delete(account);
       }
     }
     await Promise.all(accounts.map((creds) => this.pollAccount(creds)));
@@ -137,17 +152,32 @@ export class DispatchPoller extends AccountPoller {
     let ok = false;
     try {
       planned = await app.getFlexPlanned(creds.apiKey, creds.accountNumber);
-      ok = true;
+      const evidence = app.getDispatchEligibility?.(creds.accountNumber) ?? {
+        state: 'eligible' as const, reason: 'legacy-supported' as const, observedAt: new Date().toISOString(),
+      };
+      this.eligibility.set(creds.accountNumber, evidence);
+      ok = evidence.state === 'eligible';
+      if (ok && !planned.length) this.emptyPlans.add(creds.accountNumber);
+      else this.emptyPlans.delete(creds.accountNumber);
     } catch (err) {
       ok = false;
+      this.emptyPlans.delete(creds.accountNumber);
+      this.eligibility.set(creds.accountNumber,
+        app.getDispatchEligibility?.(creds.accountNumber) ?? dispatchFailure(err));
       this.logErrorOnce(creds, err);
     }
 
     let completed: CompletedInput[] | null = null;
-    try {
-      completed = await app.getCachedCompletedWindows(creds.apiKey, creds.accountNumber);
-    } catch (err) {
-      completed = null; // best-effort: reconcile simply skips completed this cycle
+    if (ok) {
+      try {
+        completed = await app.getCachedCompletedWindows(creds.apiKey, creds.accountNumber);
+      } catch (err) {
+        completed = null; // never infer finalised windows from a failed read
+        ok = false;
+        this.emptyPlans.delete(creds.accountNumber);
+        this.eligibility.set(creds.accountNumber, dispatchFailure(err));
+        this.logErrorOnce(creds, err);
+      }
     }
 
     const prev = this.state(creds.accountNumber);
@@ -218,15 +248,11 @@ export class DispatchPoller extends AccountPoller {
     // A budget skip is an expected, freshness-preserving skip (retain prior
     // dispatch state), not a fault — do not surface it as an error.
     if (isBudgetError(err)) return;
-    const message = this.redact(err, creds.apiKey);
+    const message = redactSecrets(err, [creds.apiKey, creds.accountNumber]);
     if (this.lastError.get(creds.accountNumber) !== message) {
       this.lastError.set(creds.accountNumber, message);
       this.app.error('Dispatch poll failed:', message);
     }
-  }
-
-  private redact(err: unknown, secret: string): string {
-    return redactSecrets(err, [secret]);
   }
 
   /** Aggregate, identifier-free diagnostics (no account numbers or device ids). */
@@ -246,6 +272,12 @@ export class DispatchPoller extends AccountPoller {
       activeAccounts,
       plannedWindows,
       errors: this.lastError.size,
+      eligible: [...this.eligibility.values()].filter((e) => e.state === 'eligible').length,
+      ineligible: [...this.eligibility.values()].filter((e) => e.state === 'ineligible').length,
+      unknown: [...this.eligibility.values()].filter((e) => e.state === 'unknown').length,
+      degraded: [...this.eligibility.values()].filter((e) => e.state === 'degraded').length,
+      successfulEmptyPlans: this.emptyPlans.size,
+      stale: [...this.states.keys()].filter((a) => this.getAccountView(a).freshness === 'stale').length,
       lastAttempt: new Date().toISOString(),
     };
     try {

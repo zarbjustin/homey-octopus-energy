@@ -38,7 +38,26 @@ Execution branch: `fix/reliability-s73-s76`. S77–S80 are not in scope.
 - Full gate: build, 604 tests, lint, zero production audit findings, publish
   validation and diff check; only the two existing direction warnings.
 
-## S75–S76
+## S75 — implemented and locally validated
+
+- Documented the evidence contract before query changes. Eligibility is separate
+  from freshness: eligible/ineligible/unknown/degraded plus sanitised reason/time.
+- Preserve device-scoped EV/charge-point and verified account-scoped legacy support.
+  First empty legacy feed is unknown, not proof of enrollment or ineligibility.
+  Unsupported known device categories/unknown discovery use a 30-minute negative
+  cache; fresh discovery and credential change invalidate it, never the budget.
+- Null/malformed lists and any candidate/required completed-read failure preserve
+  stale plans without fabricated cancellation/end/completion. Nullable status
+  resolver tolerance is restricted to verified status failures, not arbitrary errors.
+- Typed HTTP/GraphQL error handling distinguishes auth/throttled/transient/schema;
+  no dispatch use of broad unsupported-message regex. No verified provider-specific
+  not-enrolled error code was available: those errors deliberately remain degraded.
+- Conditions fail closed immediately on degraded eligibility, and on expired
+  freshness. Retained intent remains visible as stale; boost opt-in/control unchanged.
+- Full gate: build, 612 tests, lint, zero production audit findings, publish
+  validation and diff check, with only the expected direction warnings.
+
+## S76
 
 In progress. Installation, GitHub delivery, Homey publication, channel promotion,
 48-hour soak and reporter confirmation are distinct gates, not implied by tests.

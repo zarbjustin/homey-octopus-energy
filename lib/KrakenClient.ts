@@ -18,6 +18,7 @@ import { SmartFlexDevice, classifyKind } from './dispatch/types';
 import { normaliseDevices } from './dispatch/deviceModel';
 import { PlannedInput, CompletedInput } from './dispatch/reconcile';
 import { jwtExpiryMs } from './jwt';
+import { DispatchSchemaError, validDispatchRows } from './dispatch/eligibility';
 
 const GRAPHQL_URL = 'https://api.octopus.energy/v1/graphql/';
 
@@ -25,7 +26,7 @@ const BACKEND_GRAPHQL_URL = 'https://api.backend.octopus.energy/v1/graphql/';
 
 interface GraphQLResponse<T> {
   data?: T;
-  errors?: Array<{ message: string; extensions?: { errorCode?: string } }>;
+  errors?: Array<{ message: string; extensions?: { errorCode?: string }; path?: Array<string | number> }>;
 }
 
 export class KrakenApiError extends Error {
@@ -295,7 +296,7 @@ export class KrakenClient {
     auth = true,
     url = this.url,
     priority: KrakenPriority = 'best',
-    allowPartial?: (data: unknown) => boolean,
+    allowPartial?: (data: unknown, errors: GraphQLResponse<T>['errors']) => boolean,
   ): Promise<T> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (auth) headers.Authorization = await this.getToken();
@@ -309,7 +310,7 @@ export class KrakenClient {
         this.token = null;
         headers.Authorization = await this.getToken();
         const retryJson = await this.post<T>(headers, query, variables, url, priority);
-        if (retryJson.errors?.length && !(allowPartial?.(retryJson.data) ?? false)) {
+        if (retryJson.errors?.length && !(allowPartial?.(retryJson.data, retryJson.errors) ?? false)) {
           const e = retryJson.errors[0];
           if (e.extensions?.errorCode === 'KT-CT-1124') throw new KrakenApiError(401, 'Kraken authentication failed');
           throw new KrakenFieldError(e.message, e.extensions?.errorCode);
@@ -325,7 +326,7 @@ export class KrakenClient {
       // requested field itself nulls out (e.g. "Unable to fetch planned
       // dispatches") the validator rejects it, so we throw and the caller retains
       // prior state / falls back.
-      if (!(allowPartial?.(json.data) ?? false)) {
+      if (!(allowPartial?.(json.data, json.errors) ?? false)) {
         const e = json.errors[0];
         if (e.extensions?.errorCode === 'KT-CT-1124') throw new KrakenApiError(401, 'Kraken authentication failed');
         throw new KrakenFieldError(e.message, e.extensions?.errorCode);
@@ -964,7 +965,8 @@ export class KrakenClient {
       plannedDispatches?: Array<{ start?: string; end?: string; startDt?: string; endDt?: string }>;
     }
     const data = await this.query<Resp>(query, { accountNumber }, true, this.url, 'live');
-    const list = data?.plannedDispatches ?? [];
+    const list = data?.plannedDispatches;
+    if (!validDispatchRows(list)) throw new DispatchSchemaError();
     return list
       .map((d) => ({ start: String(d.start ?? d.startDt ?? ''), end: String(d.end ?? d.endDt ?? '') }))
       .filter((d) => d.start && d.end);
@@ -1009,8 +1011,14 @@ export class KrakenClient {
     // category. Any other shape (devices null/absent) still throws.
     const data = await this.query<{ devices?: unknown }>(
       query, { accountNumber }, true, this.url, 'live',
-      (d) => Array.isArray((d as { devices?: unknown } | null)?.devices),
+      (d, errors) => Array.isArray((d as { devices?: unknown } | null)?.devices)
+        && !!errors?.every((e) => e.message === 'Device status could not be fetched.'
+          || (e.path?.[0] === 'devices' && e.path?.includes('status'))),
     );
+    if (!Array.isArray(data?.devices) || data.devices.some((d) => !d || typeof d.id !== 'string' || !d.id
+      || (d.status?.currentState != null && typeof d.status.currentState !== 'string'))) {
+      throw new DispatchSchemaError();
+    }
     return normaliseDevices(data);
   }
 
@@ -1026,7 +1034,8 @@ export class KrakenClient {
       }`;
     interface Row { start?: string; end?: string; type?: string }
     const data = await this.query<{ flexPlannedDispatches?: Row[] }>(query, { deviceId }, true, this.url, 'live');
-    const list = data?.flexPlannedDispatches ?? [];
+    const list = data?.flexPlannedDispatches;
+    if (!validDispatchRows(list)) throw new DispatchSchemaError();
     return list
       .filter((r) => r.start && r.end)
       .map((r) => ({
@@ -1052,7 +1061,8 @@ export class KrakenClient {
       }`;
     interface Row { start?: string; end?: string; delta?: string | number }
     const data = await this.query<{ completedDispatches?: Row[] }>(query, { accountNumber }, true, this.url, 'best');
-    const list = data?.completedDispatches ?? [];
+    const list = data?.completedDispatches;
+    if (!validDispatchRows(list)) throw new DispatchSchemaError();
     return list
       .filter((r) => r.start && r.end)
       .map((r) => {
