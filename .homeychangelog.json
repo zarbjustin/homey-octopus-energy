@@ -109,5 +109,8 @@
   },
   "1.0.29": {
     "en": "New: target-rate automation — a Flow trigger, condition and action for 'the cheapest N hours at or under a price cap before a deadline'. It only fires when it's genuinely cheap, tells you if your cap can't be met, and always labels forward prices as estimates. New (Intelligent Octopus Go): a 'smart-charge dispatch starts within' condition and a 'next dispatch' action, so a target-rate Flow can defer to your car's own cheap schedule instead of fighting it. Dispatch data now carries a freshness flag and these cards fail closed when it's stale. See the new Flow cookbook in the app's docs."
+  },
+  "1.0.37": {
+    "en": "Reliability improvements: prevent repeated session announcements across restarts, keep widget reads cache-only with bounded background recovery, and handle Intelligent dispatch eligibility and stale plans safely. Existing devices, settings and Flow cards are preserved."
   }
 }
