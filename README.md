@@ -52,11 +52,15 @@ npx homey app install # install on the configured local Homey Pro
 
 ## Current release
 
-Source version `1.0.36` (Homey App Store builds are uploaded by the publish
-workflow; promotion to Test/Live is a manual dashboard step). The committed
+Source version `1.0.37`, available in the [Test channel](https://homey.app/a/uk.co.zarb.octopusenergy/test/)
+(Build 37; Build 36 remains Live). Homey App Store builds are uploaded by the publish
+workflow; promotion to Test/Live is a manual dashboard step. The committed
 multi-model roadmap and its optional BL-25/26/27/31 follow-ons are complete.
 Highlights across the recent releases:
 
+- **v1.0.37** — history-safe session announcements, cache-only widget reads,
+  bounded background recovery, and evidence-based dispatch eligibility with
+  fail-closed stale plans. S76 field soak and reporter confirmation remain open.
 - **v1.0.36** — configurable five-band price colours in Agile Prices and Price
   Timeline, with standard, colour-blind-friendly and high-contrast palettes,
   accessible price-band labels, and an Agile classic-mode fallback.

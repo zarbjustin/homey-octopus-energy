@@ -1,4 +1,4 @@
-# Roadmap After v1.0.36
+# Roadmap After v1.0.37 Test
 
 Last updated: 4 October 2026
 
@@ -6,8 +6,9 @@ Last updated: 4 October 2026
 
 The original engineering backlog is complete through `BL-31`. Configurable price
 bands shipped in S71–S72 / v1.0.36. The Homey publishing portal was checked on
-4 October: Build 36 is **Live**. S73–S75 are now implemented and tested; S76
-delivery and field verification are in progress. See the
+4 October: Build 36 is **Live**. S73–S75 are delivered as v1.0.37 / **Build 37 Test**,
+with local Pro installation/readback verified and 615 tests passing. S76 field
+verification remains in progress. See the
 [`execution record`](handover/sprints-73-76-execution.md) for actual evidence.
 
 The October community and diagnostic review identified new reliability work.
@@ -27,9 +28,9 @@ evidence, dependencies and release gates are in
 
 | Phase | Sprint | Outcome | Priority / size | Dependency | Status |
 |---|---|---|---|---|---|
-| Reliability | S73 — Event lifecycle and announcement deduplication | Saving Sessions and Power Ups do not replay historical events or repeat announcements after polling/restart | P1 / M | None | Implemented, tested |
-| Reliability | S74 — Cache-only widgets and bounded recovery | Opening, refreshing or configuring a widget causes zero outbound API requests; background recovery is bounded | P1 / M–L | None; release after S73 preferred | Implemented, tested |
-| Reliability | S75 — Dispatch eligibility and graceful degradation | Unsupported accounts are distinguished from unknown/degraded state without false charging/cancellation signals | P2 / M | None; reuse S74 recovery conventions | Implemented, tested |
+| Reliability | S73 — Event lifecycle and announcement deduplication | Saving Sessions and Power Ups do not replay historical events or repeat announcements after polling/restart | P1 / M | None | Delivered for testing in v1.0.37 |
+| Reliability | S74 — Cache-only widgets and bounded recovery | Opening, refreshing or configuring a widget causes zero outbound API requests; background recovery is bounded | P1 / M–L | None; release after S73 preferred | Delivered for testing in v1.0.37 |
+| Reliability | S75 — Dispatch eligibility and graceful degradation | Unsupported accounts are distinguished from unknown/degraded state without false charging/cancellation signals | P2 / M | None; reuse S74 recovery conventions | Delivered for testing in v1.0.37 |
 | Release confidence | S76 — Field validation and support closure | A verified release candidate, migration/restart evidence, and an explicit record of remaining field gaps | P1 / M | S73–S75 | In progress; field gates pending |
 | Maintainability | S77 — Release and maintenance hygiene | SHA-pinned workflow upkeep, runbook validation, translation inventory, and an explicit façade-cleanup decision | P2 / S–M | S76; urgent security fixes may pre-empt | Proposed |
 | Supportability | S78 — Health, onboarding and trust | Existing settings/widgets explain freshness, eligibility, failure and next steps using cached diagnostics | P2 / M | S74–S76 | Proposed |

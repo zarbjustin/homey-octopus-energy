@@ -10,6 +10,27 @@ Last updated: 4 October 2026
 
 ## Current state
 
+- **v1.0.37 (4 Oct 2026) — DELIVERED FOR TESTING: S73–S75; S76 field gates open.**
+  Implementation PR [#42](https://github.com/zarbjustin/homey-octopus-energy/pull/42)
+  merged as `c6bec3d`; release workflow `37230678343` created release PR
+  [#43](https://github.com/zarbjustin/homey-octopus-energy/pull/43), merged as
+  `47e3297`. GitHub tag/release `v1.0.37` verified at that release commit. Publish
+  run `37230914547` passed all gates and uploaded Build 37, then manually promoted
+  to **Test only**. [Test app](https://homey.app/a/uk.co.zarb.octopusenergy/test/).
+  Normal install with official CLI 4.5.2 / isolated tooling Node 24.21.0 succeeded;
+  app runtime/Node 22 project baseline unchanged. Post-install 20:11 UTC: app
+  running/enabled/not crashed, two meters available, device identity/settings and
+  six standard/five Advanced Flow definitions unchanged. All seven widgets
+  registered; meter updates observed. First successful Saving Sessions poll had
+  71 expired rows and zero trigger attempts. Dispatch remains degraded, not claimed
+  recovered. Final 615 tests, lint, production audit and publish validation green.
+  An initial skip-build install failed with a missing widget asset and stopped
+  the app; a fresh normal build/install resolved it without cleaning or re-pairing.
+  No production Flow was edited/manually triggered, charging write performed,
+  certification/Live promotion submitted, or community post sent. The 48-hour
+  soak, real widget interactions, IOG night boundary, unavailable tariff matrix
+  and reporter confirmation remain pending; see the execution record below.
+
 - **S73–S76 execution (4 Oct 2026) — implementation complete through S75;
   integration and delivery in progress.** S73 (`b8e7f11`) adds history-safe,
   persisted lifecycle attempts; S74 (`400ddce`) removes widget-driven acquisition

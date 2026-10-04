@@ -17,6 +17,12 @@ This document captures durable constraints, root causes, and workflow gotchas th
 - Fence account cache writes and in-flight cleanup against credential rotation,
   not only device refresh generations. An old promise must not clear a new one.
 - Homey CLI 4.3.1 is Node-22 compatible; current CLI 4.5.2 requires Node 24.
+  Delivery used isolated CLI 4.5.2/Node 24.21.0 tooling without changing the app's
+  Node 22 project baseline. Build normally immediately before installing: the
+  October skip-build attempt packed a 131 MB test-mutated build and failed with
+  a missing widget asset, leaving the app stopped; fresh normal build/install
+  packed 3.43 MB and succeeded. CLI exit zero was not proof of install success:
+  inspect the message and independently read back app state and device availability.
   CLI 4.3.1 can truncate large JSON when piping because its process exits before
   stdout drains. Use `--jq` source filtering for scoped, privacy-safe readback.
 

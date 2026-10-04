@@ -1,7 +1,8 @@
 # Reliability execution: S73–S76
 
 Started 4 October 2026 from main `2da305a` / v1.0.36 / Homey Build 36 Live.
-Execution branch: `fix/reliability-s73-s76`. S77–S80 are not in scope.
+Execution branch: `fix/reliability-s73-s76`, merged into main via PR #42.
+Released as v1.0.37 / Build 37 Test. S77–S80 are not in scope.
 
 ## S73 — implemented and locally validated
 
@@ -74,10 +75,42 @@ five Advanced Flows. Identity/settings/Flow digests captured locally for compari
 no identifiers, settings or raw payloads committed. `scripts/reliability-smoke.js`
 is a read-only repeatable check, excluded from app packaging.
 
+## Verified delivery — 4 October 2026
+
+- PR [#42](https://github.com/zarbjustin/homey-octopus-energy/pull/42): merged
+  `c6bec3d`, all CI/Homey validation/CodeQL checks green.
+- Version workflow `37230678343` passed and created PR
+  [#43](https://github.com/zarbjustin/homey-octopus-energy/pull/43), merged
+  `47e32973573e4b7b7f67974b510eb9d266e5b7bb`. Version/changelog-only diff reviewed.
+- Full local v1.0.37 gate repeated: 615 tests, lint, zero production audit
+  vulnerabilities, Homey build/publish validation, diff check. Expected warnings only.
+- GitHub annotated tag and release
+  [v1.0.37](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.37)
+  verified; tag resolves to release merge `47e3297`.
+- Normal installation on Justin's Homey Pro with official CLI 4.5.2 succeeded.
+  Isolated CLI tooling uses Node 24.21.0; app runtime/project Node 22 unchanged.
+  The initial CLI 4.3.1 skip-build package was 131 MB and failed with a missing
+  generated widget asset, leaving the app stopped. A fresh normal build/install
+  produced a 3.43 MB package and restored running state. No clean install, state
+  purge or re-pair. Do not install a test-mutated build directory with skip-build.
+- Readback 20:11 UTC: v1.0.37 running/enabled/not crashed; two Octopus devices
+  available. Device identities/capabilities, settings, six standard Flows and five
+  Advanced Flow definitions have identical pre/post digests. All seven widgets
+  registered and meter updates observed. No physical charging response inferred.
+- First successful session poll 20:10 UTC: 71 valid expired Saving Sessions,
+  zero new events and **zero trigger attempts**; empty Power Up feed. This is
+  field evidence for historical suppression, not proof of a future event/reporter fix.
+- Dispatch diagnostics: one degraded account, no eligible accounts. Installation
+  success does not mean provider dispatch recovery or enrollment was established.
+- Publish workflow `37230914547` passed and uploaded Build 37. Developer portal
+  verified **Test**, with [test URL](https://homey.app/a/uk.co.zarb.octopusenergy/test/).
+  Build 36 remains Live; certification/Live promotion not submitted.
+
 Installation, GitHub delivery, Homey publication, channel promotion, 48-hour soak
-and reporter confirmation remain distinct gates, not implied by tests. The user
-approved local install, PR delivery and Draft/Test publication. No physical charging
-control or public community message is authorised here.
+and reporter confirmation are distinct gates. The first four are now verified;
+the soak and reporter confirmation are not. The user approved install, PR delivery
+and Draft/Test publication. No physical charging control or public community
+message is authorised here.
 
 Field matrix pending: real dashboard interaction/palette/selection persistence,
 unavailable tariff/account types, live session announcement recurrence, IOG night

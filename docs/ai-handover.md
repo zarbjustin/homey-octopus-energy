@@ -9,33 +9,35 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 | Field | Value |
 |---|---|
 | Repository | `zarbjustin/homey-octopus-energy` |
-| Branch | `fix/reliability-s73-s76` (release candidate) |
-| App version | `1.0.36` |
-| Homey build | `36` |
-| GitHub release | [`v1.0.36`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.36) |
-| Publish workflow | `31325567683` |
-| Local deployment | CLI authenticated, Pro selected; v1.0.36 running, 2 Octopus devices available; candidate installation pending |
+| Branch | `main`; implementation PR #42 and release PR #43 merged |
+| App version | `1.0.37` (release merge `47e3297`) |
+| Homey build | `37` Test; `36` remains Live |
+| GitHub release | [`v1.0.37`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.37) |
+| Publish workflow | `37230914547` succeeded |
+| Local deployment | v1.0.37 running on Pro; 2 available meters; identities/settings/6 standard/5 Advanced Flows unchanged |
 | Last recorded release test baseline | 615 passing final integration gate; build/lint/audit/publish validation green |
 | Original formal backlog | Complete through `BL-31` |
-| Next phase | S73–S75 implemented/tested; S76 delivery and field gates in progress |
-| Homey channel | Build 36 observed Live on 4 October 2026 |
+| Next phase | S73–S75 delivered for testing; S76 field gates in progress |
+| Homey channel | Build 37 Test verified on 4 October 2026; no certification/Live submission |
 
 ## Immediate Next Work
 
 Read [`handover/sprints-73-76-execution.md`](handover/sprints-73-76-execution.md)
 for actual execution evidence and [`handover/sprints-73-80-spec.md`](handover/sprints-73-80-spec.md)
-for the original acceptance contract. S73–S75 are implemented, not yet released.
+for the original acceptance contract. S73–S75 are released for testing.
 The user authorised local install, GitHub PR delivery and Draft/Test publication;
 Live promotion, public posting and charging writes remain separate approval steps.
 S77–S80 are proposed later phases, not authorised execution.
 
-Build 36's promotion is closed: the publishing portal showed **Live** on
-4 October 2026. Future builds still require separate channel verification:
+Build 37 is verified **Test**, with
+[test installation URL](https://homey.app/a/uk.co.zarb.octopusenergy/test/).
+Build 36 remains **Live**. Future promotions still require approval and readback:
 
-<https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/36>
+<https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/37>
 
-Candidate installation and field checks are tracked separately. Do not infer
-deployment from source, a GitHub release or portal status.
+Local installation was separately read back at 20:11 UTC. The 48-hour soak,
+dashboard UI/settings interactions, unavailable tariff matrix, IOG night boundary
+and reporter confirmation remain pending. Do not infer those from installation.
 
 ## Recommended Reading Order
 
@@ -47,7 +49,12 @@ deployment from source, a GitHub release or portal status.
 
 ## Latest Delivered Sprint
 
-Version `1.0.36` delivered community-requested configurable price bands in S71–S72.
+Version `1.0.37` delivered reliability S73–S75: persisted history-safe lifecycle,
+cache-only widgets and bounded background recovery, and evidence-based dispatch
+eligibility/fail-closed incomplete plans. 615 tests pass. See the execution record
+for the exact contract and remaining field gaps.
+
+Previously, `1.0.36` delivered community-requested price bands in S71–S72:
 
 | Area | Delivered |
 |---|---|
@@ -85,31 +92,37 @@ Key commits:
 
 ## Current Operational Status
 
-- Local Homey Pro installation is unverified. The August delivery record reports
-  an npm TLS failure and no cached Homey CLI/session; this is historical tooling
-  evidence, not a fresh October diagnosis. Check current tooling during delivery.
-- The recorded v1.0.36 Homey publish workflow passed install, production audit,
-  lint, 577 tests, validation, and publish; it was not rerun for this plan.
-- GitHub tag and release `v1.0.36` exist.
-- The August release handover expected a clean repository; October planning changes
-  are documentation-only and are not committed or pushed by this request.
+- Local Pro v1.0.37 normal install/readback verified; no clean install or re-pair.
+  Official CLI 4.5.2 uses isolated Node 24.21.0 tooling; app/project Node 22 unchanged.
+  A skip-build attempt failed with a missing widget asset; fresh build/install
+  succeeded. Never reuse a test-mutated `.homeybuild` as an install package.
+- The v1.0.37 publish workflow passed production audit, lint, 615 tests, validation
+  and upload. GitHub annotated tag/release resolve to release merge `47e3297`.
+- All seven widgets registered; meter values updated. First successful session
+  poll returned 71 expired rows with zero trigger attempts. No synthetic production
+  event or manual Flow trigger was used.
+- Dispatch is currently degraded; provider recovery/enrollment not established.
+  Running/not-crashed is not proof of provider health or physical charging.
+- S76 soak and reporter confirmation remain open. No recurring monitor is scheduled.
 
 ## October Reliability Review
 
 - Community post 32 reports repeated Saving Session announcements. An isolated
   replay of the current poller confirmed historical-event replay with 51 rows;
   the manual diagnostic does not prove the affected account's exact event history.
-- The current Agile widget can request a full refresh when prices are missing.
-  Summary getter paths also need a cold-cache outbound-call audit.
-- Dispatch lookup errors need evidence-based eligibility/degraded classification,
-  not blanket suppression or fabricated empty successful plans.
+- The pre-implementation Agile/Summary widget acquisition paths were removed in
+  S74; all seven endpoints have cold/current/stale/failure outbound-call regressions.
+- S75 now handles dispatch eligibility/degraded state without false empty-success
+  plans. No verified provider-specific not-enrolled code was available; generic
+  lookup errors stay degraded rather than inventing eligibility evidence.
 - Twelve manual diagnostics were reviewed; the portal showed zero automatic
   crashes across all 36 builds. No crashes does not mean no functional failures.
-- This review and sprint plan did not change runtime code or release anything.
+- The original review was read-only; subsequent implementation/testing delivery is
+  recorded separately above and in the execution record.
 
 ## Remaining Work
 
-The original backlog is complete, but new reliability work is now planned:
+The original backlog is complete. Reliability S73–S75 is delivered for testing:
 
 1. S73: event lifecycle/retention, restart-safe announcement deduplication and migration.
 2. S74: cache-only widget routes, bounded background recovery and meter-selection check.
@@ -134,7 +147,7 @@ npx homey app validate --level publish
 Expected result:
 
 - Clean worktree.
-- 577 or more passing tests.
+- 615 or more passing tests.
 - No lint failures.
 - No production dependency vulnerabilities.
 - Publish validation succeeds with only the two documented cumulative-direction warnings.
