@@ -28,7 +28,7 @@ requirements; messages and identifiers are not stored here.
 
 Validation after BBA-10: 672 tests, clean lint, production audit zero vulnerabilities, Homey
 build and publish validation pass with only the two documented direction warnings.
-All 80 released Flow contracts unchanged; 14 charging additions remain local.
+All 80 prior Flow contracts unchanged; 14 charging additions delivered in Test.
 Bug-bash fixes add no identity, provider timer or widget-driven acquisition.
 
 ### Community follow-through and optimisations
@@ -51,9 +51,10 @@ Bug-bash fixes add no identity, provider timer or widget-driven acquisition.
   The earlier partial soak is not a 48-hour pass.
 
 The user requested App Store delivery, then asked about the blocker. BBA-10 is
-closed in local software. Test delivery was subsequently confirmed on 5 October;
-delivery is in progress, without a new build/channel result yet.
-Next: complete Test delivery and migration/readback smoke, then user-controlled
+closed and delivered in v1.0.38 / Build 38 Test on 5 October. Normal local Pro
+upgrade/readback preserves device/settings/Flow fingerprints. Publish run
+`37378428284` passed; Live remains Build 36, with no certification submission.
+Next: real UI/requester/overnight acceptance, then separately authorised
 Flow/physical acceptance. No automatic Live clearance.
 
 ## Historical baseline — July 2026

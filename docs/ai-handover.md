@@ -6,43 +6,43 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
-5 October app-wide bug bash: local transport, throttle, balance, carbon, billing,
+5 October app-wide bug bash: delivered transport, throttle, balance, carbon, billing,
 IOG ambiguity and gas fixes plus deadline optimisation; 672 tests after closing
-BBA-10 locally. Missing cost/night/standing coverage fails closed; last-known
+BBA-10. Missing cost/night/standing coverage fails closed; last-known
 costs and timestamps are retained with a source-specific coverage flag, while
 settled cumulative readings continue. The
 [current review](blueprint/08-bug-bash-report.md) records the evidence. User requested
-App Store Test delivery, confirmed on 5 October. Delivery is in progress; no
-new build/channel result is yet verified. No certification/Live authorisation;
+App Store Test delivery, confirmed and completed on 5 October: v1.0.38 / Build 38.
+Local Pro upgrade verified. No certification/Live submission;
 field/reporter gates remain open.
 
 | Field | Value |
 |---|---|
 | Repository | `zarbjustin/homey-octopus-energy` |
-| Branch | `main`; implementation PR #42 and release PR #43 merged |
-| App version | `1.0.37` (release merge `47e3297`) |
-| Homey build | `37` Test; `36` remains Live |
-| GitHub release | [`v1.0.37`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.37) |
-| Publish workflow | `37230914547` succeeded |
-| Local deployment | v1.0.37 running on Pro; 2 available meters; identities/settings/6 standard/5 Advanced Flows unchanged |
-| Last recorded release test baseline | 615 passing final integration gate; build/lint/audit/publish validation green |
+| Branch | `main`; implementation PR #46 and release PR #47 merged |
+| App version | `1.0.38` (release merge `6ff6c13`) |
+| Homey build | `38` Test; `36` remains Live |
+| GitHub release | [`v1.0.38`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.38) |
+| Publish workflow | `37378428284` succeeded, using exact release tag |
+| Local deployment | v1.0.38 running on Pro; 2 available meters; identities/settings/6 standard/5 Advanced Flows unchanged |
+| Last recorded release test baseline | 672 passing tests; build/lint/audit/publish validation and CodeQL green |
 | Original formal backlog | Complete through `BL-31` |
-| Next phase | S73–S75 delivered for testing; S76 field gates in progress |
-| Homey channel | Build 37 Test verified on 4 October 2026; no certification/Live submission |
+| Next phase | Charging/reliability field acceptance, then S77/S78; S76 gaps remain open |
+| Homey channel | Build 38 Test verified on 5 October 2026; no certification/Live submission |
 
 ## Immediate Next Work
 
-S81–S83 charging software is implemented and validated locally on 5 October:
+S81–S83 charging software is delivered for testing on 5 October:
 14 additive cards, exact Homey-local deadlines, every qualifying slot, optional
 bounded-duration fallback, and a persisted one-plan-per-meter lifecycle with
 replans/restart deduplication. See
 [`handover/sprints-81-83-charging-flows.md`](handover/sprints-81-83-charging-flows.md)
 for contracts, Standard/Advanced Flow recipes and field gates.
 
-Local Node 22 build, 651 tests, lint, production audit (zero vulnerabilities) and
-publish validation pass. All 80 existing Flow contracts unchanged. No new version,
-install, commit, push or publication. Delivery and
-real-Homey/requester acceptance remain pending. No battery command, live Flow
+Combined Node 22 build, 672 tests, lint, production audit (zero vulnerabilities),
+publish validation and GitHub release checks pass. All 80 existing Flow contracts
+unchanged; 14 additions. Source/local/Test delivery is verified; real-Homey UI,
+requester and physical acceptance remain pending. No battery command, live Flow
 edit, new widget or new provider polling cadence was introduced.
 
 S76 monitoring ended early at user request on 5 October: stable sampled evidence,
@@ -51,8 +51,7 @@ Reporter, widget UI, IOG night and unsupported-tariff gates remain open.
 [`handover/sprints-73-76-execution.md`](handover/sprints-73-76-execution.md)
 records reliability delivery; S77–S80 remain separate proposed future work.
 
-Build 37 is Test, Build 36 Live (last channel check 4 October). These are the
-released v1.0.37 states, not this new local candidate. Test URL:
+Build 38 is Test, Build 36 Live (channel readback 5 October). Test URL:
 <https://homey.app/a/uk.co.zarb.octopusenergy/test/>.
 Certification/Live promotion, public posting and physical charging remain
 separately approved actions.
@@ -67,7 +66,11 @@ separately approved actions.
 
 ## Latest Delivered Sprint
 
-Version `1.0.37` delivered reliability S73–S75: persisted history-safe lifecycle,
+Version `1.0.38` delivers S81–S83 charging software and the app-wide bug-bash
+fixes including BBA-10. See the charging execution record and current bug-bash
+report. Publication is Test only; physical/reporter acceptance remains open.
+
+Version `1.0.37` previously delivered reliability S73–S75: persisted history-safe lifecycle,
 cache-only widgets and bounded background recovery, and evidence-based dispatch
 eligibility/fail-closed incomplete plans. 615 tests pass. See the execution record
 for the exact contract and remaining field gaps.
@@ -110,20 +113,22 @@ Key commits:
 
 ## Current Operational Status
 
-- Local Pro v1.0.37 normal install/readback verified; no clean install or re-pair.
+- Local Pro v1.0.38 normal install/readback verified; no clean install or re-pair.
   Official CLI 4.5.2 uses isolated Node 24.21.0 tooling; app/project Node 22 unchanged.
   A skip-build attempt failed with a missing widget asset; fresh build/install
   succeeded. Never reuse a test-mutated `.homeybuild` as an install package.
-- The v1.0.37 publish workflow passed production audit, lint, 615 tests, validation
-  and upload. GitHub annotated tag/release resolve to release merge `47e3297`.
-- All seven widgets registered; meter values updated. First successful session
+- The v1.0.38 publish workflow passed production audit, lint, tests, validation
+  and upload. GitHub annotated tag/release resolve to release merge `6ff6c13`.
+  Cached cost/billing and other source diagnostics show post-install success;
+  no coverage failures in this readback. This is not an overnight/account matrix test.
+- The previous v1.0.37 smoke registered all seven widgets. First successful session
   poll returned 71 expired rows with zero trigger attempts. No synthetic production
   event or manual Flow trigger was used.
 - Dispatch is currently degraded; provider recovery/enrollment not established.
   Running/not-crashed is not proof of provider health or physical charging.
 - S76 monitoring ended early with stable samples and coverage gaps; heartbeat paused.
-  No verified 48-hour pass or reporter/field closure. Charging code is complete locally;
-  deployment and field acceptance are separate gates.
+  No verified 48-hour pass or reporter/field closure. Charging code is delivered
+  for testing; field acceptance remains a separate gate.
 
 ## October Reliability Review
 
@@ -169,7 +174,7 @@ npx homey app validate --level publish
 Expected result:
 
 - Clean worktree.
-- 615 or more passing tests.
+- 672 or more passing tests.
 - No lint failures.
 - No production dependency vulnerabilities.
 - Publish validation succeeds with only the two documented cumulative-direction warnings.

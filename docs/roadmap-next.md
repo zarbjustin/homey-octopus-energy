@@ -1,32 +1,32 @@
-# Roadmap After v1.0.37 Test
+# Roadmap After v1.0.38 Test
 
 Last updated: 5 October 2026
 
 ## Current Status and Direction
 
-App-wide bug bash: confirmed bug families fixed locally plus deadline
-formatter optimisation; 672 tests, no deployment. The
+App-wide bug bash: confirmed bug families fixed plus deadline
+formatter optimisation; 672 tests, delivered as v1.0.38 / Build 38 Test. The
 [review](blueprint/08-bug-bash-report.md) separates fixes from remaining work.
-BBA-10 legacy reporting coverage is now fixed and regression-tested locally.
-User confirmed App Store Test delivery on 5 October; delivery is in progress.
-No new build/channel result yet; certification/Live is not authorised.
+BBA-10 legacy reporting coverage is fixed and regression-tested. Local Pro
+upgrade preserves device/settings/Flow fingerprints. Build 38 Test and Build 36
+Live verified on 5 October; no certification/Live submission.
 Reporter confirmation remains unavailable; malformed
 IOG handling needs an affected-account retest. S78 source-status/Flow guidance
 and S77 API contract fixtures remain priorities, not completed roadmap work.
 
-5 October: S81–S83 software implemented locally, including exact local deadlines,
+5 October: S81–S83 software delivered for testing, including exact local deadlines,
 all-slot selection, bounded duration/fallback, replanning and persisted per-run
 lifecycle. Fourteen additive cards; cache-only boundary timers add no provider
 requests. Standard/Advanced Flow recipes and implementation evidence are in
 [`handover/sprints-81-83-charging-flows.md`](handover/sprints-81-83-charging-flows.md).
-Deployment and real-Homey/requester acceptance remain open. No live Flow edits,
-battery writes, version bump, install, push or publication.
+Source, local Pro and Test delivery are verified. Real UI/requester/physical
+acceptance remains open. No live Flow edits or battery writes.
 
 The user authorised completion of this charging software. S77–S80 remain separate
 future proposals; broader product growth is not silently included.
 
-S73–S75 are delivered as v1.0.37 / Build 37 Test. Build 36 remains Live (channel
-readback 4 October). S76 monitoring ended early at user request with stable
+S73–S75 were delivered as v1.0.37 and remain included in v1.0.38. Build 36
+remains Live (channel readback 5 October). S76 monitoring ended early at user request with stable
 sampled observations and coverage gaps, not a verified 48-hour pass. Reporter/UI/
 IOG-night/unsupported-tariff gates remain open. No automatic Live clearance.
 
@@ -46,12 +46,12 @@ evidence, dependencies and release gates are in
 | Supportability | S78 — Health, onboarding and trust | Existing settings/widgets explain freshness, eligibility, failure and next steps using cached diagnostics | P2 / M | S74–S76 | Proposed |
 | Product growth | S79 — Paired import/export opportunities | A complete-horizon solar/battery recommendation with eligibility and estimate labels | P2 / L | S76, scoped feasibility review | Proposed |
 | Product growth | S80 — Run-now-or-wait advice | Plain-language cost/carbon trade-offs using the existing planners | P3 / M | S76; S78 presentation conventions | Proposed |
-| Charging Flows | S81 — Price-band and horizon availability conditions | Configurable price-band checks and explicit-horizon threshold availability, with unknown separate from none | P2 / M | S76; S78 naming conventions | Code complete locally; delivery/field pending |
-| Charging Flows | S82 — Bounded cheapest-slot fallback | Cheapest required duration, preferred price cap and explicitly enabled fallback cap | P2 / M–L | S81; existing target-rate planner | Code complete locally; delivery/field pending |
-| Charging Flows | S83 — Slot lifecycle and practical Flow recipes | Reliable entry/exit for separated selected slots, accessible examples and real-Homey validation | P2 / M | S81–S82 | Code complete locally; delivery/field pending |
+| Charging Flows | S81 — Price-band and horizon availability conditions | Configurable price-band checks and explicit-horizon threshold availability, with unknown separate from none | P2 / M | S76; S78 naming conventions | Delivered in v1.0.38 Test; field pending |
+| Charging Flows | S82 — Bounded cheapest-slot fallback | Cheapest required duration, preferred price cap and explicitly enabled fallback cap | P2 / M–L | S81; existing target-rate planner | Delivered in v1.0.38 Test; field pending |
+| Charging Flows | S83 — Slot lifecycle and practical Flow recipes | Reliable entry/exit for separated selected slots, accessible examples and real-Homey validation | P2 / M | S81–S82 | Delivered in v1.0.38 Test; field pending |
 
 Charging code was prioritised by the user while retaining S76 field gaps.
-Next requires confirmed Test delivery and field acceptance; S77/S78 maintenance/support
+Next requires field acceptance; S77/S78 maintenance/support
 remain ahead of optional S79/S80 growth. Urgent reliability
 or security fixes pre-empt feature work. The charging-Flow scope and acceptance
 gates are in [`handover/sprints-81-83-charging-flows.md`](handover/sprints-81-83-charging-flows.md).
@@ -104,7 +104,7 @@ Do not silently add it to S80.
 Roadmap capture approved on 4 October 2026 following private user feedback. This
 public record deliberately contains generic requirements only: no private-message
 quotes, sender identity, screenshots or private-thread links. Charging software is
-implemented locally, not shipped; no release dates or live battery-control commitments exist.
+delivered in v1.0.38 Test; field acceptance and Live promotion remain separate.
 
 | ID | Sprint | Requirement | Acceptance focus |
 |---|---|---|---|
