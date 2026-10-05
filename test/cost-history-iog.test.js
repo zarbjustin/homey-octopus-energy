@@ -81,12 +81,11 @@ const todaysRecords = [
   { interval_start: '2026-07-21T17:00:00Z', interval_end: '2026-07-21T17:30:00Z', consumption: 1 }, // peak (16-19)
 ];
 
-test('refreshDayBreakdown with an EMPTY rate feed prices off-peak at £0 (the reported bug)', async () => {
+test('refreshDayBreakdown with an EMPTY rate feed retains last-known costs, never £0', async () => {
   const captured = {};
   const device = breakdownDevice(captured);
-  await device.refreshDayBreakdown(todaysRecords, [], [], []);
-  assert.equal(captured.octopus_cost_offpeak_today, 0);
-  assert.equal(captured.octopus_cost_peak_today, 0);
+  await assert.rejects(device.refreshDayBreakdown(todaysRecords, [], [], []), /coverage/);
+  assert.deepEqual(captured, {});
 });
 
 test('refreshDayBreakdown with the fallback live series prices off-peak from the real rate', async () => {

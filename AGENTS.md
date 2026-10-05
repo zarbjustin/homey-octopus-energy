@@ -29,6 +29,12 @@ Read these files before planning or changing code:
   reliability S73–S75 is delivered for testing; S76 field closure is in progress.
   Read `docs/handover/sprints-73-76-execution.md` for actual evidence and field gaps.
 - Last validated integration baseline: 615 passing tests; field gates remain open.
+- Local unreleased S81–S83 charging software: 651 tests and full local gates pass;
+  14 additive cards, no deployment or publication yet. Read the charging execution
+  record before delivery; prior partial-candidate notes are historical.
+- Combined local charging/app-wide reliability candidate: 672 tests after BBA-10
+  reporting coverage closure. App Store Test delivery confirmed on 5 October;
+  delivery in progress. No certification/Live authorisation.
 - Runtime: Node.js 22, TypeScript, Homey Software Development Kit (SDK) v3.
 
 ## Non-Negotiable Product Rules

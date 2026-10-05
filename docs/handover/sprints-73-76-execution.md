@@ -112,6 +112,13 @@ the soak and reporter confirmation are not. The user approved install, PR delive
 and Draft/Test publication. No physical charging control or public community
 message is authorised here.
 
+5 October closeout supersedes the schedule below: user requested moving forward
+and monitoring was ended early; heartbeat paused. Latest read-only smoke at
+20:20 UTC matches baseline, with two available meters and unchanged settings and
+Flow fingerprints. Approximately 24 hours of elapsed sampling is stable evidence,
+not a verified 48-hour pass. Failed/delayed reads leave coverage gaps; reporter,
+UI, IOG night and unsupported-tariff gates remain open. No Live clearance.
+
 The user subsequently authorised hourly **read-only** soak checks in this chat.
 Heartbeat `octopus-s76-read-only-soak` is active until 6 October 2026 20:30 UTC;
 the first check after 20:10 UTC reports coverage and disables it. Mac/Codex must

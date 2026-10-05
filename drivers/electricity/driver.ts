@@ -3,8 +3,21 @@
 import Homey from 'homey';
 import { OctopusMeterDriver } from '../../lib/OctopusMeterDriver';
 import { crossedBelow } from '../../lib/rates';
+import { slotSelection } from '../../lib/planning/priceAvailability';
 
 interface ElectricityDevice extends Homey.Device {
+  getThresholdSlotsBefore(price: number, by: string): { status: string; slots: Array<{ start: number; end: number; price: number }> };
+  configureChargingPlan(mode: string, price: number, by: string, duration: number, fallback: string, maximum: number): Promise<{
+    status: string; selection: string; active: boolean; slots: unknown[];
+  }>;
+  getChargingPlanEligibility(): boolean;
+  cancelChargingPlan(): Promise<void>;
+  getThresholdSlots(price: number, within: number): { status: string; slots: Array<{ start: number; end: number; price: number }> };
+  isInThresholdSlot(price: number, within: number): boolean;
+  getConfiguredPriceBand(green: number, yellow: number, orange: number): string;
+  getBoundedThresholdSlots(price: number, within: number, duration: number, fallback: boolean, maximum: number): {
+    status: string; slots: Array<{ start: number; end: number; price: number }>;
+  };
   getCurrentPrice(): number | null;
   getPriceLevel(): string | null;
   isCheapestNow(hours?: number): boolean;
@@ -77,6 +90,15 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
     const { flow } = this.homey;
 
     // Filtered triggers.
+    for (const kind of ['started', 'ended']) {
+      flow.getDeviceTriggerCard(`threshold_slot_${kind}`)
+        .registerRunListener(async (args: Args<{ price: number; within: number }>, state: { price: number; previous: number }) => {
+          args.device.getThresholdSlots(args.price, args.within); // Errors are never inverted into permission.
+          const before = state.previous < args.price;
+          const active = state.price < args.price;
+          return kind === 'started' ? active && !before : before && !active;
+        });
+    }
     flow.getDeviceTriggerCard('price_below')
       .registerRunListener(async (args: Args<{ price: number }>, state: { price: number; previous: number | null }) => (
         crossedBelow(state.price, state.previous, args.price)
@@ -97,6 +119,74 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
       ));
 
     // Conditions.
+    flow.getDeviceTriggerCard('charging_plan_run_started').registerRunListener(async () => true);
+    flow.getDeviceTriggerCard('charging_plan_run_ended').registerRunListener(async () => true);
+    flow.getConditionCard('threshold_slots_before')
+      .registerRunListener(async (args: Args<{ price: number; by: string }>) => args.device.getThresholdSlotsBefore(args.price, args.by).status === 'some');
+    flow.getConditionCard('charging_plan_active')
+      .registerRunListener(async (args: Args<unknown>) => args.device.getChargingPlanEligibility());
+    flow.getActionCard('configure_charging_plan')
+      .registerRunListener(async (args: Args<{ mode: string; price: number; by: string; duration: number; fallback: string; maximum: number }>) => {
+        const state = await args.device.configureChargingPlan(args.mode, args.price, args.by, args.duration, args.fallback, args.maximum);
+        return {
+          status: state.status,
+          selection: state.selection,
+          active: state.active,
+          slots: JSON.stringify(state.slots),
+          estimate_label: 'Planned eligibility, not measured charging; battery safeguards remain required',
+        };
+      });
+    flow.getActionCard('cancel_charging_plan')
+      .registerRunListener(async (args: Args<unknown>) => {
+        await args.device.cancelChargingPlan();
+      });
+    flow.getActionCard('get_threshold_slots_before')
+      .registerRunListener(async (args: Args<{ price: number; by: string }>) => {
+        const state = args.device.getThresholdSlotsBefore(args.price, args.by);
+        return {
+          count: state.slots.length,
+          slots: JSON.stringify(state.slots.map((slot) => ({
+            ...slot, start: new Date(slot.start).toISOString(), end: new Date(slot.end).toISOString(),
+          }))),
+        };
+      });
+    flow.getConditionCard('threshold_slots_available')
+      .registerRunListener(async (args: Args<{ price: number; within: number }>) => (
+        args.device.getThresholdSlots(args.price, args.within).status === 'some'
+      ));
+    flow.getConditionCard('in_threshold_slot')
+      .registerRunListener(async (args: Args<{ price: number; within: number }>) => args.device.isInThresholdSlot(args.price, args.within));
+    flow.getConditionCard('configured_price_band')
+      .registerRunListener(async (args: Args<{ band: string; green: number; yellow: number; orange: number }>) => {
+        if (!['negative', 'green', 'yellow', 'orange', 'red'].includes(args.band)) throw new Error('Choose a valid price band.');
+        return args.device.getConfiguredPriceBand(args.green, args.yellow, args.orange) === args.band;
+      });
+    flow.getActionCard('get_threshold_slots')
+      .registerRunListener(async (args: Args<{ price: number; within: number }>) => {
+        const result = args.device.getThresholdSlots(args.price, args.within);
+        return {
+          count: result.slots.length,
+          hours: result.slots.reduce((sum, slot) => sum + (slot.end - slot.start) / 3600000, 0),
+          slots: JSON.stringify(result.slots.map((slot) => ({
+            start: new Date(slot.start).toISOString(), end: new Date(slot.end).toISOString(), price: slot.price,
+          }))),
+          estimate_label: 'Published unit prices; estimated opportunity, not settlement or measured charging',
+        };
+      });
+    flow.getActionCard('get_bounded_threshold_slots')
+      .registerRunListener(async (args: Args<{ price: number; within: number; duration: number; fallback: string; maximum: number }>) => {
+        if (!['off', 'on'].includes(args.fallback)) throw new Error('Choose fallback on or off.');
+        const result = args.device.getBoundedThresholdSlots(args.price, args.within, args.duration, args.fallback === 'on', args.maximum);
+        return {
+          complete: result.status === 'complete',
+          status: result.status,
+          selection: slotSelection(result.slots, result.status),
+          slots: JSON.stringify(result.slots.map((slot) => ({
+            ...slot, start: new Date(slot.start).toISOString(), end: new Date(slot.end).toISOString(),
+          }))),
+          estimate_label: 'Estimated opportunity; no battery command performed',
+        };
+      });
     flow.getConditionCard('price_below_now')
       .registerRunListener(async (args: Args<{ price: number }>) => {
         const p = args.device.getCurrentPrice();

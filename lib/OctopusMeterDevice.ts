@@ -16,7 +16,7 @@ import { daysSpanned, estimateAnnualCost } from './compare';
 import { resolveBillingPeriod } from './billing/period';
 import { computeBillingSummary } from './billing/aggregate';
 import {
-  consumptionCostPence, windowCostPence, standingChargePence, peakOffPeakCostPence, CostOptions,
+  consumptionCostPence, windowCostPence, standingChargePence, peakOffPeakCostPence, recordCostPence, CostOptions, CostCoverageError,
 } from './reporting/cost';
 import { contiguousSettledThrough } from './reporting/settlement';
 import { DispatchView, SmartFlexDevice } from './dispatch/types';
@@ -35,15 +35,18 @@ import {
   localDateParts as tzLocalDateParts, daysInLocalMonth as tzDaysInLocalMonth,
   elapsedLocalMonthDays as tzElapsedLocalMonthDays, zonedTime as tzZonedTime,
   tzOffsetMs as tzOffset,
+  nextLocalDeadline,
 } from './timezone';
 import { redactSecrets, maskAccount as maskAccountId } from './redact';
 import { DeviceScheduler } from './DeviceScheduler';
 import { refreshHealthDecision, RefreshHealthDecision } from './health';
 import {
   iogUnitRatesToRates, synthesiseIogDayNightRates, isFlatUnitRates, iogFlatDayRate,
-  iogHouseholdBands, iogRateTypeSummary,
+  iogHouseholdBands, iogRateTypeSummary, hasConflictingIogIntervals,
 } from './pricing/iogSchedule';
 import { evaluateTargetRate, TargetRateResult } from './planning/targetRate';
+import { evaluatePriceAvailability, evaluatePriceBand, evaluateBoundedSlots } from './planning/priceAvailability';
+import { ChargingPlanController, reconcileChargingPlan } from './planning/chargingPlan';
 import { CostCarbonPlan, evaluateCostCarbonPlan } from './planning/costCarbon';
 import {
   rankTariffs, TariffCandidateInput, TariffVolatility,
@@ -106,6 +109,7 @@ interface IntegrationDiagnostic {
   lastAttempt: string;
   lastSuccess?: string;
   lastError?: string;
+  coverageUnavailable?: boolean;
   /** Last time this area was skipped to protect the shared API budget (a soft
    *  retained-value skip, not a fault). */
   lastSkip?: string;
@@ -180,6 +184,8 @@ export class OctopusMeterDevice extends Homey.Device {
   private previousStanding: number | null = null;
 
   private scheduler: DeviceScheduler | null = null;
+
+  private chargingController: ChargingPlanController | null = null;
 
   private refreshing = false;
 
@@ -309,6 +315,131 @@ export class OctopusMeterDevice extends Homey.Device {
     return this.currentPrice;
   }
 
+  /** New charging cards read only the selected meter's fresh cached rates. */
+  getThresholdSlots(price: number, within: number, at: number = Date.now()) {
+    const freshness = this.getDataFreshness();
+    const hours = Number(within);
+    if (!Number.isFinite(hours) || hours <= 0 || hours > 48) throw new Error('Choose a horizon greater than 0 and at most 48 hours.');
+    const result = evaluatePriceAvailability(this.rates.map((rate) => ({
+      ...rate, value_inc_vat: valueOf(rate, this.vatInc()),
+    })), {
+      from: at,
+      to: at + hours * 3600000,
+      threshold: price,
+      fresh: !freshness.problem && freshness.sources.prices?.state === 'current',
+    });
+    if (result.status === 'unknown') throw new Error('Price data is unavailable, stale or incomplete for this horizon.');
+    return result;
+  }
+
+  private chargingSnapshot() {
+    const freshness = this.getDataFreshness();
+    const source = freshness.sources.prices;
+    const poll = Math.max(5, Number(this.getSetting('poll_interval')) || 30);
+    const until = source?.updatedAt
+      ? Date.parse(source.updatedAt) + Math.max(20, poll * 2.5) * 60000 : 0;
+    return {
+      rows: this.rates.map((rate) => ({ ...rate, value_inc_vat: valueOf(rate, this.vatInc()) })),
+      fresh: { current: !freshness.problem && source?.state === 'current' && until > Date.now(), until },
+    };
+  }
+
+  getThresholdSlotsBefore(price: number, by: string) {
+    const snapshot = this.chargingSnapshot();
+    const result = evaluatePriceAvailability(snapshot.rows, {
+      from: Date.now(),
+      to: nextLocalDeadline(by, this.homey.clock.getTimezone()),
+      threshold: price,
+      fresh: snapshot.fresh.current,
+    });
+    if (result.status === 'unknown') throw new Error('Price horizon before the deadline is unavailable or incomplete.');
+    return result;
+  }
+
+  private chargingPlanController(): ChargingPlanController {
+    if (!this.chargingController) {
+      this.chargingController = new ChargingPlanController({
+        now: () => Date.now(),
+        host: this.homey,
+        load: () => this.getStoreValue('charging_plan_v1'),
+        save: (state: unknown) => this.setStoreValue('charging_plan_v1', state),
+        snapshot: () => this.chargingSnapshot(),
+        emit: async (edge: string, state: { status: string; reason: string | null }) => {
+          const id = edge === 'started' ? 'charging_plan_run_started' : 'charging_plan_run_ended';
+          await this.homey.flow.getDeviceTriggerCard(id).trigger(this, {
+            status: state.status, reason: state.reason ?? 'selected-run-boundary',
+          });
+        },
+        error: () => this.error('Charging plan eligibility update failed; independent battery stop guard remains required.'),
+      });
+    }
+    return this.chargingController;
+  }
+
+  async configureChargingPlan(mode: string, price: number, by: string, duration: number, fallback: string, maximum: number) {
+    if (!['off', 'on'].includes(fallback)) throw new Error('Choose fallback on or off.');
+    return this.chargingPlanController().configure({
+      mode,
+      price,
+      deadline: nextLocalDeadline(by, this.homey.clock.getTimezone()),
+      duration: mode === 'all' ? 0 : duration,
+      fallback: mode === 'all' ? false : fallback === 'on',
+      maximum: mode === 'all' ? price : maximum,
+    });
+  }
+
+  getChargingPlanEligibility(): boolean {
+    const previous = this.getStoreValue('charging_plan_v1');
+    if (!previous?.policy) throw new Error('No charging plan configured for this meter.');
+    const snapshot = this.chargingSnapshot();
+    const result = reconcileChargingPlan(previous, previous.policy, snapshot.rows, snapshot.fresh, Date.now());
+    if (result.state.status === 'unknown') throw new Error('Charging plan data is unavailable, stale or incomplete.');
+    return result.state.active;
+  }
+
+  async cancelChargingPlan(): Promise<void> {
+    await this.chargingPlanController().cancel();
+  }
+
+  protected async updateChargingPlanFromCache(): Promise<void> {
+    if (!this.getStoreValue?.('charging_plan_v1')) return;
+    await this.chargingPlanController().update();
+  }
+
+  isInThresholdSlot(price: number, within: number): boolean {
+    const at = Date.now();
+    return this.getThresholdSlots(price, within, at).slots.some((slot) => slot.start <= at && at < slot.end);
+  }
+
+  getBoundedThresholdSlots(price: number, within: number, duration: number, fallback: boolean, maximum: number) {
+    this.getThresholdSlots(price, within); // Same freshness, argument and full-coverage gate.
+    const at = Date.now();
+    const result = evaluateBoundedSlots(this.rates.map((rate) => ({
+      ...rate, value_inc_vat: valueOf(rate, this.vatInc()),
+    })), {
+      from: at,
+      to: at + Number(within) * 3600000,
+      threshold: price,
+      fresh: true,
+      duration,
+      fallback,
+      maximum,
+    });
+    if (result.status === 'unknown') throw new Error('Invalid bounded charging policy or unavailable horizon.');
+    return result;
+  }
+
+  getConfiguredPriceBand(green: number, yellow: number, orange: number): string {
+    const freshness = this.getDataFreshness();
+    if (freshness.problem || freshness.sources.prices?.state !== 'current') throw new Error('Current price data is unavailable or stale.');
+    const current = rateAt(this.rates, new Date());
+    const band = evaluatePriceBand(current ? valueOf(current, this.vatInc()) : null, {
+      greenMax: green, yellowMax: yellow, orangeMax: orange,
+    });
+    if (band === 'unknown') throw new Error('Current price or ordered band thresholds are unavailable.');
+    return band;
+  }
+
   /** Widget-safe freshness summary without exposing credentials or raw errors. */
   getDataFreshness(): DataFreshness {
     const pollMinutes = Math.max(5, Number(this.getSetting('poll_interval')) || 30);
@@ -334,18 +465,22 @@ export class OctopusMeterDevice extends Homey.Device {
    * (R-017/BB-06). Read-only: uses the non-mutating opaque key.
    */
   private perSourceFreshness(maxAgeMs: number): Record<string, SourceFreshness> {
-    let persisted: Record<string, { lastSuccess?: string }> = {};
+    let persisted: Record<string, IntegrationDiagnostic> = {};
     try {
       const all = (this.homey.settings.get('integration_diagnostics_v1') || {}) as
-        Record<string, Record<string, { lastSuccess?: string }>>;
+        Record<string, Record<string, IntegrationDiagnostic>>;
       persisted = all[opaqueKey(this.homey, String(this.getData().id))] ?? {};
     } catch (err) {
       persisted = {};
     }
-    const merged: Record<string, { lastSuccess?: string }> = { ...persisted };
+    const merged: Record<string, IntegrationDiagnostic> = { ...persisted };
     for (const [area, d] of Object.entries(this.diagnosticUpdates ?? {})) {
       // A failed/skipped cycle carries no fresh lastSuccess — keep the persisted one.
-      merged[area] = { lastSuccess: d.lastSuccess ?? merged[area]?.lastSuccess };
+      merged[area] = {
+        ...d,
+        lastSuccess: d.lastSuccess ?? merged[area]?.lastSuccess,
+        coverageUnavailable: d.coverageUnavailable ?? merged[area]?.coverageUnavailable,
+      };
     }
     const now = Date.now();
     const out: Record<string, SourceFreshness> = {};
@@ -357,6 +492,9 @@ export class OctopusMeterDevice extends Homey.Device {
       // `stale` flag (do NOT reuse isStale(), which doubles the cadence).
       let state: FreshnessState = 'unknown';
       if (ageMs !== null) state = ageMs > maxAgeMs ? 'stale' : 'current';
+      // A positively identified coverage gap invalidates the latest cost now,
+      // even if another source succeeded or its old timestamp is still young.
+      if (d.coverageUnavailable && ageMs !== null) state = 'stale';
       out[area] = { state, updatedAt: readAt, ageMs };
     }
     return out;
@@ -798,6 +936,9 @@ export class OctopusMeterDevice extends Homey.Device {
 
     try {
       await this.setHealth(ok, priceOk, firstErr);
+      if (!this.isStaleRefresh(generation)) {
+        await this.updateChargingPlanFromCache().catch(() => this.error('Charging plan cache reconciliation failed.'));
+      }
     } finally {
       this.flushIntegrationDiagnostics();
       await this.setStoreValue?.('backgroundRecoveryV1', this.backgroundRecovery().snapshot())
@@ -830,7 +971,7 @@ export class OctopusMeterDevice extends Homey.Device {
     const now = new Date().toISOString();
     const previous = this.diagnosticUpdates[area];
     if (err === undefined) {
-      this.diagnosticUpdates[area] = { lastAttempt: now, lastSuccess: now };
+      this.diagnosticUpdates[area] = { lastAttempt: now, lastSuccess: now, coverageUnavailable: false };
     } else if (isBudgetError(err)) {
       // Soft skip: retained the last value to protect the shared budget — not a fault.
       this.diagnosticUpdates[area] = {
@@ -841,6 +982,7 @@ export class OctopusMeterDevice extends Homey.Device {
         lastAttempt: now,
         lastSuccess: previous?.lastSuccess,
         lastError: this.redactedError(err),
+        coverageUnavailable: err instanceof CostCoverageError ? true : previous?.coverageUnavailable,
       };
     }
   }
@@ -865,6 +1007,9 @@ export class OctopusMeterDevice extends Homey.Device {
       for (const [area, update] of Object.entries(this.diagnosticUpdates)) {
         if (!update.lastSuccess && existing[area]?.lastSuccess) {
           update.lastSuccess = existing[area].lastSuccess;
+        }
+        if (update.coverageUnavailable === undefined && existing[area]?.coverageUnavailable) {
+          update.coverageUnavailable = true;
         }
       }
       all[deviceId] = { ...existing, ...this.diagnosticUpdates };
@@ -1079,15 +1224,27 @@ export class OctopusMeterDevice extends Homey.Device {
       this.previousUsage = usage;
     }
 
+    // Settled meter readings do not depend on price availability. Commit them
+    // before calculating costs so a pricing gap cannot block Homey Energy.
+    if (hasMeter) {
+      await this.commitCumulative(sorted, meterCap as string, generation);
+    }
+
+    let pricingError: unknown;
+    try {
+      await this.refreshTodaySoFar(sorted, now);
+    } catch (err) {
+      pricingError = err;
+    }
+
     if (hasCost) {
       let pence = 0;
       for (const r of last48) {
         const rate = this.rateForRecord(r.interval_start, this.rates, this.nightRates);
-        if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
+        pence += recordCostPence(r, rate, (value) => this.toEnergyUnit(value), this.vatInc());
       }
       if (this.includeStandingChargeInCost()) {
-        const sc = rateAt(this.standingRates) ?? this.standingRates[0];
-        if (sc) pence += valueOf(sc, this.vatInc());
+        pence += standingChargePence(this.standingRates, [now], this.vatInc());
       }
       const cost = Number((pence / 100).toFixed(2));
       await this.setCapabilityValue(costCap, cost).catch(this.error);
@@ -1099,11 +1256,9 @@ export class OctopusMeterDevice extends Homey.Device {
       this.previousCostToday = cost;
     }
 
-    if (hasMeter) {
-      await this.commitCumulative(sorted, meterCap as string, generation);
-    }
-
-    await this.refreshTodaySoFar(sorted, now);
+    // Let the existing meter_data diagnostics/freshness path retain the failed
+    // attempt, rather than treating a retained last-known cost as fresh.
+    if (pricingError) throw pricingError;
   }
 
   /**
@@ -1141,11 +1296,10 @@ export class OctopusMeterDevice extends Homey.Device {
       let pence = 0;
       for (const r of todays) {
         const rate = this.rateForRecord(r.interval_start, this.rates, this.nightRates);
-        if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
+        pence += recordCostPence(r, rate, (value) => this.toEnergyUnit(value), this.vatInc());
       }
       if (this.includeStandingChargeInCost()) {
-        const sc = rateAt(this.standingRates) ?? this.standingRates[0];
-        if (sc) pence += valueOf(sc, this.vatInc());
+        pence += standingChargePence(this.standingRates, [now], this.vatInc());
       }
       await this.setCapabilityValue('octopus_cost_today_so_far', Number((pence / 100).toFixed(2))).catch(this.error);
     }
@@ -1253,8 +1407,8 @@ export class OctopusMeterDevice extends Homey.Device {
    * day/night registers when the tariff is two-register.
    */
   protected rateForRecord(iso: string, dayRates: Rate[], nightRates: Rate[]): Rate | null {
-    if (this.isTwoRegisterTariff() && nightRates.length && this.isNightTime(iso)) {
-      return rateAt(nightRates, new Date(iso)) ?? nightRates[0];
+    if (this.isTwoRegisterTariff() && this.isNightTime(iso)) {
+      return rateAt(nightRates, new Date(iso));
     }
     return rateAt(dayRates, new Date(iso));
   }
@@ -1410,6 +1564,10 @@ export class OctopusMeterDevice extends Homey.Device {
             );
             this.log('Price-gap recovery: HalfHourly rows are flat; synthesising day/night from the configured IOG night rate.');
             return synthesised;
+          }
+          if (hasConflictingIogIntervals(tariff.unitRates)) {
+            this.log('Price-gap recovery: conflicting account rate intervals; price is unavailable.');
+            return null;
           }
           this.log('Price-gap recovery: pricing from the account HalfHourly agreement rows (authoritative).');
           return rows;
@@ -2396,13 +2554,8 @@ export class OctopusMeterDevice extends Homey.Device {
             });
             continue;
           }
-          let pence = 0;
-          for (const r of records) {
-            const rate = this.rateForRecord(r.interval_start, dayRates, nightRates);
-            if (rate) pence += this.toEnergyUnit(r.consumption) * valueOf(rate, this.vatInc());
-          }
-          const sc = rateAt(standing) ?? standing[0];
-          const standingPence = sc ? valueOf(sc, this.vatInc()) : 0;
+          const pence = consumptionCostPence(records, dayRates, nightRates, this.costOptions(true));
+          const standingPence = standingChargePence(standing, [new Date()], this.vatInc());
           const days = daysSpanned(records);
           inputs.push({
             name: c.name, volatility: c.volatility, annual: (((pence + standingPence * days) / days) * 365) / 100,
@@ -2419,8 +2572,7 @@ export class OctopusMeterDevice extends Homey.Device {
             });
             continue;
           }
-          const sc = rateAt(standing) ?? standing[0];
-          const standingPence = sc ? valueOf(sc, this.vatInc()) : 0;
+          const standingPence = standingChargePence(standing, [new Date()], this.vatInc());
           inputs.push({
             name: c.name, volatility: c.volatility, annual: estimateAnnualCost(records, rates, standingPence, this.vatInc()),
           });
@@ -2435,13 +2587,16 @@ export class OctopusMeterDevice extends Homey.Device {
     if (!inputs.some((i) => typeof i.annual === 'number')) return null;
 
     const comparison = rankTariffs(inputs, 'Current', { daysOfData: daysSpanned(records) });
+    // Existing numeric Flow tokens cannot represent an unknown baseline. Do not
+    // turn an unpriced current tariff into a fabricated £0 comparison.
+    if (comparison.current === null) return null;
     const cheapestName = comparison.currentIsCheapest || !comparison.cheapestEstimateName
       ? 'Your current tariff (already cheapest)'
       : `${comparison.cheapestEstimateName} (estimated cheapest)`;
     return {
       // Token IDs preserved for Flow compatibility; VALUES are now honest.
       best_product: cheapestName,
-      current_annual: Number((comparison.current ?? 0).toFixed(2)),
+      current_annual: Number(comparison.current.toFixed(2)),
       best_annual: Number((comparison.cheapestEstimateAnnual ?? comparison.current ?? 0).toFixed(2)),
       annual_saving: comparison.estimatedAnnualSaving,
       confidence: comparison.confidence,
@@ -2654,14 +2809,14 @@ export class OctopusMeterDevice extends Homey.Device {
         timeZone: tz,
         incVat: this.vatInc(),
         import: {
-          records: [], dayRates: dayRatesForCost, nightRates, standing, isNight: (iso: string) => this.isNightTime(iso),
+          records: [], dayRates: dayRatesForCost, nightRates, twoRegister, standing, isNight: (iso: string) => this.isNightTime(iso),
         },
       }));
       return;
     }
 
     const settledThrough = contiguousSettledThrough(records) ?? records[0].interval_end;
-    const exportInput = await this.exportBillingInput(window).catch(() => undefined);
+    const exportInput = await this.exportBillingInput(window);
     // Re-check after the export fetch (another network round-trip) before persist.
     if (this.supersededDuringReporting(generation)) return;
     const summary = computeBillingSummary({
@@ -2674,6 +2829,7 @@ export class OctopusMeterDevice extends Homey.Device {
         records,
         dayRates: dayRatesForCost,
         nightRates,
+        twoRegister,
         standing,
         isNight: (iso: string) => this.isNightTime(iso),
       },
@@ -2748,8 +2904,7 @@ export class OctopusMeterDevice extends Homey.Device {
       const yEnd = this.localMidnight(0).getTime();
       let pence = windowCostPence(records, yStart, yEnd, dayRates, nightRates, opts);
       if (this.includeStandingChargeInCost()) {
-        const sc = rateAt(standingHistory, new Date(yStart + 12 * 3600_000));
-        if (sc) pence += valueOf(sc, this.vatInc());
+        pence += standingChargePence(standingHistory, [new Date(yStart + 12 * 3600_000)], this.vatInc());
       }
       await this.setCapabilityValue('octopus_cost_yesterday', Number((pence / 100).toFixed(2))).catch(this.error);
     }
@@ -2785,8 +2940,11 @@ export class OctopusMeterDevice extends Homey.Device {
     if (this.standingRates.length && Date.now() - this.lastStandingRefresh < 6 * 3600_000) return;
     const charges = await this.client.standingCharges(s.fuel, s.productCode, s.tariffCode);
     this.standingRates = charges;
+    const current = rateAt(charges);
+    if (!current || !Number.isFinite(valueOf(current, this.vatInc()))) {
+      throw new CostCoverageError('Current standing-charge coverage is unavailable.');
+    }
     this.lastStandingRefresh = Date.now();
-    const current = rateAt(charges) ?? charges[0];
     if (current) {
       const value = Number(valueOf(current, this.vatInc()).toFixed(4));
       await this.setCapabilityValue('octopus_standing_charge', value).catch(this.error);
@@ -2912,10 +3070,12 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   async onDeleted(): Promise<void> {
+    this.chargingController?.stop();
     this.stopTimers();
   }
 
   async onUninit(): Promise<void> {
+    this.chargingController?.stop();
     this.stopTimers();
   }
 }

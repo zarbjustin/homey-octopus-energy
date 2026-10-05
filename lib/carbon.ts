@@ -1,5 +1,7 @@
 'use strict';
 
+import { withResponseTimeout } from './http';
+
 /**
  * National Grid Carbon Intensity API client + pure helpers.
  * Free, unauthenticated: https://api.carbonintensity.org.uk
@@ -17,9 +19,7 @@ export interface CarbonPoint {
 export type CarbonLevel = 'very_low' | 'low' | 'moderate' | 'high' | 'very_high';
 
 function finiteIntensity(value: unknown): number | null {
-  if (value === null || value === undefined) return null;
-  const intensity = Number(value);
-  return Number.isFinite(intensity) ? intensity : null;
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 /** GSP region letter (A–P) → Carbon Intensity API regionid (1–14). */
@@ -71,14 +71,27 @@ export function isGreenestNow(
   withinHours?: number,
 ): boolean {
   const now = at.getTime();
-  const within = withinHours ? now + withinHours * 3600_000 : Infinity;
-  const pts = forecast.filter((p) => new Date(p.to).getTime() > now && new Date(p.from).getTime() < within);
+  if (!Number.isFinite(now) || (withinHours !== undefined
+    && (!Number.isFinite(withinHours) || withinHours <= 0))) return false;
+  const within = withinHours === undefined ? Infinity : now + withinHours * 3600_000;
+  const pts = forecast.filter((p) => new Date(p.to).getTime() > now && new Date(p.from).getTime() < within)
+    .sort((a, b) => Date.parse(a.from) - Date.parse(b.from));
   if (!pts.length) return false;
+  let covered = now;
+  for (const p of pts) {
+    const from = Date.parse(p.from);
+    const to = Date.parse(p.to);
+    if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from
+      || Math.max(now, from) !== covered || finiteIntensity(p.intensity) === null) return false;
+    covered = Math.min(to, within);
+  }
+  if (Number.isFinite(within) && covered < within) return false;
   const current = pts.find((p) => {
     const f = new Date(p.from).getTime();
     const t = new Date(p.to).getTime();
     return now >= f && now < t;
-  }) ?? pts[0];
+  });
+  if (!current) return false;
   const min = Math.min(...pts.map((p) => p.intensity));
   return current.intensity <= min;
 }
@@ -91,21 +104,21 @@ export class CarbonClient {
     this.baseUrl = baseUrl;
   }
 
-  private async request(path: string): Promise<Response> {
+  private async request(path: string): Promise<unknown> {
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
-      const controller = new AbortController();
-      const timer = globalThis.setTimeout(() => controller.abort(), 15_000);
       try {
-        const response = await fetch(`${this.baseUrl}${path}`, {
-          headers: { Accept: 'application/json' }, signal: controller.signal,
+        return await withResponseTimeout(fetch, `${this.baseUrl}${path}`, {
+          headers: { Accept: 'application/json' },
+        }, 15_000, async (response) => {
+          if (response.status === 429 || response.status >= 500) {
+            throw new Error(`Transient Carbon API error ${response.status}`);
+          }
+          return response.ok ? response.json() : null;
         });
-        if (response.status !== 429 && response.status < 500) return response;
-        lastError = new Error(`Transient Carbon API error ${response.status}`);
       } catch (err) {
+        if (err instanceof SyntaxError) throw err;
         lastError = err;
-      } finally {
-        clearTimeout(timer);
       }
       if (attempt < 2) {
         await new Promise((resolve) => globalThis.setTimeout(resolve, 500 * (2 ** attempt)));
@@ -116,9 +129,7 @@ export class CarbonClient {
 
   /** Current national carbon intensity (gCO₂/kWh) and index, or null. */
   async getCurrent(): Promise<CarbonPoint | null> {
-    const res = await this.request('/intensity');
-    if (!res.ok) return null;
-    const json = await res.json() as { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; actual?: number; index?: string } }> };
+    const json = await this.request('/intensity') as { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; actual?: number; index?: string } }> } | null;
     const d = json?.data?.[0];
     if (!d) return null;
     const intensity = finiteIntensity(d.intensity?.actual ?? d.intensity?.forecast);
@@ -134,9 +145,7 @@ export class CarbonClient {
   /** 48-hour forward national carbon-intensity forecast (half-hourly). */
   async getForecast(): Promise<CarbonPoint[]> {
     const fromIso = new Date().toISOString();
-    const res = await this.request(`/intensity/${fromIso}/fw48h`);
-    if (!res.ok) return [];
-    const json = await res.json() as { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string } }> };
+    const json = await this.request(`/intensity/${fromIso}/fw48h`) as { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string } }> } | null;
     return (json?.data ?? []).flatMap((d) => {
       const intensity = finiteIntensity(d.intensity?.forecast);
       return intensity === null ? [] : [{
@@ -150,11 +159,9 @@ export class CarbonClient {
 
   /** Current regional carbon intensity + index + renewable %, or null. */
   async getRegional(regionId: number): Promise<(CarbonPoint & { renewable: number }) | null> {
-    const res = await this.request(`/regional/regionid/${regionId}`);
-    if (!res.ok) return null;
-    const json = await res.json() as {
+    const json = await this.request(`/regional/regionid/${regionId}`) as {
       data?: Array<{ data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string }; generationmix?: Array<{ fuel: string; perc: number }> }> }>;
-    };
+    } | null;
     const d = json?.data?.[0]?.data?.[0];
     if (!d) return null;
     const intensity = finiteIntensity(d.intensity?.forecast);
@@ -171,9 +178,9 @@ export class CarbonClient {
   /** 48-hour forward regional carbon-intensity forecast (half-hourly). */
   async getRegionalForecast(regionId: number): Promise<CarbonPoint[]> {
     const fromIso = new Date().toISOString();
-    const res = await this.request(`/regional/intensity/${fromIso}/fw48h/regionid/${regionId}`);
-    if (!res.ok) return [];
-    const json = await res.json() as { data?: { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string } }> } };
+    const json = await this.request(`/regional/intensity/${fromIso}/fw48h/regionid/${regionId}`) as {
+      data?: { data?: Array<{ from: string; to: string; intensity?: { forecast?: number; index?: string } }> };
+    } | null;
     return (json?.data?.data ?? []).flatMap((d) => {
       const intensity = finiteIntensity(d.intensity?.forecast);
       return intensity === null ? [] : [{

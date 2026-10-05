@@ -13,6 +13,27 @@ const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js
 
 Module._load = originalLoad;
 
+test('IOG raw overlapping open-ended rows fail closed rather than depend on array order', async () => {
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.store = () => ({
+    fuel: 'electricity',
+    isExport: false,
+    accountNumber: 'synthetic-account',
+    productCode: 'IOG-SYNTHETIC',
+    tariffCode: 'E-1R-IOG-SYNTHETIC-C',
+  });
+  device.isIntelligentGoTariff = () => true;
+  device.maybeAdoptIogAgreement = async () => {};
+  device.log = () => {};
+  const rows = [30, 7, 35, 9].map((price) => ({
+    validFrom: '2026-01-01T00:00:00Z', validTo: null, valueIncVat: price, valuePreVat: price,
+  }));
+  for (const unitRates of [rows, [...rows].reverse()]) {
+    device.activeIogTariff = async () => ({ unitRates, scheduleTrusted: false });
+    assert.equal(await device.intelligentGoBaseRates(), null);
+  }
+});
+
 // Build a device whose refreshPrices only succeeds once the stored tariff code
 // matches `workingCode`. Everything the recovery path touches is stubbed.
 function recoveryDevice({ workingCode, candidate }) {

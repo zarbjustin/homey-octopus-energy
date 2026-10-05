@@ -28,6 +28,8 @@ export interface BillingAggregateInput {
     dayRates: Rate[];
     /** Night rates for a two-register (Economy 7) tariff, else empty. */
     nightRates: Rate[];
+    /** Explicit tariff identity, independent of whether the night fetch returned rows. */
+    twoRegister?: boolean;
     standing: Rate[];
     /** Predicate: is this ISO instant in the night register window? */
     isNight: (iso: string) => boolean;

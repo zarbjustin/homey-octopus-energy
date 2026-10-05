@@ -5,6 +5,30 @@ const assert = require('node:assert');
 
 const c = require('../.homeybuild/lib/carbon.js');
 
+test('greenest-now does not borrow a future point or accept an incomplete/invalid horizon', () => {
+  const now = new Date('2026-10-05T00:00:00Z');
+  const point = (from, to, intensity) => ({ from, to, intensity });
+  const future = point('2026-10-05T00:30:00Z', '2026-10-05T01:00:00Z', 20);
+  const current = point('2026-10-05T00:00:00Z', '2026-10-05T00:30:00Z', 10);
+  assert.equal(c.isGreenestNow([future], now, 1), false);
+  assert.equal(c.isGreenestNow([current], now, 1), false);
+  assert.equal(c.isGreenestNow([current, future], now, 1), true);
+  assert.equal(c.isGreenestNow([current, future, future], now, 1), false);
+  assert.equal(c.isGreenestNow([{ ...current, intensity: null }, future], now, 1), false);
+  assert.equal(c.isGreenestNow([current, future], now, 0), false);
+});
+
+test('CarbonClient does not coerce empty, boolean or negative intensities to useful readings', async (t) => {
+  for (const forecast of ['', false, null, -1]) {
+    t.mock.method(globalThis, 'fetch', async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [{ from: '2026-10-05T00:00:00Z', to: '2026-10-05T00:30:00Z', intensity: { forecast } }] }),
+    }));
+    assert.equal(await new c.CarbonClient().getCurrent(), null);
+  }
+});
+
 test('carbonLevelId maps API index strings to enum ids', () => {
   assert.strictEqual(c.carbonLevelId('very low'), 'very_low');
   assert.strictEqual(c.carbonLevelId('Low'), 'low');

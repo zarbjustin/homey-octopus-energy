@@ -1,6 +1,6 @@
 # Project Handover
 
-Last updated: 4 October 2026
+Last updated: 5 October 2026
 
 > **AI/LLM takeover:** start with [`docs/ai-handover.md`](docs/ai-handover.md), then read
 > [`AGENTS.md`](AGENTS.md), [`docs/roadmap-next.md`](docs/roadmap-next.md), and
@@ -9,6 +9,75 @@ Last updated: 4 October 2026
 > in the current takeover or roadmap documents.
 
 ## Current state
+
+- **5 October — Test delivery authorised and in progress.** User confirmed Test
+  channel publication of the combined charging/reliability candidate after BBA-10
+  closure. Existing v1.0.37 Pro readback: two available meters, six standard and
+  five Advanced Flows; dispatch degraded remains the known baseline. Preserve
+  identities/settings/Flows and use the release/publish workflows. No new build
+  or channel claim until verified; no certification/Live or physical charging
+  authorisation.
+
+- **5 October — reporting release blocker closed locally.** BBA-10 no longer
+  counts missing consumption prices or standing charges as free, borrows an
+  invalid Economy 7 row, or makes an unpriced comparison baseline £0. Known cost
+  coverage gaps retain values/timestamps and immediately demote source freshness;
+  settled cumulative usage still commits. Export lookup failures no longer
+  overwrite the prior billing summary. Recovery and trigger-suppression tests
+  added; all 672 tests, build, lint, production audit and publish validation pass.
+  All 80 released Flow contracts, capability and driver/settings contracts remain
+  unchanged, with 14 additive charging cards. User requested App Store delivery
+  and then asked about the blocker; Test versus certification/Live confirmation
+  remains pending. No version bump, installation, live Flow/battery action,
+  commit/push, upload or promotion performed. Field gates remain open.
+
+- **5 October — app-wide bug bash, local only.** Eight confirmed bug families
+  fixed plus deadline formatter optimisation. API/body timeout, Kraken redirects/
+  privacy/Retry-After, missing balance/carbon/gas values, billing price gaps and
+  ambiguous IOG rows have synthetic regressions. 664 tests and full local gates.
+  BBA-10 was a P1 delivery stop at that review; closed locally above. See
+  [`docs/blueprint/08-bug-bash-report.md`](docs/blueprint/08-bug-bash-report.md).
+  No live account call, install, Flow change, charging write, commit/push,
+  publication or public reply. Community reporter cannot currently retest.
+
+- **5 October — S81–S83 charging software complete locally.** Fourteen additive
+  cards include exact local deadlines, every-slot selection, bounded fallback,
+  a persisted configured plan, replan/restart-safe per-run lifecycle and cache-only
+  boundary/expiry timers. Unit/controller/device tests cover unknown inversion,
+  partial intervals, clock changes, price corrections, persistence failure and
+  timer cleanup. Full local build/test/lint/audit/publish validation checked.
+  Standard/Advanced Flow recipes and separate field gates are in the S81–S83
+  record. No version bump, install, live Flow/battery write, commit, push or publish.
+  Earlier partial-candidate entries below are historical, not outstanding code work.
+  Final local evidence: Node 22.23.2, 651 passing tests, lint clean, production
+  audit zero vulnerabilities, publish validation passes with only the two
+  expected direction warnings. All 80 prior Flow card contracts unchanged;
+  14 additions. Deployment/requester/physical acceptance still pending.
+
+- **5 October — charging candidate implemented locally.** Seven new additive
+  cards cover configured bands, threshold availability/current eligibility,
+  every-slot selection, optional bounded duration and observed threshold-run edges.
+  Cached selected-meter rates only; no outbound request, battery write or new widget.
+  Full local tests/build and audit/validation checked. No version bump, install,
+  commit, push or publication. Exact-deadline, replan and bounded-plan lifecycle
+  gates remain explicit in the S81–S83 record; not full sprint closure.
+
+- **5 October 2026 — local S81 started; soak monitoring ended early.** User
+  authorised roadmap refinement and local development. Primary use case is all
+  qualifying threshold slots; bounded fallback/duration remain optional. Initial
+  pure calculation and focused tests added, no Flow wiring or delivery yet.
+  Latest 20:20 UTC smoke matches baseline. Heartbeat paused; stable samples are
+  not a verified 48-hour soak. Reporter/UI/IOG/unsupported-tariff gates stay open.
+  No Homey installation, Flow edits, charging writes or Live promotion performed.
+
+- **4 October 2026 — charging-Flow roadmap captured, not implemented.** User
+  approved S81–S83 planning: numeric price-band/horizon conditions (BL-40),
+  explicitly bounded cheapest-slot fallback (BL-41), and separated-slot lifecycle
+  plus practical Flow recipes (BL-42). Priority after S76 is S77/S78 then S81–S83,
+  before optional S79/S80. The public repository records generic requirements
+  only; private-source messages and identifiers are excluded. No runtime/version,
+  Homey setting/Flow or release change. Scope and acceptance gates:
+  [`docs/handover/sprints-81-83-charging-flows.md`](docs/handover/sprints-81-83-charging-flows.md).
 
 - **v1.0.37 (4 Oct 2026) — DELIVERED FOR TESTING: S73–S75; S76 field gates open.**
   Implementation PR [#42](https://github.com/zarbjustin/homey-octopus-energy/pull/42)

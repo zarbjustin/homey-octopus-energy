@@ -9,6 +9,20 @@ const {
 
 test.beforeEach(() => resetBudget());
 
+test('server Retry-After is an account-wide minimum and concurrent 429s cannot shorten it', (t) => {
+  t.mock.method(Math, 'random', () => 0);
+  const clock = { t: 0 };
+  const bucket = new TokenBucket(() => clock.t);
+  bucket.penalise(120_000);
+  clock.t = 60_000;
+  assert.equal(bucket.acquire('core'), false);
+  bucket.penalise(0);
+  clock.t = 119_999;
+  assert.equal(bucket.acquire('live'), false);
+  clock.t = 120_001;
+  assert.equal(bucket.acquire('core'), true);
+});
+
 test('a fresh bucket admits a burst up to capacity, then throttles non-core', () => {
   const clock = { t: 0 };
   const bucket = new TokenBucket(() => clock.t);

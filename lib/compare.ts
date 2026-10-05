@@ -1,8 +1,9 @@
 'use strict';
 
 import {
-  Rate, ConsumptionRecord, rateAt, valueOf,
+  Rate, ConsumptionRecord, rateAt,
 } from './rates';
+import { recordCostPence } from './reporting/cost';
 
 /**
  * Pure tariff-comparison helpers. The cost of a tariff over a set of consumption
@@ -18,7 +19,7 @@ export function consumptionCostPence(
   let pence = 0;
   for (const r of records) {
     const rate = rateAt(rates, new Date(r.interval_start));
-    if (rate) pence += Number(r.consumption) * valueOf(rate, incVat);
+    pence += recordCostPence(r, rate, (value) => value, incVat);
   }
   return pence;
 }
@@ -42,6 +43,7 @@ export function estimateAnnualCost(
   standingPencePerDay: number,
   incVat = true,
 ): number {
+  if (!Number.isFinite(standingPencePerDay)) throw new Error('Standing-charge coverage is unavailable.');
   const days = daysSpanned(records);
   const consumptionPence = consumptionCostPence(records, rates, incVat);
   const windowPence = consumptionPence + standingPencePerDay * days;

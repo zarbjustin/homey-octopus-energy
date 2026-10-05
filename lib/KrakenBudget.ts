@@ -135,11 +135,12 @@ export class TokenBucket {
   }
 
   /** Record a rate-limit rejection: open an exponential backoff gate + drain. */
-  penalise(): void {
+  penalise(retryAfterMs = 0): void {
     this.penalties += 1;
     const base = Math.min(30_000 * 2 ** (this.penalties - 1), MAX_BACKOFF_MS);
     const jitter = base * (0.8 + Math.random() * 0.4);
-    this.backoffUntil = this.now() + jitter;
+    const minimum = Number.isFinite(retryAfterMs) ? Math.max(0, retryAfterMs) : 0;
+    this.backoffUntil = Math.max(this.backoffUntil, this.now() + Math.max(jitter, minimum));
     if (this.tokens > 0) this.tokens = 0;
   }
 

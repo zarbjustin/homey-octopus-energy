@@ -1,5 +1,66 @@
 # 08 — Bug-bash report
 
+## App-wide follow-up — 5 October 2026
+
+Scope: the entire app, not only charging. Reviewed REST/Kraken/carbon transport,
+account caches, pairing/repair, scheduler/refresh fences, electricity/gas/export
+pricing and usage, billing/reporting, dispatch/session lifecycle, all seven widget
+routes, old/new Flow contracts and release checks. This is a local source and
+fault-injection review, not exhaustive physical/Homey UI acceptance.
+
+Baseline: 651 passing tests. Fixes use synthetic regressions; no real account
+requests, credentials, raw crash logs, production Flow execution, install,
+publication or public reply. Private feedback is represented only as generic
+requirements; messages and identifiers are not stored here.
+
+| ID | Priority | Confirmed issue / local fix | Evidence / status |
+|---|---|---|---|
+| BBA-01 | P1 | REST/Kraken/carbon stopped timing after headers, leaving body decoding unbounded | Shared whole-response timeout; stalled-body/abort/retry/REST lock regressions; fixed locally |
+| BBA-02 | P1 | Kraken followed redirects and included upstream HTTP bodies in errors | Manual redirect rejection and status-only HTTP errors; no-follow/no-body regressions; fixed locally. Hardening, not evidence of an actual credential leak |
+| BBA-03 | P2 | Shared Kraken gate ignored Retry-After; concurrent 429s could shorten it | Provider delay is a minimum and cannot shorten an existing gate; client/budget tests; fixed locally |
+| BBA-04 | P1 | Missing/non-numeric balances became £0 | Only finite numeric balances accepted; genuine zero/negative preserved; fixed locally |
+| BBA-05 | P2 | Future-only carbon could be greenest now; empty/boolean intensities became zero | Real current point and complete requested horizon required; gaps/duplicates/invalid intensity rejected; fixed locally |
+| BBA-06 | P1 | Billing skipped unpriced consumption/standing days, understating totals | Missing import/export coverage and incomplete standing history throw before persisting; genuine zero preserved; fixed locally. Entirely absent standing coverage is now also rejected under BBA-10 |
+| BBA-07 | P1 | Concurrent open-ended IOG rows could select price by array order | Raw conflicting intervals fail closed; explicit household bands still resolve; contradictory equal-start bands rejected; pure/device tests; fixed locally, affected-account retest pending |
+| BBA-08 | P2 | Missing gas usage produced 0 kg carbon | Unknown/non-finite usage stays null; genuine zero/kWh preserved; fixed locally |
+| BBA-09 | P3 | Deadline search created a formatter for every searched minute | One per search, DST unchanged; deterministic allocation regression. One local sample: 102 ms to 7 ms for the same next-day deadline, not a hardware guarantee |
+| BBA-10 | P1 | Legacy costs silently skipped unpriced records; E7 and standing-charge fallbacks borrowed invalid rows | Fixed locally: reporting/comparison helpers reject missing/partial/non-finite prices and required night registers; absent standing charges are unknown, not free. Cost gaps retain last-known values, mark source coverage unavailable immediately, suppress cost triggers and preserve settled cumulative updates. Export lookup failures retain the prior billing summary; unpriced comparison baselines return unavailable. Device recovery/persistence regressions pass |
+
+Validation after BBA-10: 672 tests, clean lint, production audit zero vulnerabilities, Homey
+build and publish validation pass with only the two documented direction warnings.
+All 80 released Flow contracts unchanged; 14 charging additions remain local.
+Bug-bash fixes add no identity, provider timer or widget-driven acquisition.
+
+### Community follow-through and optimisations
+
+- Announcement reporter cannot currently retest; confirmation remains open.
+  See the [public reply](https://community.homey.app/t/156860/34).
+- Every qualifying slot stays the main charging recipe; duration/bounded fallback
+  optional. Standard/Advanced Flow and physical acceptance remain open.
+- Concurrent open-ended IOG rows are a contract/eligibility investigation, not
+  permission to guess household/EV prices or allowance rules. Synthetic coverage
+  does not establish the provider cause or affected-account recovery.
+- S78: source-specific freshness, unknown versus none, estimates versus settlement,
+  simpler examples/card discovery. Preserve existing IDs.
+- S77: periodic official API/deprecation review and malformed synthetic fixtures.
+  Keep the shared budget; no new quota polling without a measured budget.
+- Measure a shared regional carbon cache across meters before changing cadence.
+  Existing account coalescing and seven widget no-network tests remain green.
+- Real widget selection/palettes, migration, overnight IOG and unsupported-tariff
+  checks still required. No new crash-portal or physical test in this review.
+  The earlier partial soak is not a 48-hour pass.
+
+The user requested App Store delivery, then asked about the blocker. BBA-10 is
+closed in local software. Test delivery was subsequently confirmed on 5 October;
+delivery is in progress, without a new build/channel result yet.
+Next: complete Test delivery and migration/readback smoke, then user-controlled
+Flow/physical acceptance. No automatic Live clearance.
+
+## Historical baseline — July 2026
+
+The rows below are historical findings, not a current unresolved-bug list. Many
+were implemented later; use the current handover/roadmap and follow-up above.
+
 Scope: QA-style backlog from read-only analysis. Priority scheme: **P0** data loss/security/release blocker, **P1** high user impact or account-wide risk, **P2** important edge case/quality issue, **P3** polish. The open Intelligent Octopus Go v1.0.20 field-verification item is **explicitly excluded** and tracked separately in `HANDOVER.md:92` and `HANDOVER.md:157`.
 
 ## Prioritised bug backlog

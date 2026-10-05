@@ -2,6 +2,7 @@
 
 import type { Rate, ConsumptionRecord } from './rates';
 import { productCodeFromTariff } from './rates';
+import { withResponseTimeout } from './http';
 
 const BASE_URL = 'https://api.octopus.energy/v1';
 const MAX_PAGINATION_PAGES = 50;
@@ -157,19 +158,8 @@ export class OctopusClient {
    * awaiting refresh pending forever, which (combined with the single-flight
    * guard in the device) permanently freezes all future price updates.
    */
-  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    const timer = globalThis.setTimeout(() => controller.abort(), this.timeoutMs);
-    try {
-      return await this.fetchImpl(url, {
-        ...init,
-        signal: controller.signal,
-        // Authorization must never be forwarded to a redirect target.
-        redirect: 'manual',
-      });
-    } finally {
-      clearTimeout(timer);
-    }
+  private async fetchWithTimeout<T>(url: string, init: RequestInit, consume: (res: Response) => Promise<T>): Promise<T> {
+    return withResponseTimeout(this.fetchImpl, url, { ...init, redirect: 'manual' }, this.timeoutMs, consume);
   }
 
   private authHeader(): string {
@@ -230,34 +220,35 @@ export class OctopusClient {
     let lastErr: unknown;
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
-        const res = await this.fetchWithTimeout(url, {
+        return await this.fetchWithTimeout(url, {
           method: 'GET',
           headers: {
             Authorization: this.authHeader(),
             Accept: 'application/json',
           },
+        }, async (res) => {
+          if (res.status >= 300 && res.status < 400) {
+            throw new OctopusApiError(res.status, 'Octopus API redirects are not permitted.');
+          }
+          if (res.status === 401) {
+            throw new OctopusApiError(401, 'Authentication failed — check your API key.');
+          }
+          if (res.status === 404) {
+            throw new OctopusApiError(404, 'The requested Octopus resource was not found.');
+          }
+          if (res.status === 429 || res.status >= 500) {
+            const retryAfter = res.headers?.get?.('retry-after') ?? null;
+            throw new OctopusApiError(
+              res.status,
+              `Temporary Octopus API error (${res.status}).`,
+              parseRetryAfter(retryAfter),
+            );
+          }
+          if (!res.ok) {
+            throw new OctopusApiError(res.status, `Octopus API request failed (${res.status}).`);
+          }
+          return await res.json() as T;
         });
-        if (res.status >= 300 && res.status < 400) {
-          throw new OctopusApiError(res.status, 'Octopus API redirects are not permitted.');
-        }
-        if (res.status === 401) {
-          throw new OctopusApiError(401, 'Authentication failed — check your API key.');
-        }
-        if (res.status === 404) {
-          throw new OctopusApiError(404, 'The requested Octopus resource was not found.');
-        }
-        if (res.status === 429 || res.status >= 500) {
-          const retryAfter = res.headers?.get?.('retry-after') ?? null;
-          throw new OctopusApiError(
-            res.status,
-            `Temporary Octopus API error (${res.status}).`,
-            parseRetryAfter(retryAfter),
-          );
-        }
-        if (!res.ok) {
-          throw new OctopusApiError(res.status, `Octopus API request failed (${res.status}).`);
-        }
-        return await res.json() as T;
       } catch (err) {
         lastErr = err;
         const status = err instanceof OctopusApiError ? err.status : 0;

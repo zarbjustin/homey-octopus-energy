@@ -6,6 +6,17 @@ This document captures durable constraints, root causes, and workflow gotchas th
 
 ## Data Authority and Trust
 
+- Missing rates must not silently skip consumption. Require the tariff's actual
+  register even if that register returned no rows; never borrow the first night
+  or standing row outside its validity. Explicit published zero remains valid.
+- Preserve settled cumulative commits independently of cost calculation. A price
+  gap must not stop usage ingestion or manufacture a cost crossing.
+- Persist known coverage failures in existing source diagnostics. Demote retained
+  costs immediately and clear that flag only on successful recomputation, not a
+  later transport failure. Keep the last-success timestamp and numeric value.
+- Tariff comparisons require a priced current baseline; existing numeric tokens
+  cannot express unknown as £0. Use each candidate's register identity. A failed
+  export discovery is not positive evidence that an account has no export meter.
 - Historical session filtering must precede emission. Record lifecycle attempts
   before firing Flows; retention cannot remove still-actionable identities. Keep
   bounded seen-ID tombstones when pruning timed records so a retired ID's later
@@ -35,6 +46,18 @@ This document captures durable constraints, root causes, and workflow gotchas th
 | Missing Carbon API intensity is unknown, not zero. | Drop invalid rows and fail closed when a full slot is not continuously covered. | `lib/carbon.ts`, `lib/planning/costCarbon.ts` |
 
 ## Planning and Trigger Semantics
+
+- Configured charging plans need a fixed absolute deadline, a persisted remaining
+  duration budget and per-run edges, not just first/last plan endpoints. Replans
+  must not reset elapsed planned eligibility. It is not measured charging time.
+- Persist transition attempts before dispatch. At-most-once attempts prevent
+  restart replay but can lose an edge after a crash: retain a current eligibility
+  condition and require an independent battery-native stop guard.
+- Cache-only local boundary/expiry timers can handle partial final intervals
+  without increasing provider polling. Stop timers on uninit/delete and fence
+  in-flight persistence against timer resurrection during shutdown.
+- New inverted price conditions must throw on unknown rather than return false;
+  inversion of false can otherwise grant permission on missing prices.
 
 | Learning | Required behavior | Evidence |
 |---|---|---|
