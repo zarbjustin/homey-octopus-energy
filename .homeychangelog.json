@@ -112,5 +112,8 @@
   },
   "1.0.37": {
     "en": "Reliability improvements: prevent repeated session announcements across restarts, keep widget reads cache-only with bounded background recovery, and handle Intelligent dispatch eligibility and stale plans safely. Existing devices, settings and Flow cards are preserved."
+  },
+  "1.0.38": {
+    "en": "Adds configurable charging Flow plans with price thresholds, exact local deadlines, optional bounded fallback and separate slot start/end events. Improves API timeout and rate-limit handling, carbon and balance validation, and ambiguous tariff handling. Missing cost prices or standing charges no longer understate totals; existing Flow contracts are preserved."
   }
 }
