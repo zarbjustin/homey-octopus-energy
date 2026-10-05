@@ -10,6 +10,26 @@ Last updated: 5 October 2026
 
 ## Current state
 
+- **5 October — v1.0.38 DELIVERED FOR TESTING.** Implementation
+  PR [#46](https://github.com/zarbjustin/homey-octopus-energy/pull/46) merged as
+  `00fc304`; release workflow `37377811314` prepared PR
+  [#47](https://github.com/zarbjustin/homey-octopus-energy/pull/47), merged as
+  `6ff6c13`. Annotated tag/GitHub release `v1.0.38` resolve to that release merge.
+  Required CI and release CodeQL checks passed; 672 tests. Normal fresh CLI 4.5.2
+  build/install with isolated tooling Node 24.21.0 succeeded; app Node 22 baseline
+  unchanged. 21:48 UTC readback: v1.0.38 running/enabled/not crashed, two meters
+  available, device identities/settings and six standard/five Advanced Flow
+  fingerprints unchanged. Cached cost/billing and other source diagnostics had
+  successful post-install updates and zero coverage failures. Known dispatch
+  degraded account remains unchanged. Publish run `37378428284` passed against
+  the exact `v1.0.38` tag and uploaded Build 38, manually promoted to **Test only**.
+  Developer Tools verified v1.0.38 / Build 38 Test; Build 36 / v1.0.36 remains Live.
+  [Test app](https://homey.app/a/uk.co.zarb.octopusenergy/test/).
+  No certification submission or Live promotion. UI/requester/IOG overnight/
+  unsupported-tariff/physical gates remain open; shortened S76 is not a 48-hour
+  pass. No clean
+  install, re-pairing, production Flow edit/manual trigger or battery command.
+
 - **5 October — Test delivery authorised and in progress.** User confirmed Test
   channel publication of the combined charging/reliability candidate after BBA-10
   closure. Existing v1.0.37 Pro readback: two available meters, six standard and

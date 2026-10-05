@@ -22,19 +22,17 @@ Read these files before planning or changing code:
 
 ## Current Baseline
 
-- App version: `1.0.37`.
-- Homey App Store build: `37` Test (verified 4 October 2026); `36` remains Live.
-- GitHub release: `v1.0.37`; local Pro installation/readback verified.
+- App version: `1.0.38`.
+- Homey App Store build: `38` Test (verified 5 October 2026); `36` remains Live.
+- GitHub release: `v1.0.38`; local Pro installation/readback verified.
 - Original formal engineering backlog: complete through `BL-31`; new S73–S76
   reliability S73–S75 is delivered for testing; S76 field closure is in progress.
   Read `docs/handover/sprints-73-76-execution.md` for actual evidence and field gaps.
-- Last validated integration baseline: 615 passing tests; field gates remain open.
-- Local unreleased S81–S83 charging software: 651 tests and full local gates pass;
-  14 additive cards, no deployment or publication yet. Read the charging execution
-  record before delivery; prior partial-candidate notes are historical.
-- Combined local charging/app-wide reliability candidate: 672 tests after BBA-10
-  reporting coverage closure. App Store Test delivery confirmed on 5 October;
-  delivery in progress. No certification/Live authorisation.
+- Last validated integration baseline: 672 passing tests; field gates remain open.
+- S81–S83 charging software and app-wide reliability fixes delivered in v1.0.38
+  Test: 14 additive cards, 80 existing Flow contracts preserved. BBA-10 reporting
+  coverage blocker closed. Read the charging execution record; prior local-only
+  notes are historical. No certification/Live or physical acceptance clearance.
 - Runtime: Node.js 22, TypeScript, Homey Software Development Kit (SDK) v3.
 
 ## Non-Negotiable Product Rules

@@ -1,7 +1,7 @@
 # S81–S83: Simpler Charging Flows
 
 Captured: 4 October 2026. Updated: 5 October 2026.
-Status: software implementation complete locally; deployment and field acceptance pending.
+Status: software delivered in v1.0.38 / Build 38 Test and installed on Pro; field acceptance pending.
 
 ## Implementation and Evidence
 
@@ -17,11 +17,15 @@ provider polling cadence, battery command or live Flow mutation.
 | S82 / BL-41 | Every-slot mode; bounded duration; preferred/fallback intervals; insufficient-capacity status; partial slots | Deterministic ties, opt-in supplement, hard cap, no partial success, duration-budget tests |
 | S83 / BL-42 | Persisted configured plan; per-run entry/exit; price-republication replans; local boundary/expiry timer; restart dedup; cancellation | Pure/controller/device tests, crash-after-attempt, persistence failure, serialisation, cleanup and cache-only checks |
 
-651 tests passed on Node 22.23.2. Full Homey build, lint, production audit (zero
+The charging-only gate passed 651 tests; the combined app-wide/reliability release
+passed 672 on Node 22.23.2. Full Homey build, lint, production audit (zero
 vulnerabilities) and Homey publish validation passed. Only the two expected
 cumulative direction warnings were reported. All 80 existing generated Flow
-card contracts match HEAD exactly; 14 cards are additive. There is no new
-version/App Store build, install, commit, push or publication.
+card contracts match the v1.0.37 release exactly; 14 cards are additive.
+Implementation PR #46 and release PR #47 merged; tag/release v1.0.38 resolve to
+`6ff6c13`. Publish run `37378428284` succeeded; Build 38 promoted to Test only
+on 5 October. Normal local upgrade/readback preserves two meter identities,
+device settings and six standard/five Advanced Flow fingerprints.
 
 ## Contracts and Design Decisions
 
@@ -106,12 +110,12 @@ deadlines, stale-data exits and robust replan/restart handling.
   the first selected start and last selected end merely because both exist.
 - Forward prices and opportunities are estimates, not bills or guaranteed savings.
 
-## Deployment and Field Gates (Still Open)
+## Deployment Evidence and Remaining Field Gates
 
 Local software validation does not establish real Homey UI/condition inversion,
 Flow dispatch delivery, affected-account feedback, or physical battery response.
-Next authorised delivery must use a fresh normal build, preserve meter/settings/
-Flow identities, install and read back, then Test-channel field acceptance. Live
+Normal fresh-build local delivery and Test publication are verified above.
+Real UI, requester, overnight/account and physical checks remain open. Live
 promotion remains separate. S76 ended early with stable samples, not a verified
 48-hour pass. No pending reliability field gate was silently closed.
 
@@ -121,9 +125,10 @@ Help users select affordable charging slots and explicitly choose a bounded
 fallback when the preferred price is unavailable. Requirements were abstracted
 from private feedback; do not publish private messages or identify the sender.
 
-The user authorised completing S81–S83 locally while retaining S76 field gaps.
-S77–S80 remain separate future proposals. No release dates, installation,
-publication, live Flow editing or physical battery control are authorised here.
+The user originally authorised completing S81–S83 locally while retaining S76
+field gaps, then approved the Test delivery recorded above. S77–S80 remain
+separate future proposals. Certification/Live, live Flow editing and physical
+battery control are not authorised by this Test delivery.
 
 Reuse `lib/planning/targetRate.ts`, time-window helpers, cached rates and the shared
 `lib/widgetPriceBands.js` classifier. Preserve all existing Flow/capability/widget
