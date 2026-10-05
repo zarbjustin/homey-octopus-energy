@@ -20,6 +20,8 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
   private previousPrice: number | null = null;
 
+  private thresholdEdgeBaseline: { start: string; end: string; price: number } | null = null;
+
   private previousOptimiserSlot: string | null = null;
 
   private pendingOptimiserSlot: string | null = null;
@@ -329,6 +331,22 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
     const prev = this.previousPrice;
     const levelNow = this.getPriceLevel();
+
+    // Per-run threshold edges, independent of equal-price adjacent slots.
+    // Seed on restart; never synthesize edges across a missed observation gap.
+    const baseline = this.thresholdEdgeBaseline;
+    if (rate.valid_to && Number.isFinite(Date.parse(rate.valid_from)) && Number.isFinite(value)) {
+      const identity = `${rate.valid_from}|${value}`;
+      const adjacent = baseline?.end === rate.valid_from;
+      const corrected = baseline?.start === rate.valid_from && baseline.price !== value;
+      if (baseline && (adjacent || corrected)
+        && this.getStoreValue('threshold_edge_attempt_v1') !== identity) {
+        await this.setStoreValue('threshold_edge_attempt_v1', identity);
+        this.trigger('threshold_slot_started', { price: value }, { price: value, previous: baseline.price });
+        this.trigger('threshold_slot_ended', { price: value }, { price: value, previous: baseline.price });
+      }
+      this.thresholdEdgeBaseline = { start: rate.valid_from, end: rate.valid_to, price: value };
+    }
 
     // Only fire on a genuine change after a baseline is set (avoids firing on
     // every app restart / first refresh).

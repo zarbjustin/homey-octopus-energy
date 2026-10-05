@@ -64,6 +64,33 @@ const JAN = {
   incVat: true,
 };
 
+test('billing rejects missing import/export/standing prices instead of counting them as free', () => {
+  const input = {
+    ...JAN,
+    import: {
+      records: [rec('2026-01-01T00:00:00Z', 1)],
+      dayRates: [rate('2025-01-01T00:00:00Z', null, 20)],
+      nightRates: [],
+      standing: [rate('2025-01-01T00:00:00Z', null, 0)],
+      isNight: () => false,
+    },
+  };
+  assert.throws(() => computeBillingSummary({ ...input, import: { ...input.import, dayRates: [] } }), /import price coverage/);
+  assert.throws(() => computeBillingSummary({ ...input, import: { ...input.import, standing: [] } }), /standing-charge coverage/);
+  assert.throws(() => computeBillingSummary({
+    ...input, import: { ...input.import, twoRegister: true, isNight: () => true },
+  }), /import price coverage/, 'missing required night prices cannot borrow day prices');
+  assert.throws(() => computeBillingSummary({
+    ...input, export: { records: [rec('2026-01-01T00:00:00Z', 1)], rates: [] },
+  }), /export price coverage/);
+  assert.throws(() => computeBillingSummary({
+    ...input, import: { ...input.import, standing: [rate('2026-01-02T00:00:00Z', null, 40)] },
+  }), /standing-charge coverage/);
+  assert.equal(computeBillingSummary({
+    ...input, import: { ...input.import, dayRates: [rate('2025-01-01T00:00:00Z', null, 0)] },
+  }).importCost, 0, 'a published zero remains valid');
+});
+
 test('import-only summary sums energy plus one standing charge per local day', () => {
   const summary = computeBillingSummary({
     ...JAN,
@@ -91,7 +118,7 @@ test('Economy 7 uses the night rate for night intervals', () => {
       records: [rec('2026-01-01T02:00:00Z', 10), rec('2026-01-01T14:00:00Z', 10)],
       dayRates: [rate('2025-01-01T00:00:00Z', null, 30)],
       nightRates: [rate('2025-01-01T00:00:00Z', null, 10)],
-      standing: [],
+      standing: [rate('2025-01-01T00:00:00Z', null, 0)],
       isNight: (iso) => new Date(iso).getUTCHours() < 7,
     },
   });
@@ -106,7 +133,7 @@ test('export value is subtracted for net, and is null (not £0) without an expor
       records: [rec('2026-01-01T00:00:00Z', 10)],
       dayRates: [rate('2025-01-01T00:00:00Z', null, 20)],
       nightRates: [],
-      standing: [],
+      standing: [rate('2025-01-01T00:00:00Z', null, 0)],
       isNight: () => false,
     },
     export: {
@@ -124,7 +151,7 @@ test('export value is subtracted for net, and is null (not £0) without an expor
       records: [rec('2026-01-01T00:00:00Z', 10)],
       dayRates: [rate('2025-01-01T00:00:00Z', null, 20)],
       nightRates: [],
-      standing: [],
+      standing: [rate('2025-01-01T00:00:00Z', null, 0)],
       isNight: () => false,
     },
   });
@@ -141,7 +168,7 @@ test('projection is a run-rate estimate and low confidence early in the period',
       records: [rec('2026-01-01T00:00:00Z', 10), rec('2026-01-02T00:00:00Z', 10), rec('2026-01-03T00:00:00Z', 10)],
       dayRates: [rate('2025-01-01T00:00:00Z', null, 20)],
       nightRates: [],
-      standing: [],
+      standing: [rate('2025-01-01T00:00:00Z', null, 0)],
       isNight: () => false,
     },
   });
@@ -162,7 +189,7 @@ test('projection is withheld with fewer than two settled days', () => {
       records: [rec('2026-01-01T00:00:00Z', 5)],
       dayRates: [rate('2025-01-01T00:00:00Z', null, 20)],
       nightRates: [],
-      standing: [],
+      standing: [rate('2025-01-01T00:00:00Z', null, 0)],
       isNight: () => false,
     },
   });
@@ -181,7 +208,7 @@ test('the calendar fallback lowers confidence and explains why', () => {
       records: [rec('2026-01-01T00:00:00Z', 10)],
       dayRates: [rate('2025-01-01T00:00:00Z', null, 20)],
       nightRates: [],
-      standing: [],
+      standing: [rate('2025-01-01T00:00:00Z', null, 0)],
       isNight: () => false,
     },
   });

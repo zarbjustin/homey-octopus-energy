@@ -51,9 +51,10 @@ module.exports = class GasDevice extends OctopusMeterDevice {
   protected async refreshExtra(generation: number): Promise<void> {
     await super.refreshExtra(generation);
     if (this.hasCapability('measure_gas_carbon') && this.hasCapability('octopus_usage_today')) {
-      const usageKwh = Number(this.getCapabilityValue('octopus_usage_today')) || 0;
-      const kg = (usageKwh * GAS_CARBON_G_PER_KWH) / 1000;
-      await this.setCapabilityValue('measure_gas_carbon', Number(kg.toFixed(2))).catch(this.error);
+      const usageKwh = this.getCapabilityValue('octopus_usage_today');
+      const kg = typeof usageKwh === 'number' && Number.isFinite(usageKwh) && usageKwh >= 0
+        ? Number(((usageKwh * GAS_CARBON_G_PER_KWH) / 1000).toFixed(2)) : null;
+      await this.setCapabilityValue('measure_gas_carbon', kg).catch(this.error);
     }
   }
 

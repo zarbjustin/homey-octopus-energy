@@ -1,5 +1,7 @@
 'use strict';
 
+import { withResponseTimeout } from './http';
+
 /**
  * Minimal Octopus "Kraken" GraphQL client.
  *
@@ -239,39 +241,35 @@ export class KrakenClient {
         throw new BudgetError();
       }
       try {
-        const controller = new AbortController();
-        const timer = globalThis.setTimeout(() => controller.abort(), 20_000);
-        let res: Response;
-        try {
-          res = await fetch(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ query, variables }),
-            signal: controller.signal,
-          });
-        } finally {
-          clearTimeout(timer);
-        }
-        if (res.status === 429) {
-          // Rate limited: open the account backoff gate and stop — do NOT retry
-          // inline (that only deepens the throttling).
-          bucket.penalise();
-          const retry = res.headers.get('retry-after');
-          const retryAfterMs = retry && /^\d+$/.test(retry) ? Number(retry) * 1000
-            : Math.max(0, Date.parse(retry || '') - Date.now());
-          throw new KrakenApiError(429, 'Kraken rate limited (429)',
-            Number.isFinite(retryAfterMs) ? retryAfterMs : undefined);
-        }
-        if (res.status >= 500) {
-          throw new KrakenApiError(res.status, `Transient Kraken error ${res.status}`);
-        }
-        if (!res.ok) {
-          const body = await res.text().catch(() => '');
-          throw new KrakenApiError(res.status, `Kraken request failed (${res.status}): ${body.slice(0, 200)}`);
-        }
-        const json = await res.json() as GraphQLResponse<T>;
-        bucket.reward();
-        return json;
+        return await withResponseTimeout(fetch, url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ query, variables }),
+          redirect: 'manual',
+        }, 20_000, async (res) => {
+          if (res.status >= 300 && res.status < 400) {
+            throw new KrakenApiError(res.status, 'Kraken API redirects are not permitted.');
+          }
+          if (res.status === 429) {
+            // Rate limited: open the account backoff gate and stop — do NOT retry
+            // inline (that only deepens the throttling).
+            const retry = res.headers.get('retry-after');
+            const retryAfterMs = retry && /^\d+$/.test(retry) ? Number(retry) * 1000
+              : Math.max(0, Date.parse(retry || '') - Date.now());
+            bucket.penalise(retryAfterMs);
+            throw new KrakenApiError(429, 'Kraken rate limited (429)',
+              Number.isFinite(retryAfterMs) ? retryAfterMs : undefined);
+          }
+          if (res.status >= 500) {
+            throw new KrakenApiError(res.status, `Transient Kraken error ${res.status}`);
+          }
+          if (!res.ok) {
+            throw new KrakenApiError(res.status, `Kraken request failed (${res.status}).`);
+          }
+          const json = await res.json() as GraphQLResponse<T>;
+          bucket.reward();
+          return json;
+        });
       } catch (err) {
         lastErr = err;
         if (isBudgetError(err)) throw err;
@@ -391,7 +389,10 @@ export class KrakenClient {
         }
       }`;
     const data = await this.query<{ account: { balance: number } }>(query, { accountNumber }, true, this.url, 'live');
-    const pence = Number(data?.account?.balance ?? 0);
+    const pence = data?.account?.balance;
+    if (typeof pence !== 'number' || !Number.isFinite(pence)) {
+      throw new Error('Kraken account balance is unavailable.');
+    }
     return pence / 100;
   }
 

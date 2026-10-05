@@ -1,24 +1,34 @@
 # Roadmap After v1.0.37 Test
 
-Last updated: 4 October 2026
+Last updated: 5 October 2026
 
 ## Current Status and Direction
 
-The original engineering backlog is complete through `BL-31`. Configurable price
-bands shipped in S71–S72 / v1.0.36. The Homey publishing portal was checked on
-4 October: Build 36 is **Live**. S73–S75 are delivered as v1.0.37 / **Build 37 Test**,
-with local Pro installation/readback verified and 615 tests passing. S76 field
-verification remains in progress. See the
-[`execution record`](handover/sprints-73-76-execution.md) for actual evidence.
+App-wide bug bash: confirmed bug families fixed locally plus deadline
+formatter optimisation; 672 tests, no deployment. The
+[review](blueprint/08-bug-bash-report.md) separates fixes from remaining work.
+BBA-10 legacy reporting coverage is now fixed and regression-tested locally.
+User confirmed App Store Test delivery on 5 October; delivery is in progress.
+No new build/channel result yet; certification/Live is not authorised.
+Reporter confirmation remains unavailable; malformed
+IOG handling needs an affected-account retest. S78 source-status/Flow guidance
+and S77 API contract fixtures remain priorities, not completed roadmap work.
 
-The October community and diagnostic review identified new reliability work.
-The next phase is **reliable events, cache-only widgets, and honest dispatch
-eligibility**, before further product expansion.
+5 October: S81–S83 software implemented locally, including exact local deadlines,
+all-slot selection, bounded duration/fallback, replanning and persisted per-run
+lifecycle. Fourteen additive cards; cache-only boundary timers add no provider
+requests. Standard/Advanced Flow recipes and implementation evidence are in
+[`handover/sprints-81-83-charging-flows.md`](handover/sprints-81-83-charging-flows.md).
+Deployment and real-Homey/requester acceptance remain open. No live Flow edits,
+battery writes, version bump, install, push or publication.
 
-The user authorised S73–S76 execution, local installation, GitHub PR delivery and
-Draft/Test publication. S77–S80 remain proposed follow-ons requiring a later priority
-decision. Live promotion, community posting, live charging control and device repair
-remain separately approved actions.
+The user authorised completion of this charging software. S77–S80 remain separate
+future proposals; broader product growth is not silently included.
+
+S73–S75 are delivered as v1.0.37 / Build 37 Test. Build 36 remains Live (channel
+readback 4 October). S76 monitoring ended early at user request with stable
+sampled observations and coverage gaps, not a verified 48-hour pass. Reporter/UI/
+IOG-night/unsupported-tariff gates remain open. No automatic Live clearance.
 
 The task-level specification, new backlog `BL-32`–`BL-39`, acceptance criteria,
 evidence, dependencies and release gates are in
@@ -31,11 +41,20 @@ evidence, dependencies and release gates are in
 | Reliability | S73 — Event lifecycle and announcement deduplication | Saving Sessions and Power Ups do not replay historical events or repeat announcements after polling/restart | P1 / M | None | Delivered for testing in v1.0.37 |
 | Reliability | S74 — Cache-only widgets and bounded recovery | Opening, refreshing or configuring a widget causes zero outbound API requests; background recovery is bounded | P1 / M–L | None; release after S73 preferred | Delivered for testing in v1.0.37 |
 | Reliability | S75 — Dispatch eligibility and graceful degradation | Unsupported accounts are distinguished from unknown/degraded state without false charging/cancellation signals | P2 / M | None; reuse S74 recovery conventions | Delivered for testing in v1.0.37 |
-| Release confidence | S76 — Field validation and support closure | A verified release candidate, migration/restart evidence, and an explicit record of remaining field gaps | P1 / M | S73–S75 | In progress; field gates pending |
+| Release confidence | S76 — Field validation and support closure | A verified release candidate, migration/restart evidence, and an explicit record of remaining field gaps | P1 / M | S73–S75 | Monitoring ended early; field gates pending |
 | Maintainability | S77 — Release and maintenance hygiene | SHA-pinned workflow upkeep, runbook validation, translation inventory, and an explicit façade-cleanup decision | P2 / S–M | S76; urgent security fixes may pre-empt | Proposed |
 | Supportability | S78 — Health, onboarding and trust | Existing settings/widgets explain freshness, eligibility, failure and next steps using cached diagnostics | P2 / M | S74–S76 | Proposed |
 | Product growth | S79 — Paired import/export opportunities | A complete-horizon solar/battery recommendation with eligibility and estimate labels | P2 / L | S76, scoped feasibility review | Proposed |
 | Product growth | S80 — Run-now-or-wait advice | Plain-language cost/carbon trade-offs using the existing planners | P3 / M | S76; S78 presentation conventions | Proposed |
+| Charging Flows | S81 — Price-band and horizon availability conditions | Configurable price-band checks and explicit-horizon threshold availability, with unknown separate from none | P2 / M | S76; S78 naming conventions | Code complete locally; delivery/field pending |
+| Charging Flows | S82 — Bounded cheapest-slot fallback | Cheapest required duration, preferred price cap and explicitly enabled fallback cap | P2 / M–L | S81; existing target-rate planner | Code complete locally; delivery/field pending |
+| Charging Flows | S83 — Slot lifecycle and practical Flow recipes | Reliable entry/exit for separated selected slots, accessible examples and real-Homey validation | P2 / M | S81–S82 | Code complete locally; delivery/field pending |
+
+Charging code was prioritised by the user while retaining S76 field gaps.
+Next requires confirmed Test delivery and field acceptance; S77/S78 maintenance/support
+remain ahead of optional S79/S80 growth. Urgent reliability
+or security fixes pre-empt feature work. The charging-Flow scope and acceptance
+gates are in [`handover/sprints-81-83-charging-flows.md`](handover/sprints-81-83-charging-flows.md).
 
 Sizes are relative complexity, not calendar promises. S73 can ship independently
 as an urgent patch; it should not wait for S74, S75 or a real Octopus event. S76
@@ -62,7 +81,7 @@ no manual Live promotion is implied.
 | Item | Current evidence | Remaining check |
 |---|---|---|
 | Build 36 promotion | Live in Homey Developer Tools on 4 October | Closed for Build 36; verify the channel separately for each future build |
-| Local Homey Pro installation | Prior handover records a tooling block; not re-tested in this planning turn | Restore/check official CLI access and install without `--clean` during authorised delivery |
+| Local Homey Pro installation | v1.0.37 installed/read back; identities, settings and Flow fingerprints unchanged | Installation closed; soak and affected real-UI/Flow behaviour remain separate gates |
 | Price-band widgets | Positive community screenshot and feedback | Both widgets, custom thresholds, non-default palettes, selection persistence and accessibility on a real Homey |
 | Meter selection | Community report did not explicitly confirm resolution | Reproduce with multiple meters and stale selections; never silently substitute another meter |
 | Energy Optimiser and representative Flows | Engineering delivery recorded | Real-Homey smoke checks, including equal-price slots and stale-data gates |
@@ -79,6 +98,23 @@ that S67–S70 shipped or additional copies of the same work.
 The weekly/monthly digest from S70 remains later backlog: it needs separate
 opt-in, deduplication, delivery and settled-versus-forecast acceptance criteria.
 Do not silently add it to S80.
+
+## Charging-Flow Feature Requests
+
+Roadmap capture approved on 4 October 2026 following private user feedback. This
+public record deliberately contains generic requirements only: no private-message
+quotes, sender identity, screenshots or private-thread links. Charging software is
+implemented locally, not shipped; no release dates or live battery-control commitments exist.
+
+| ID | Sprint | Requirement | Acceptance focus |
+|---|---|---|---|
+| BL-40 | S81 | Numeric price bands and “no slots below threshold before deadline” | Explicit meter/horizon, strict threshold semantics, complete fresh coverage; unknown never becomes none |
+| BL-41 | S82 | Cheapest separated slots with optional higher-price fallback | Required duration and hard maximum, opt-in fallback, no silent cap relaxation |
+| BL-42 | S83 | Selected-slot start/end and understandable Standard/Advanced Flow recipes | Deduplicated slot edges, restart/replan safety, gaps stop charging eligibility; existing IDs preserved |
+
+S78 includes clearer explanations of existing price-threshold, cheapest-hours and
+target-rate cards. Reuse the existing widgets and planners; a new widget is not
+part of this roadmap. Price-band “green” is a price range, not a carbon claim.
 
 ## Later or Conditional Ideas
 

@@ -6,6 +6,16 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
+5 October app-wide bug bash: local transport, throttle, balance, carbon, billing,
+IOG ambiguity and gas fixes plus deadline optimisation; 672 tests after closing
+BBA-10 locally. Missing cost/night/standing coverage fails closed; last-known
+costs and timestamps are retained with a source-specific coverage flag, while
+settled cumulative readings continue. The
+[current review](blueprint/08-bug-bash-report.md) records the evidence. User requested
+App Store Test delivery, confirmed on 5 October. Delivery is in progress; no
+new build/channel result is yet verified. No certification/Live authorisation;
+field/reporter gates remain open.
+
 | Field | Value |
 |---|---|
 | Repository | `zarbjustin/homey-octopus-energy` |
@@ -22,22 +32,30 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Immediate Next Work
 
-Read [`handover/sprints-73-76-execution.md`](handover/sprints-73-76-execution.md)
-for actual execution evidence and [`handover/sprints-73-80-spec.md`](handover/sprints-73-80-spec.md)
-for the original acceptance contract. S73–S75 are released for testing.
-The user authorised local install, GitHub PR delivery and Draft/Test publication;
-Live promotion, public posting and charging writes remain separate approval steps.
-S77–S80 are proposed later phases, not authorised execution.
+S81–S83 charging software is implemented and validated locally on 5 October:
+14 additive cards, exact Homey-local deadlines, every qualifying slot, optional
+bounded-duration fallback, and a persisted one-plan-per-meter lifecycle with
+replans/restart deduplication. See
+[`handover/sprints-81-83-charging-flows.md`](handover/sprints-81-83-charging-flows.md)
+for contracts, Standard/Advanced Flow recipes and field gates.
 
-Build 37 is verified **Test**, with
-[test installation URL](https://homey.app/a/uk.co.zarb.octopusenergy/test/).
-Build 36 remains **Live**. Future promotions still require approval and readback:
+Local Node 22 build, 651 tests, lint, production audit (zero vulnerabilities) and
+publish validation pass. All 80 existing Flow contracts unchanged. No new version,
+install, commit, push or publication. Delivery and
+real-Homey/requester acceptance remain pending. No battery command, live Flow
+edit, new widget or new provider polling cadence was introduced.
 
-<https://tools.developer.homey.app/apps/app/uk.co.zarb.octopusenergy/build/37>
+S76 monitoring ended early at user request on 5 October: stable sampled evidence,
+not a verified 48-hour pass. Heartbeat `octopus-s76-read-only-soak` is paused.
+Reporter, widget UI, IOG night and unsupported-tariff gates remain open.
+[`handover/sprints-73-76-execution.md`](handover/sprints-73-76-execution.md)
+records reliability delivery; S77–S80 remain separate proposed future work.
 
-Local installation was separately read back at 20:11 UTC. The 48-hour soak,
-dashboard UI/settings interactions, unavailable tariff matrix, IOG night boundary
-and reporter confirmation remain pending. Do not infer those from installation.
+Build 37 is Test, Build 36 Live (last channel check 4 October). These are the
+released v1.0.37 states, not this new local candidate. Test URL:
+<https://homey.app/a/uk.co.zarb.octopusenergy/test/>.
+Certification/Live promotion, public posting and physical charging remain
+separately approved actions.
 
 ## Recommended Reading Order
 
@@ -103,11 +121,9 @@ Key commits:
   event or manual Flow trigger was used.
 - Dispatch is currently degraded; provider recovery/enrollment not established.
   Running/not-crashed is not proof of provider health or physical charging.
-- S76 soak and reporter confirmation remain open. The user authorised an hourly
-  read-only heartbeat in this chat, `octopus-s76-read-only-soak`, through 6 October
-  2026 20:30 UTC; final check after 20:10 UTC reports coverage and disables it.
-  Mac/Codex must stay running. Cached diagnostics only, no app/Flow/charging writes;
-  incomplete observations cannot establish a successful soak.
+- S76 monitoring ended early with stable samples and coverage gaps; heartbeat paused.
+  No verified 48-hour pass or reporter/field closure. Charging code is complete locally;
+  deployment and field acceptance are separate gates.
 
 ## October Reliability Review
 
@@ -133,7 +149,9 @@ The original backlog is complete. Reliability S73–S75 is delivered for testing
 3. S75: dispatch eligibility, transient-failure handling and stale-state safety.
 4. S76: release, local/Test smoke, IOG overnight and reporter verification gates.
 5. Keep EV boost start/cancel verification separate and explicitly opt-in.
-6. Reprioritise S77–S80 only after reliability evidence; see [`roadmap-next.md`](roadmap-next.md).
+6. Follow the approved future ordering after reliability evidence: S77/S78,
+   S81–S83 charging Flows, then optional S79/S80. Charging local execution is authorised; its field/delivery acceptance is pending;
+   see [`roadmap-next.md`](roadmap-next.md).
 
 ## Resume Checklist
 

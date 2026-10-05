@@ -37,3 +37,11 @@ test('daysSpanned is at least 1', () => {
   assert.strictEqual(cmp.daysSpanned([]), 1);
   assert.strictEqual(cmp.daysSpanned(RECORDS), 1);
 });
+
+test('tariff comparisons cannot annualise missing prices or unknown standing charges', () => {
+  for (const rates of [[], RATES.slice(0, 1), [{ ...RATES[0], value_inc_vat: NaN }]]) {
+    assert.throws(() => cmp.estimateAnnualCost(RECORDS, rates, 30), /coverage/);
+  }
+  assert.throws(() => cmp.estimateAnnualCost(RECORDS, RATES, NaN), /coverage/);
+  assert.equal(cmp.estimateAnnualCost(RECORDS, RATES, 0), 182.5, 'explicit zero standing charge is valid');
+});

@@ -43,9 +43,8 @@ export interface LocalDateParts {
   minute: number;
 }
 
-export function localDateParts(date: Date, timeZone: string): LocalDateParts {
-  const parts: Record<string, string> = {};
-  for (const p of new Intl.DateTimeFormat('en-GB', {
+function localDateFormatter(timeZone: string): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat('en-GB', {
     timeZone,
     year: 'numeric',
     month: '2-digit',
@@ -53,7 +52,12 @@ export function localDateParts(date: Date, timeZone: string): LocalDateParts {
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(date)) parts[p.type] = p.value;
+  });
+}
+
+function datePartsWithFormatter(date: Date, formatter: Intl.DateTimeFormat): LocalDateParts {
+  const parts: Record<string, string> = {};
+  for (const p of formatter.formatToParts(date)) parts[p.type] = p.value;
   return {
     year: Number(parts.year),
     month: Number(parts.month),
@@ -63,9 +67,29 @@ export function localDateParts(date: Date, timeZone: string): LocalDateParts {
   };
 }
 
+export function localDateParts(date: Date, timeZone: string): LocalDateParts {
+  return datePartsWithFormatter(date, localDateFormatter(timeZone));
+}
+
 /** Number of days in a given month (month1 is 1-based). */
 export function daysInMonth(year: number, month1: number): number {
   return new Date(Date.UTC(year, month1, 0)).getUTCDate();
+}
+
+/** Next real occurrence of HH:MM. Repeated autumn times choose the first future
+ * occurrence; a missing spring time chooses the next day's real occurrence.
+ * Search UTC minutes to avoid inventing a local instant during DST changes.
+ */
+export function nextLocalDeadline(hhmm: string, timeZone: string, now: number = Date.now()): number {
+  if (typeof hhmm !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm)
+    || !Number.isFinite(now)) throw new Error('Deadline must be HH:MM in the Homey timezone.');
+  const [hour, minute] = hhmm.split(':').map(Number);
+  const formatter = localDateFormatter(timeZone);
+  for (let at = Math.floor(now / 60000) * 60000 + 60000; at <= now + 49 * 3600000; at += 60000) {
+    const parts = datePartsWithFormatter(new Date(at), formatter);
+    if (parts.hour === hour && parts.minute === minute) return at;
+  }
+  throw new Error('No real local deadline found.');
 }
 
 /** Local midnight `daysFromNow` days from `now`, in `timeZone` (DST-safe). */

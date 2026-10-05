@@ -1,6 +1,147 @@
 {
   "triggers": [
     {
+      "id": "charging_plan_run_started",
+      "title": {
+        "en": "Configured charging plan run started"
+      },
+      "hint": {
+        "en": "Eligibility only, not a charging command. Verify battery consent and limits."
+      },
+      "tokens": [
+        {
+          "name": "status",
+          "type": "string",
+          "title": {
+            "en": "Plan status"
+          }
+        },
+        {
+          "name": "selection",
+          "type": "string",
+          "title": { "en": "Selection (preferred, fallback, none or unknown)" }
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "title": {
+            "en": "Reason"
+          }
+        }
+      ]
+    },
+    {
+      "id": "charging_plan_run_ended",
+      "title": {
+        "en": "Configured charging plan run ended"
+      },
+      "hint": {
+        "en": "Includes gaps, deadline, replans, cancellation and unavailable/stale data. Use an independent battery stop guard."
+      },
+      "tokens": [
+        {
+          "name": "status",
+          "type": "string",
+          "title": {
+            "en": "Plan status"
+          }
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "title": {
+            "en": "Reason"
+          }
+        }
+      ]
+    },
+    {
+      "id": "threshold_slot_started",
+      "title": {
+        "en": "A qualifying price run started"
+      },
+      "titleFormatted": {
+        "en": "A run below [[price]] p/kWh started (horizon [[within]] hours)"
+      },
+      "hint": {
+        "en": "Consecutive observed slot edges only; seeded on restart, no catch-up across gaps. No repeat between adjacent qualifying slots. Use an independent battery stop guard; missing data can suppress events."
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "price",
+          "title": {
+            "en": "Strictly below (p/kWh)"
+          },
+          "min": -200,
+          "max": 200,
+          "step": 0.1
+        },
+        {
+          "type": "number",
+          "name": "within",
+          "title": {
+            "en": "Horizon (hours)"
+          },
+          "min": 0.5,
+          "max": 48,
+          "step": 0.1
+        }
+      ],
+      "tokens": [
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Current price (p/kWh)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "threshold_slot_ended",
+      "title": {
+        "en": "A qualifying price run ended"
+      },
+      "titleFormatted": {
+        "en": "A run below [[price]] p/kWh ended (horizon [[within]] hours)"
+      },
+      "hint": {
+        "en": "Consecutive observed slot edges only; seeded on restart, no catch-up across gaps. No repeat between adjacent qualifying slots. Use an independent battery stop guard; missing data can suppress events."
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "price",
+          "title": {
+            "en": "Strictly below (p/kWh)"
+          },
+          "min": -200,
+          "max": 200,
+          "step": 0.1
+        },
+        {
+          "type": "number",
+          "name": "within",
+          "title": {
+            "en": "Horizon (hours)"
+          },
+          "min": 0.5,
+          "max": 48,
+          "step": 0.1
+        }
+      ],
+      "tokens": [
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Current price (p/kWh)"
+          }
+        }
+      ]
+    },
+    {
       "id": "target_rate_window_started",
       "title": {
         "en": "A target-rate window started ..."
@@ -381,6 +522,197 @@
     }
   ],
   "conditions": [
+    {
+      "id": "threshold_slots_before",
+      "title": {
+        "en": "There are !{{|no }}cheap slots before a deadline"
+      },
+      "titleFormatted": {
+        "en": "There are !{{|no }}slots below [[price]] p/kWh before [[by]]"
+      },
+      "hint": {
+        "en": "Complete fresh horizon required. Unknown raises an error even when inverted. Next real HH:MM in Homey's timezone; no fixed publication assumption."
+      },
+      "args": [
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Strictly below p/kWh"
+          },
+          "min": -200,
+          "max": 200,
+          "step": 0.1
+        },
+        {
+          "name": "by",
+          "type": "text",
+          "title": {
+            "en": "Deadline (HH:MM, Homey timezone)"
+          },
+          "placeholder": {
+            "en": "07:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "charging_plan_active",
+      "title": {
+        "en": "Configured charging plan is !{{active|inactive}}"
+      },
+      "hint": {
+        "en": "Checks the one persisted plan on this selected meter. Unknown/missing plan raises an error, never inverted permission. Eligibility is not measured charging."
+      }
+    },
+    {
+      "id": "threshold_slots_available",
+      "title": {
+        "en": "There are !{{|no }}slots below a chosen price"
+      },
+      "titleFormatted": {
+        "en": "There are !{{|no }}slots below [[price]] p/kWh in the next [[within]] hours"
+      },
+      "hint": {
+        "en": "Requires complete fresh prices for the whole horizon. Missing data raises an error, including when inverted. VAT follows the meter setting."
+      },
+      "args": [
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Strictly below (p/kWh; zero is literal)"
+          },
+          "min": -200,
+          "max": 200,
+          "step": 0.1
+        },
+        {
+          "name": "within",
+          "type": "number",
+          "title": {
+            "en": "Within next hours"
+          },
+          "min": 0.5,
+          "max": 48,
+          "step": 0.1
+        }
+      ]
+    },
+    {
+      "id": "in_threshold_slot",
+      "title": {
+        "en": "A qualifying price slot is !{{active|inactive}} now"
+      },
+      "titleFormatted": {
+        "en": "A slot below [[price]] p/kWh is !{{active|inactive}} now within a [[within]] hour horizon"
+      },
+      "hint": {
+        "en": "Every qualifying slot, including separated slots. Missing/stale/partial prices raise an error. Not measured battery charging."
+      },
+      "args": [
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Strictly below (p/kWh; zero is literal)"
+          },
+          "min": -200,
+          "max": 200,
+          "step": 0.1
+        },
+        {
+          "name": "within",
+          "type": "number",
+          "title": {
+            "en": "Within next hours"
+          },
+          "min": 0.5,
+          "max": 48,
+          "step": 0.1
+        }
+      ]
+    },
+    {
+      "id": "configured_price_band",
+      "title": {
+        "en": "Current price is !{{|not }}in a configured band"
+      },
+      "titleFormatted": {
+        "en": "Price is !{{|not }}[[band]] (upper bounds [[green]], [[yellow]], [[orange]] p/kWh)"
+      },
+      "hint": {
+        "en": "Explicit price bands, not carbon bands or widget settings. Upper bounds are inclusive; negative prices are separate. Invalid or stale data raises an error."
+      },
+      "args": [
+        {
+          "name": "band",
+          "type": "dropdown",
+          "values": [
+            {
+              "id": "negative",
+              "label": {
+                "en": "negative"
+              }
+            },
+            {
+              "id": "green",
+              "label": {
+                "en": "green"
+              }
+            },
+            {
+              "id": "yellow",
+              "label": {
+                "en": "yellow"
+              }
+            },
+            {
+              "id": "orange",
+              "label": {
+                "en": "orange"
+              }
+            },
+            {
+              "id": "red",
+              "label": {
+                "en": "red"
+              }
+            }
+          ]
+        },
+        {
+          "name": "green",
+          "type": "number",
+          "title": {
+            "en": "Green upper bound"
+          },
+          "min": 0,
+          "max": 198,
+          "step": 0.1
+        },
+        {
+          "name": "yellow",
+          "type": "number",
+          "title": {
+            "en": "Yellow upper bound"
+          },
+          "min": 0,
+          "max": 199,
+          "step": 0.1
+        },
+        {
+          "name": "orange",
+          "type": "number",
+          "title": {
+            "en": "Orange upper bound"
+          },
+          "min": 0,
+          "max": 200,
+          "step": 0.1
+        }
+      ]
+    },
     {
       "id": "price_below_now",
       "title": {
@@ -971,6 +1303,363 @@
     }
   ],
   "actions": [
+    {
+      "id": "configure_charging_plan",
+      "title": {
+        "en": "Configure a charging eligibility plan"
+      },
+      "titleFormatted": {
+        "en": "Plan [[mode]] slots below [[price]] p/kWh before [[by]], duration [[duration]] h, fallback [[fallback]] up to [[maximum]] p/kWh"
+      },
+      "hint": {
+        "en": "One persisted plan per meter, replacing its prior plan. 'all' ignores duration/fallback. 'duration' prefers cheap slots, optional bounded supplement. Replans preserve elapsed eligible duration, not measured charging. No battery commands or outbound requests."
+      },
+      "args": [
+        {
+          "name": "mode",
+          "type": "dropdown",
+          "title": {
+            "en": "Selection"
+          },
+          "values": [
+            {
+              "id": "all",
+              "label": {
+                "en": "all"
+              }
+            },
+            {
+              "id": "duration",
+              "label": {
+                "en": "duration"
+              }
+            }
+          ]
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Strictly below p/kWh"
+          },
+          "min": -200,
+          "max": 200,
+          "step": 0.1
+        },
+        {
+          "name": "by",
+          "type": "text",
+          "title": {
+            "en": "Deadline (HH:MM, Homey timezone)"
+          },
+          "placeholder": {
+            "en": "07:00"
+          }
+        },
+        {
+          "name": "duration",
+          "type": "number",
+          "title": {
+            "en": "Hours (ignored in all mode)"
+          },
+          "min": 0.1,
+          "max": 24,
+          "step": 0.1
+        },
+        {
+          "name": "fallback",
+          "type": "dropdown",
+          "title": {
+            "en": "Fallback (duration mode only)"
+          },
+          "values": [
+            {
+              "id": "off",
+              "label": {
+                "en": "off"
+              }
+            },
+            {
+              "id": "on",
+              "label": {
+                "en": "on"
+              }
+            }
+          ]
+        },
+        {
+          "name": "maximum",
+          "type": "number",
+          "title": {
+            "en": "Inclusive hard maximum (p/kWh)"
+          },
+          "min": -200,
+          "max": 200,
+          "step": 0.1
+        }
+      ],
+      "tokens": [
+        {
+          "name": "status",
+          "type": "string",
+          "title": {
+            "en": "Plan status"
+          }
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "title": {
+            "en": "Eligibility active"
+          }
+        },
+        {
+          "name": "slots",
+          "type": "string",
+          "title": {
+            "en": "Selected intervals (epoch ms JSON)"
+          }
+        },
+        {
+          "name": "estimate_label",
+          "type": "string",
+          "title": {
+            "en": "Estimate label"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cancel_charging_plan",
+      "title": {
+        "en": "Cancel the configured charging eligibility plan"
+      },
+      "hint": {
+        "en": "Removes only this meter's eligibility plan and emits run-ended if active. Does not itself stop a physical battery."
+      }
+    },
+    {
+      "id": "get_threshold_slots_before",
+      "title": {
+        "en": "Get every cheap slot before a deadline"
+      },
+      "titleFormatted": {
+        "en": "Get every slot below [[price]] p/kWh before [[by]]"
+      },
+      "hint": {
+        "en": "Cached complete fresh horizon only. Unknown raises an error. VAT follows the meter. No charging command."
+      },
+      "args": [
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Strictly below p/kWh"
+          },
+          "min": -200,
+          "max": 200,
+          "step": 0.1
+        },
+        {
+          "name": "by",
+          "type": "text",
+          "title": {
+            "en": "Deadline (HH:MM, Homey timezone)"
+          },
+          "placeholder": {
+            "en": "07:00"
+          }
+        }
+      ],
+      "tokens": [
+        {
+          "name": "count",
+          "type": "number",
+          "title": {
+            "en": "Slot count"
+          }
+        },
+        {
+          "name": "slots",
+          "type": "string",
+          "title": {
+            "en": "Selected slots (ISO JSON)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "get_bounded_threshold_slots",
+      "title": {
+        "en": "Get a bounded duration charging plan"
+      },
+      "titleFormatted": {
+        "en": "Plan [[duration]] hours below [[price]] p/kWh within [[within]] hours; fallback [[fallback]] up to [[maximum]] p/kWh"
+      },
+      "hint": {
+        "en": "Prefer cheap slots; optional cheapest supplement up to the inclusive hard maximum. No partial plan is returned as complete. Zero is literal. Cached rates only; no charging commands."
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "price",
+          "title": {
+            "en": "Strictly below (p/kWh)"
+          },
+          "min": -200,
+          "max": 200,
+          "step": 0.1
+        },
+        {
+          "type": "number",
+          "name": "within",
+          "title": {
+            "en": "Horizon (hours)"
+          },
+          "min": 0.5,
+          "max": 48,
+          "step": 0.1
+        },
+        {
+          "type": "number",
+          "name": "duration",
+          "title": {
+            "en": "Required hours"
+          },
+          "min": 0.1,
+          "max": 24,
+          "step": 0.1
+        },
+        {
+          "type": "dropdown",
+          "name": "fallback",
+          "title": {
+            "en": "Allow fallback"
+          },
+          "values": [
+            {
+              "id": "off",
+              "label": {
+                "en": "Off"
+              }
+            },
+            {
+              "id": "on",
+              "label": {
+                "en": "On"
+              }
+            }
+          ]
+        },
+        {
+          "type": "number",
+          "name": "maximum",
+          "title": {
+            "en": "Hard fallback maximum (p/kWh)"
+          },
+          "min": -200,
+          "max": 200,
+          "step": 0.1
+        }
+      ],
+      "tokens": [
+        {
+          "name": "complete",
+          "type": "boolean",
+          "title": {
+            "en": "Complete plan"
+          }
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "title": { "en": "Plan status" }
+        },
+        {
+          "name": "selection",
+          "type": "string",
+          "title": { "en": "Selection (preferred, fallback or none)" }
+        },
+        {
+          "name": "slots",
+          "type": "string",
+          "title": {
+            "en": "Selected slots (JSON)"
+          }
+        },
+        {
+          "name": "estimate_label",
+          "type": "string",
+          "title": {
+            "en": "Estimate label"
+          }
+        }
+      ]
+    },
+    {
+      "id": "get_threshold_slots",
+      "title": {
+        "en": "Get every slot below a chosen price"
+      },
+      "titleFormatted": {
+        "en": "Get all slots below [[price]] p/kWh in the next [[within]] hours"
+      },
+      "hint": {
+        "en": "Cached prices only. All qualifying slots, with partial endpoints counted by remaining duration. Errors on incomplete/stale horizons. Does not control charging."
+      },
+      "args": [
+        {
+          "name": "price",
+          "type": "number",
+          "title": {
+            "en": "Strictly below (p/kWh; zero is literal)"
+          },
+          "min": -200,
+          "max": 200,
+          "step": 0.1
+        },
+        {
+          "name": "within",
+          "type": "number",
+          "title": {
+            "en": "Within next hours"
+          },
+          "min": 0.5,
+          "max": 48,
+          "step": 0.1
+        }
+      ],
+      "tokens": [
+        {
+          "name": "count",
+          "type": "number",
+          "title": {
+            "en": "Selected slots"
+          }
+        },
+        {
+          "name": "hours",
+          "type": "number",
+          "title": {
+            "en": "Selected hours remaining"
+          }
+        },
+        {
+          "name": "slots",
+          "type": "string",
+          "title": {
+            "en": "Selected slots (JSON)"
+          }
+        },
+        {
+          "name": "estimate_label",
+          "type": "string",
+          "title": {
+            "en": "Estimate label"
+          }
+        }
+      ]
+    },
     {
       "id": "refresh_now",
       "title": {

@@ -53,6 +53,22 @@ export function iogUnitRatesToRates(unitRates: IogUnitRate[]): Rate[] {
   }));
 }
 
+/** Concurrent different prices are not a time series. Typed household bands
+ * must first be resolved explicitly; never choose an arbitrary raw row. */
+export function hasConflictingIogIntervals(unitRates: IogUnitRate[]): boolean {
+  const rows = unitRates.map((r) => ({
+    from: Date.parse(r.validFrom),
+    to: r.validTo === null ? Infinity : Date.parse(r.validTo),
+    inc: r.valueIncVat,
+    exc: r.valuePreVat,
+  }));
+  if (rows.some((r) => !Number.isFinite(r.from) || Number.isNaN(r.to) || r.to <= r.from
+    || !Number.isFinite(r.inc) || !Number.isFinite(r.exc))) return true;
+  return rows.some((a, index) => rows.slice(index + 1).some((b) => (
+    Math.max(a.from, b.from) < Math.min(a.to, b.to) && (a.inc !== b.inc || a.exc !== b.exc)
+  )));
+}
+
 /**
  * The distinct inc-VAT values carried by a HalfHourlyTariff's `unitRates`.
  *
@@ -147,6 +163,9 @@ function activeBandValue(
   const row = (covering.length ? covering : started)[
     (covering.length ? covering : started).length - 1
   ];
+  const candidates = (covering.length ? covering : started)
+    .filter((r) => Date.parse(r.validFrom) === Date.parse(row.validFrom));
+  if (candidates.some((r) => r.valueIncVat !== row.valueIncVat || r.valuePreVat !== row.valuePreVat)) return null;
   return { inc: row.valueIncVat, exc: row.valuePreVat };
 }
 

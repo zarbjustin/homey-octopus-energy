@@ -27,13 +27,42 @@ test('rateForRecord uses the day series for a single-register tariff', () => {
   assert.equal(r.value_inc_vat, 20, 'single-register never uses the night register');
 });
 
-test('rateForRecord uses the night series only when two-register AND night AND night rates exist', () => {
+test('rateForRecord requires applicable night coverage for a two-register night record', () => {
   const day = [rate(20)];
   const night = [rate(8)];
   const iso = '2026-07-10T02:00:00Z';
   assert.equal(rateForRecord(iso, day, night, { twoRegister: true, isNight: always }).value_inc_vat, 8);
   assert.equal(rateForRecord(iso, day, night, { twoRegister: true, isNight: never }).value_inc_vat, 20);
-  assert.equal(rateForRecord(iso, day, [], { twoRegister: true, isNight: always }).value_inc_vat, 20, 'no night rows → day');
+  assert.equal(rateForRecord(iso, day, [], { twoRegister: true, isNight: always }), null);
+  assert.equal(rateForRecord(iso, day, [rate(8, '2026-07-11T00:00:00Z')], { twoRegister: true, isNight: always }), null);
+  assert.equal(rateForRecord(iso, day, [rate(8, '2026-07-01T00:00:00Z', '2026-07-02T00:00:00Z')], { twoRegister: true, isNight: always }), null);
+});
+
+test('reporting rejects missing, partial and non-finite prices instead of undercounting', () => {
+  const records = [
+    { interval_start: '2026-07-10T10:00:00Z', consumption: 1 },
+    { interval_start: '2026-07-10T10:30:00Z', consumption: 2 },
+  ];
+  const opts = {
+    incVat: true, twoRegister: false, isNight: never, toEnergy: identity,
+  };
+  for (const rates of [[], [rate(20, '2026-07-10T10:00:00Z', '2026-07-10T10:30:00Z')], [rate(NaN)]]) {
+    assert.throws(() => consumptionCostPence(records, rates, [], opts), /coverage/);
+    assert.throws(() => windowCostPence(records, Date.parse('2026-07-10T00:00:00Z'), Date.parse('2026-07-11T00:00:00Z'), rates, [], opts), /coverage/);
+    assert.throws(() => peakOffPeakCostPence(records, 0, rates, [], opts, never), /coverage/);
+  }
+  assert.throws(() => consumptionCostPence([{ ...records[0], consumption: NaN }], [rate(20)], [], opts), /coverage/);
+  assert.throws(() => consumptionCostPence(records, [rate(20)], [], { ...opts, toEnergy: () => NaN }), /unavailable/);
+  assert.equal(consumptionCostPence(records, [rate(0)], [], opts), 0);
+  assert.equal(consumptionCostPence(records, [rate(-5)], [], opts), -15);
+});
+
+test('standing charges require coverage for every requested day, including an empty series', () => {
+  const times = [new Date('2026-07-10T12:00:00Z'), new Date('2026-07-11T12:00:00Z')];
+  for (const rates of [[], [rate(50, '2026-07-11T00:00:00Z')], [rate(NaN)]]) {
+    assert.throws(() => standingChargePence(rates, times, true), /coverage/);
+  }
+  assert.equal(standingChargePence([rate(0)], times, true), 0);
 });
 
 test('consumptionCostPence sums energy cost at the inc-VAT rate', () => {

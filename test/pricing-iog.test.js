@@ -1,11 +1,28 @@
 'use strict';
 
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const { hasConflictingIogIntervals, iogHouseholdBands: householdBands } = require('../.homeybuild/lib/pricing/iogSchedule.js');
+
+test('concurrent open-ended IOG rows are ambiguous unless explicitly resolved household bands', () => {
+  const row = (price, rateType = null) => ({
+    validFrom: '2026-10-01T00:00:00Z',
+    validTo: null,
+    valueIncVat: price,
+    valuePreVat: price,
+    rateType,
+  });
+  const now = Date.parse('2026-10-05T00:00:00Z');
+  assert.equal(hasConflictingIogIntervals([row(30), row(7), row(35), row(9)]), true);
+  assert.equal(hasConflictingIogIntervals([row(30), row(30)]), false);
+  assert.equal(householdBands([row(30, 'STANDARD'), row(7, 'OFF_PEAK')], now).nightRate, 7);
+  assert.equal(householdBands([row(30, 'STANDARD'), row(31, 'STANDARD'), row(7, 'OFF_PEAK')], now), null);
+});
+
 // Unit tests for the pure IOG pricing helpers extracted from OctopusMeterDevice
 // (Phase 2 / S52 slice 3). These pin the trickiest pricing logic — the area
 // behind the community 156860 IOG incidents — in isolation.
-
-const test = require('node:test');
-const assert = require('node:assert/strict');
 
 const {
   iogUnitRatesToRates, synthesiseIogDayNightRates,

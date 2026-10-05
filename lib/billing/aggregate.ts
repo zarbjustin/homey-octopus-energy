@@ -4,6 +4,7 @@ import { rateAt, valueOf } from '../rates';
 import { BillingSummary, BillingAggregateInput } from './types';
 import { projectAndScore } from './project';
 import { zonedTime, localDateParts } from './tz';
+import { CostCoverageError } from '../reporting/cost';
 
 function round(value: number, dp: number): number {
   const f = 10 ** dp;
@@ -17,7 +18,7 @@ function round(value: number, dp: number): number {
  * sampled at that day's local noon to avoid DST edges.
  */
 function sumStandingChargePence(standing: Parameters<typeof rateAt>[0], startIso: string, endIso: string, timeZone: string, incVat: boolean): number {
-  if (!standing.length) return 0;
+  if (Date.parse(endIso) <= Date.parse(startIso)) return 0;
   const endMs = Date.parse(endIso);
   const startParts = localDateParts(new Date(startIso), timeZone);
   let dayMidnight = zonedTime(startParts.year, startParts.month, startParts.day, timeZone, 0);
@@ -27,7 +28,8 @@ function sumStandingChargePence(standing: Parameters<typeof rateAt>[0], startIso
     const p = localDateParts(dayMidnight, timeZone);
     const noon = zonedTime(p.year, p.month, p.day, timeZone, 12);
     const sc = rateAt(standing, noon);
-    if (sc) pence += valueOf(sc, incVat);
+    if (!sc || !Number.isFinite(valueOf(sc, incVat))) throw new CostCoverageError('Billing standing-charge coverage is unavailable.');
+    pence += valueOf(sc, incVat);
     const nextUtc = new Date(Date.UTC(p.year, p.month - 1, p.day));
     nextUtc.setUTCDate(nextUtc.getUTCDate() + 1);
     dayMidnight = zonedTime(nextUtc.getUTCFullYear(), nextUtc.getUTCMonth() + 1, nextUtc.getUTCDate(), timeZone, 0);
@@ -56,9 +58,13 @@ export function computeBillingSummary(input: BillingAggregateInput): BillingSumm
   for (const r of input.import.records) {
     if (!inWindow(r.interval_start)) continue;
     importKwh += r.consumption;
-    const useNight = input.import.nightRates.length > 0 && input.import.isNight(r.interval_start);
+    const twoRegister = input.import.twoRegister ?? input.import.nightRates.length > 0;
+    const useNight = twoRegister && input.import.isNight(r.interval_start);
     const rate = rateAt(useNight ? input.import.nightRates : input.import.dayRates, new Date(r.interval_start));
-    if (rate) energyPence += r.consumption * valueOf(rate, incVat);
+    if (!rate || !Number.isFinite(valueOf(rate, incVat)) || !Number.isFinite(r.consumption)) {
+      throw new CostCoverageError('Billing import price coverage is unavailable.');
+    }
+    energyPence += r.consumption * valueOf(rate, incVat);
   }
 
   const standingPence = sumStandingChargePence(input.import.standing, period.start, settledThrough, input.timeZone, incVat);
@@ -72,7 +78,10 @@ export function computeBillingSummary(input: BillingAggregateInput): BillingSumm
       if (!inWindow(r.interval_start)) continue;
       exportKwh += r.consumption;
       const rate = rateAt(input.export.rates, new Date(r.interval_start));
-      if (rate) exportPence += r.consumption * valueOf(rate, incVat);
+      if (!rate || !Number.isFinite(valueOf(rate, incVat)) || !Number.isFinite(r.consumption)) {
+        throw new CostCoverageError('Billing export price coverage is unavailable.');
+      }
+      exportPence += r.consumption * valueOf(rate, incVat);
     }
   }
 

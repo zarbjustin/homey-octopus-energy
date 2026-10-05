@@ -13,10 +13,10 @@ import {
  * resolved rate arrays plus small timezone-bound predicates (isNight/isPeak) and
  * the energy-unit converter, and keeps the fetch + capability-write orchestration.
  *
- * Behaviour is preserved exactly from the original device methods (pinned by
- * test/reporting-golden.test.js): a record is priced at the night register only
- * when the tariff is two-register AND night rates exist AND the instant is night;
- * otherwise the day series. All figures are returned in PENCE.
+ * Every record requires an applicable, finite price. Missing coverage is an
+ * error, never free consumption. Two-register night records require night rates;
+ * they cannot borrow a day rate or an out-of-period night row. All figures are
+ * returned in PENCE.
  */
 
 export interface CostOptions {
@@ -28,6 +28,9 @@ export interface CostOptions {
   toEnergy: (value: number) => number;
 }
 
+/** Distinguishes known coverage gaps from transient transport failures. */
+export class CostCoverageError extends Error {}
+
 /**
  * The unit rate applicable to a consumption record, honouring Economy-7 day/night
  * registers when the tariff is two-register (mirrors the device's rateForRecord).
@@ -35,10 +38,24 @@ export interface CostOptions {
 export function rateForRecord(
   iso: string, dayRates: Rate[], nightRates: Rate[], opts: Pick<CostOptions, 'twoRegister' | 'isNight'>,
 ): Rate | null {
-  if (opts.twoRegister && nightRates.length && opts.isNight(iso)) {
-    return rateAt(nightRates, new Date(iso)) ?? nightRates[0];
+  if (opts.twoRegister && opts.isNight(iso)) {
+    return rateAt(nightRates, new Date(iso));
   }
   return rateAt(dayRates, new Date(iso));
+}
+
+/** A known record and its applicable rate; published zero/negative rates are valid. */
+export function recordCostPence(
+  record: ConsumptionRecord, rate: Rate | null, toEnergy: CostOptions['toEnergy'], incVat: boolean,
+): number {
+  if (!Number.isFinite(Date.parse(record.interval_start)) || !Number.isFinite(record.consumption)
+    || !rate || !Number.isFinite(valueOf(rate, incVat))) {
+    throw new CostCoverageError('Consumption price coverage is unavailable.');
+  }
+  const energy = toEnergy(record.consumption);
+  const cost = energy * valueOf(rate, incVat);
+  if (!Number.isFinite(energy) || !Number.isFinite(cost)) throw new CostCoverageError('Consumption cost is unavailable.');
+  return cost;
 }
 
 /** Energy cost (pence) of a set of consumption records against the given rates. */
@@ -48,7 +65,7 @@ export function consumptionCostPence(
   let pence = 0;
   for (const r of records) {
     const rate = rateForRecord(r.interval_start, dayRates, nightRates, opts);
-    if (rate) pence += opts.toEnergy(r.consumption) * valueOf(rate, opts.incVat);
+    pence += recordCostPence(r, rate, opts.toEnergy, opts.incVat);
   }
   return pence;
 }
@@ -60,6 +77,7 @@ export function windowCostPence(
 ): number {
   const inWindow = records.filter((r) => {
     const t = new Date(r.interval_start).getTime();
+    if (!Number.isFinite(t)) throw new CostCoverageError('Consumption timestamp is unavailable.');
     return t >= startMs && t < endMs;
   });
   return consumptionCostPence(inWindow, dayRates, nightRates, opts);
@@ -70,7 +88,10 @@ export function standingChargePence(standing: Rate[], sampleTimes: Date[], incVa
   let pence = 0;
   for (const t of sampleTimes) {
     const sc = rateAt(standing, t);
-    if (sc) pence += valueOf(sc, incVat);
+    if (!Number.isFinite(t.getTime()) || !sc || !Number.isFinite(valueOf(sc, incVat))) {
+      throw new CostCoverageError('Standing-charge coverage is unavailable.');
+    }
+    pence += valueOf(sc, incVat);
   }
   return pence;
 }
@@ -87,9 +108,10 @@ export function peakOffPeakCostPence(
   let off = 0;
   for (const r of records) {
     const t = new Date(r.interval_start).getTime();
+    if (!Number.isFinite(t)) throw new CostCoverageError('Consumption timestamp is unavailable.');
     if (t < sinceMs) continue;
     const rate = rateForRecord(r.interval_start, dayRates, nightRates, opts);
-    const cost = rate ? opts.toEnergy(r.consumption) * valueOf(rate, opts.incVat) : 0;
+    const cost = recordCostPence(r, rate, opts.toEnergy, opts.incVat);
     if (isPeak(r.interval_start)) peak += cost; else off += cost;
   }
   return { peak, off };

@@ -1,5 +1,25 @@
 # 05 — API Review
 
+## Follow-up — 5 October 2026
+
+Re-read official [REST endpoints](https://docs.octopus.energy/rest/guides/endpoints/),
+[REST basics](https://docs.octopus.energy/rest/guides/api-basics/) and
+[GraphQL constraints](https://docs.octopus.energy/graphql/guides/basics/).
+Complexity/point allowances are not this app's request-count budget; do not
+increase cadence on that basis. Generic REST guidance recommends Kraken tokens;
+the app's domestic Basic-auth compatibility needs explicit authenticated contract
+qualification, not an unapproved credential migration.
+
+Local fixes now bound body decoding across three providers, reject Kraken
+redirects/raw HTTP error bodies, honour Retry-After account-wide and reject missing
+balances. Conflicting raw IOG intervals no longer choose by row order. Details,
+regressions and the locally closed BBA-10 reporting coverage blocker are in the
+[app-wide bug bash](08-bug-bash-report.md). No live Octopus call, real schema
+introspection, quota polling or mutation was performed.
+
+The original review below is historical: token expiry parsing, GET coalescing
+and per-source freshness have since been implemented.
+
 **Review date:** 21 July 2026  
 **APIs:** Octopus public REST and Kraken GraphQL
 

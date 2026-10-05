@@ -207,9 +207,10 @@ test('tariff comparison uses one-register codes for candidates from an Economy 7
       candidateTariffs.push(tariff);
       return rates;
     },
-    standingCharges: async () => [],
+    standingCharges: async () => [{ ...rates[0], value_inc_vat: 0, value_exc_vat: 0 }],
   };
-  device.rateForRecord = () => rates[0];
+  device.homey = { clock: { getTimezone: () => 'UTC' } };
+  device.getSetting = () => undefined;
   device.toEnergyUnit = (value) => value;
   device.vatInc = () => true;
   device.error = () => {};

@@ -10,6 +10,18 @@ const {
 
 const LONDON = 'Europe/London';
 
+test('deadline search constructs one formatter rather than one for every searched minute', (t) => {
+  const Formatter = Intl.DateTimeFormat;
+  let created = 0;
+  t.mock.method(Intl, 'DateTimeFormat', function formatter(...args) {
+    created += 1;
+    return new Formatter(...args);
+  });
+  const { nextLocalDeadline } = require('../.homeybuild/lib/timezone.js');
+  assert.equal(nextLocalDeadline('07:00', LONDON, Date.parse('2026-10-05T06:00:01Z')), Date.parse('2026-10-06T06:00:00Z'));
+  assert.equal(created, 1);
+});
+
 // Characterization/contract tests locking the DST-safe wall-clock behaviour that
 // was extracted verbatim from OctopusMeterDevice (S52 decomposition, BL-06).
 
