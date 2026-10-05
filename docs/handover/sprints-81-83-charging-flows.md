@@ -125,9 +125,10 @@ Help users select affordable charging slots and explicitly choose a bounded
 fallback when the preferred price is unavailable. Requirements were abstracted
 from private feedback; do not publish private messages or identify the sender.
 
-The user authorised completing S81–S83 locally while retaining S76 field gaps.
-S77–S80 remain separate future proposals. No release dates, installation,
-publication, live Flow editing or physical battery control are authorised here.
+The user originally authorised completing S81–S83 locally while retaining S76
+field gaps, then approved the Test delivery recorded above. S77–S80 remain
+separate future proposals. Certification/Live, live Flow editing and physical
+battery control are not authorised by this Test delivery.
 
 Reuse `lib/planning/targetRate.ts`, time-window helpers, cached rates and the shared
 `lib/widgetPriceBands.js` classifier. Preserve all existing Flow/capability/widget

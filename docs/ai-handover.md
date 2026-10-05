@@ -155,7 +155,8 @@ The original backlog is complete. Reliability S73–S75 is delivered for testing
 4. S76: release, local/Test smoke, IOG overnight and reporter verification gates.
 5. Keep EV boost start/cancel verification separate and explicitly opt-in.
 6. Follow the approved future ordering after reliability evidence: S77/S78,
-   S81–S83 charging Flows, then optional S79/S80. Charging local execution is authorised; its field/delivery acceptance is pending;
+   S81–S83 charging Flows, then optional S79/S80. Charging software is delivered
+   in Test; its field acceptance is pending;
    see [`roadmap-next.md`](roadmap-next.md).
 
 ## Resume Checklist

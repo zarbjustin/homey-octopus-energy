@@ -81,7 +81,7 @@ no manual Live promotion is implied.
 | Item | Current evidence | Remaining check |
 |---|---|---|
 | Build 36 promotion | Live in Homey Developer Tools on 4 October | Closed for Build 36; verify the channel separately for each future build |
-| Local Homey Pro installation | v1.0.37 installed/read back; identities, settings and Flow fingerprints unchanged | Installation closed; soak and affected real-UI/Flow behaviour remain separate gates |
+| Local Homey Pro installation | v1.0.38 installed/read back; identities, settings and Flow fingerprints unchanged | Installation closed; affected real-UI/Flow and overnight behaviour remain separate gates |
 | Price-band widgets | Positive community screenshot and feedback | Both widgets, custom thresholds, non-default palettes, selection persistence and accessibility on a real Homey |
 | Meter selection | Community report did not explicitly confirm resolution | Reproduce with multiple meters and stale selections; never silently substitute another meter |
 | Energy Optimiser and representative Flows | Engineering delivery recorded | Real-Homey smoke checks, including equal-price slots and stale-data gates |
