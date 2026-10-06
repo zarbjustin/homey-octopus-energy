@@ -1,6 +1,6 @@
 # Roadmap After v1.0.38 Test
 
-Last updated: 5 October 2026
+Last updated: 7 October 2026
 
 ## Current Status and Direction
 
@@ -115,6 +115,29 @@ delivered in v1.0.38 Test; field acceptance and Live promotion remain separate.
 S78 includes clearer explanations of existing price-threshold, cheapest-hours and
 target-rate cards. Reuse the existing widgets and planners; a new widget is not
 part of this roadmap. Price-band “green” is a price range, not a carbon claim.
+
+### S78 Follow-up: Flow Inputs and Examples
+
+5–6 October support questions added a guidance requirement, not a demonstrated
+calculation bug. The charging record now explains the existing contract; changes
+to card hints/onboarding remain proposed S78 implementation work.
+
+- Explain direct numeric p/kWh limits first, with Number-variable tags optional.
+  Colour names are labels, not numeric IDs. Flow inputs do not inherit an arbitrary
+  widget instance's settings.
+- Show all three strictly increasing upper bounds, inclusive band boundaries,
+  and the separate negative band. Include a worked 1p/10p/20p example.
+- Distinguish a current-price condition from future-horizon availability and a
+  configured plan. A condition is evaluated when its Flow runs, not a new trigger.
+- Distinguish inclusive band boundaries from charging slots strictly below a cap;
+  missing/stale prices remain unavailable, including inverted conditions.
+- Check wording, direct values and compatible Number tags in the real Homey UI,
+  then request tester feedback before closing this supportability item. Do not
+  change existing argument contracts or install live Flows to validate examples.
+
+No new widget, polling cadence, automatic charging control or promised release
+date is implied by this support follow-up. UI, requester, overnight, unsupported-
+tariff and physical acceptance gates remain open.
 
 ## Later or Conditional Ideas
 

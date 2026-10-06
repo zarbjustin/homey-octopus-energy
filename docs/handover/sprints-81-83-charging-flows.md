@@ -1,6 +1,6 @@
 # S81–S83: Simpler Charging Flows
 
-Captured: 4 October 2026. Updated: 5 October 2026.
+Captured: 4 October 2026. Updated: 7 October 2026.
 Status: software delivered in v1.0.38 / Build 38 Test and installed on Pro; field acceptance pending.
 
 ## Implementation and Evidence
@@ -75,6 +75,31 @@ The lower-level threshold cards react to adjacent observed slot transitions and
 same-slot numeric corrections; they seed on restart and do not catch up across
 missed observations. Prefer the configured-plan cards for bounded duration,
 deadlines, stale-data exits and robust replan/restart handling.
+
+## Price-band Input Example
+
+For **Current price is in a configured band**, enter the upper limits directly
+in p/kWh. Number-variable tags are optional if you want to reuse centrally managed
+limits. Green `1`, yellow `10`, orange `20` means:
+
+| Band | Current price |
+|---|---|
+| Negative | Below 0p |
+| Green | 0p through 1p |
+| Yellow | Above 1p through 10p |
+| Orange | Above 10p through 20p |
+| Red | Above 20p |
+
+These are price limits, not codes for colours. Supply all three increasing bounds;
+the Flow does not automatically borrow a widget's settings. Widget defaults are
+10p/20p/30p, which need not be your automation limits. This condition checks the
+current price when its Flow runs, not future slots or a start/end event. Threshold
+availability and configured-plan cards cover those separate tasks. “Below 10p”
+excludes exactly 10p even though an inclusive band may contain that price.
+Missing/stale prices raise an unavailable/error outcome, including inversion.
+
+Support guidance was clarified on 5–6 October; real-Homey UI/tag behavior and
+requester acceptance remain open under S78. No example Flow was installed.
 
 ## Standard Flow Recipe: Every Cheap Slot
 
