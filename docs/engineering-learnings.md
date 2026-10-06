@@ -58,6 +58,11 @@ This document captures durable constraints, root causes, and workflow gotchas th
   in-flight persistence against timer resurrection during shutdown.
 - New inverted price conditions must throw on unknown rather than return false;
   inversion of false can otherwise grant permission on missing prices.
+- Flow-owned price-band inputs are p/kWh upper bounds, not colour IDs. Direct
+  values and optional Number-variable tags express the same limits; never silently
+  inherit a widget instance's settings. Bands include their upper boundary, while
+  “below X” charging eligibility is strict. Explain current checks, horizon
+  availability and configured-plan lifecycle separately.
 
 | Learning | Required behavior | Evidence |
 |---|---|---|
@@ -88,7 +93,7 @@ This document captures durable constraints, root causes, and workflow gotchas th
 |---|---|
 | Kraken’s request allowance is shared by account and external clients. | Reuse account caches, single-flight calls, and the shared request budget. |
 | A new timer multiplies by account and device count. | Do not add polling without a system-level request-count test. |
-| Stale data must not create success-shaped automation. | Conditions return false and actions return explicit errors when required data is stale or incomplete. |
+| Stale data must not create success-shaped automation. | Preserve an explicit unknown/error outcome when inversion of false could grant permission; actions fail explicitly on missing required data. |
 | Unsupported GraphQL fields can break an otherwise useful query. | Keep optional fields isolated or backed off. Do not replace REST billing data. |
 
 ## Testing Patterns
@@ -116,6 +121,7 @@ This document captures durable constraints, root causes, and workflow gotchas th
 | GitHub reports that some pinned actions use the deprecated Node 20 action runtime. | Review upstream Node 24-compatible action revisions in a maintenance sprint. |
 | A historical `gh` command-line pull-request merge did not trigger the push-based release workflow. | Always verify the tag and GitHub release after a PR merge; create them manually if absent. |
 | Sprint completion has three delivery targets. | Install locally, commit and push GitHub, then publish the Homey App Store build. |
+| A documentation sync is not app delivery. | Keep release SHA/channel/runtime observations dated; do not reinstall, republish or claim field acceptance merely to refresh a handover. |
 
 ## Security and Privacy
 
@@ -124,3 +130,6 @@ This document captures durable constraints, root causes, and workflow gotchas th
 - Use synthetic Octopus-format identifiers in tests.
 - Keep repair identity-safe. A replacement physical meter is a new device.
 - Keep consent-gated writes disabled by default and fail closed.
+- Abstract private support feedback into generic requirements. Do not commit
+  sender identities, private-thread links, message quotes or screenshots. A
+  support reply or intention to test is not an affected-account acceptance result.

@@ -1,6 +1,6 @@
 # Project Handover
 
-Last updated: 5 October 2026
+Last updated: 7 October 2026
 
 > **AI/LLM takeover:** start with [`docs/ai-handover.md`](docs/ai-handover.md), then read
 > [`AGENTS.md`](AGENTS.md), [`docs/roadmap-next.md`](docs/roadmap-next.md), and
@@ -9,6 +9,28 @@ Last updated: 5 October 2026
 > in the current takeover or roadmap documents.
 
 ## Current state
+
+- **7 October — documentation and project-memory sync.** Local `main` matched
+  GitHub at `273e59a` before this update. Current takeover, roadmap and engineering
+  learnings now capture the 5–6 October support follow-up and remaining acceptance
+  gates. Existing Flow numeric limits, optional Number tags and band boundaries
+  are explained in the charging guide; real-UI hints/feedback remain proposed S78
+  work. S81–S83 are delivered Test software, not pending implementation. No app
+  version, runtime, Homey install, Flow, certification or channel change is part
+  of this documentation update; release observations below remain dated 5 October.
+  Local validation: 672 tests, lint, 14 focused docs/band/release checks, 31 local
+  Markdown links and diff whitespace checks pass; production audit is clear.
+  GitHub readback shows four development-scope dependency alerts (two high
+  `js-yaml`, two medium `brace-expansion`), retained as separate S77 work.
+
+- **5–6 October — community/support follow-up delivered.** The approved v1.0.38
+  Test update was posted in the
+  [public support topic](https://community.homey.app/t/156860/36). Follow-up guidance
+  distinguished direct p/kWh inputs from optional Number-variable tags, explained
+  current-price checks versus future planning, and invited further feedback on
+  the card design. This record retains generic requirements only, not private
+  correspondence. No requester field pass or physical charging result was received;
+  support replies do not close the shortened-soak or other acceptance gaps.
 
 - **5 October — v1.0.38 DELIVERED FOR TESTING.** Implementation
   PR [#46](https://github.com/zarbjustin/homey-octopus-energy/pull/46) merged as

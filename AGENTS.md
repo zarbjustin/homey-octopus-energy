@@ -26,7 +26,8 @@ Read these files before planning or changing code:
 - Homey App Store build: `38` Test (verified 5 October 2026); `36` remains Live.
 - GitHub release: `v1.0.38`; local Pro installation/readback verified.
 - Original formal engineering backlog: complete through `BL-31`; new S73–S76
-  reliability S73–S75 is delivered for testing; S76 field closure is in progress.
+  reliability S73–S75 is delivered for testing; S76 monitoring ended early on
+  5 October, not as a verified 48-hour pass. Field gates remain open.
   Read `docs/handover/sprints-73-76-execution.md` for actual evidence and field gaps.
 - Last validated integration baseline: 672 passing tests; field gates remain open.
 - S81–S83 charging software and app-wide reliability fixes delivered in v1.0.38

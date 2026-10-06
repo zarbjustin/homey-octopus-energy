@@ -6,6 +6,14 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
+Documentation/support update: 7 October 2026. Release and Homey observations below
+are dated 5 October; this documentation sync does not reverify the installed app
+or App Store channels and does not publish another build.
+On 7 October, the documentation branch passed all 672 tests and lint; production
+audit reported zero vulnerabilities. GitHub still lists four development-scope
+alerts (two high `js-yaml`, two medium `brace-expansion`); track their remediation
+under S77 separately from the passing production audit.
+
 5 October app-wide bug bash: delivered transport, throttle, balance, carbon, billing,
 IOG ambiguity and gas fixes plus deadline optimisation; 672 tests after closing
 BBA-10. Missing cost/night/standing coverage fails closed; last-known
@@ -53,8 +61,21 @@ records reliability delivery; S77–S80 remain separate proposed future work.
 
 Build 38 is Test, Build 36 Live (channel readback 5 October). Test URL:
 <https://homey.app/a/uk.co.zarb.octopusenergy/test/>.
-Certification/Live promotion, public posting and physical charging remain
+The approved Test announcement was posted on 5 October in the
+[public support topic](https://community.homey.app/t/156860/36).
+Certification/Live promotion, future public posting and physical charging remain
 separately approved actions.
+
+### Latest Support Follow-up
+
+5–6 October follow-up clarified Flow price-band inputs: enter numeric p/kWh
+limits directly, or optionally use Number-variable tags. The inputs are upper
+price bounds, not colour identifiers, and belong to the Flow rather than a widget
+instance. See the charging record's price-band example. A current-price condition
+checks when the Flow runs; horizon availability and configured plans are separate
+cards. Guidance and an invitation for further feedback were sent; a question or
+intention to test is not field confirmation. S78 now carries the wording/example
+acceptance work. Only generic requirements are retained here, not private messages.
 
 ## Recommended Reading Order
 
@@ -113,6 +134,8 @@ Key commits:
 
 ## Current Operational Status
 
+- Last runtime/install observations: 5 October. No new Homey reads or deployment
+  were performed for the 7 October documentation update.
 - Local Pro v1.0.38 normal install/readback verified; no clean install or re-pair.
   Official CLI 4.5.2 uses isolated Node 24.21.0 tooling; app/project Node 22 unchanged.
   A skip-build attempt failed with a missing widget asset; fresh build/install
@@ -124,7 +147,7 @@ Key commits:
 - The previous v1.0.37 smoke registered all seven widgets. First successful session
   poll returned 71 expired rows with zero trigger attempts. No synthetic production
   event or manual Flow trigger was used.
-- Dispatch is currently degraded; provider recovery/enrollment not established.
+- Dispatch was degraded at the last recorded readback; provider recovery/enrollment not established.
   Running/not-crashed is not proof of provider health or physical charging.
 - S76 monitoring ended early with stable samples and coverage gaps; heartbeat paused.
   No verified 48-hour pass or reporter/field closure. Charging code is delivered
@@ -154,9 +177,9 @@ The original backlog is complete. Reliability S73–S75 is delivered for testing
 3. S75: dispatch eligibility, transient-failure handling and stale-state safety.
 4. S76: release, local/Test smoke, IOG overnight and reporter verification gates.
 5. Keep EV boost start/cancel verification separate and explicitly opt-in.
-6. Follow the approved future ordering after reliability evidence: S77/S78,
-   S81–S83 charging Flows, then optional S79/S80. Charging software is delivered
-   in Test; its field acceptance is pending;
+6. Obtain charging/reliability field acceptance, then prioritise proposed S77/S78
+   maintenance/support work ahead of optional S79/S80. S81–S83 software is already
+   delivered in Test; do not reimplement it as pending roadmap work;
    see [`roadmap-next.md`](roadmap-next.md).
 
 ## Resume Checklist
