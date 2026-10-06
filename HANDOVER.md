@@ -18,6 +18,10 @@ Last updated: 7 October 2026
   work. S81–S83 are delivered Test software, not pending implementation. No app
   version, runtime, Homey install, Flow, certification or channel change is part
   of this documentation update; release observations below remain dated 5 October.
+  Local validation: 672 tests, lint, 14 focused docs/band/release checks, 31 local
+  Markdown links and diff whitespace checks pass; production audit is clear.
+  GitHub readback shows four development-scope dependency alerts (two high
+  `js-yaml`, two medium `brace-expansion`), retained as separate S77 work.
 
 - **5–6 October — community/support follow-up delivered.** The approved v1.0.38
   Test update was posted in the

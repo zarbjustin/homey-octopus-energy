@@ -9,6 +9,10 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 Documentation/support update: 7 October 2026. Release and Homey observations below
 are dated 5 October; this documentation sync does not reverify the installed app
 or App Store channels and does not publish another build.
+On 7 October, the documentation branch passed all 672 tests and lint; production
+audit reported zero vulnerabilities. GitHub still lists four development-scope
+alerts (two high `js-yaml`, two medium `brace-expansion`); track their remediation
+under S77 separately from the passing production audit.
 
 5 October app-wide bug bash: delivered transport, throttle, balance, carbon, billing,
 IOG ambiguity and gas fixes plus deadline optimisation; 672 tests after closing

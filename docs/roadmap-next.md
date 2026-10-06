@@ -62,6 +62,12 @@ closes the combined reliability phase, not the earlier sprints' individual
 validation obligations. Allocate concrete dates only after tooling, test-account
 availability and the S73 migration design are checked.
 
+7 October maintenance readback: GitHub lists four open development-scope alerts,
+two high for `js-yaml` and two medium for `brace-expansion`. The production audit
+reports zero vulnerabilities; that does not close the tooling alerts. Prioritise
+their investigation in S77 with separate dependency changes and full CI, rather
+than bundling lockfile fixes into this documentation sync.
+
 ## Release Milestones
 
 | Milestone | Scope | Exit evidence |
