@@ -101,14 +101,17 @@ Missing/stale prices raise an unavailable/error outcome, including inversion.
 Support guidance was clarified on 5–6 October; real-Homey UI/tag behavior and
 requester acceptance remain open under S78. No example Flow was installed.
 
-## Standard Flow Recipe: Every Cheap Slot
+## Mixed Advanced Setup and Standard Control Recipe: Every Cheap Slot
 
 For four separate mobile-friendly Flows, including a battery that becomes low
-after the selected period has begun, see [Charging with Standard Flows](../charging-flows.md).
+after the selected period has begun, see [Charging Flow Setup and Controls](../charging-flows.md).
+The configure action has output tokens and therefore requires Advanced Flow;
+the start, late-battery and stop controls can be Standard Flows. A no-output
+Standard-compatible setup action remains follow-up work, not released functionality.
 The guidance/hint update is source-only pending later delivery; it does not change
 the v1.0.38 planner contracts or install an example on a real Homey.
 
-1. On a chosen daily clock event, configure the selected meter: mode **all**,
+1. In Advanced Flow, on a chosen daily clock event, configure the selected meter: mode **all**,
    below **10p**, deadline **07:00**; duration **1**, fallback **off**, maximum
    **10** (the last three fields are ignored in all mode). A pending unknown
    result waits for complete prices; no fixed 16:00 publication assumption.

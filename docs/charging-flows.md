@@ -1,7 +1,7 @@
-# Charging with Standard Flows
+# Charging Flow Setup and Controls
 
 Updated: 7 October 2026. These examples use the configured-plan cards delivered
-in v1.0.38. Updated hints are a source change pending a later Test build.
+in v1.0.38. Updated hints are delivered in v1.0.39 / Build 39 Test and on local Pro.
 The examples have synthetic regression coverage, not real-Homey or battery
 acceptance. Nothing here installs a Flow or controls a battery.
 
@@ -24,14 +24,21 @@ Example with invented prices: the current slot is 29p and the next slot is 18p.
 There are slots below 20p before your deadline, but the plan is inactive now.
 It becomes active when the 18p slot starts, not when it is first discovered.
 
-## Four mobile-friendly Standard Flows
+## One Advanced Setup Flow and Three Standard Control Flows
+
+The existing **Configure a charging eligibility plan** action returns output
+tags, so Homey makes it available only in Advanced Flow. Create the daily setup
+there; the start, battery-low and stop Flows below can be Standard Flows.
+[Homey's action-token documentation](https://apps.developer.homey.app/the-basics/flow/tokens#tokens-for-advanced-flow)
+explains this restriction. A fully Standard-only setup would need a new no-output
+configuration card; that is follow-up work, not available in v1.0.39.
 
 Choose your meter, deadline, cap, start threshold and target from your own battery
 policy. The values below are examples, not a recommendation for a battery.
 Keep the battery integration's protections and an independent native stop limit.
 The Octopus app selects eligibility; your existing integration sends commands.
 
-### 1. Configure the plan
+### 1. Configure the plan in Advanced Flow
 
 **When:** a daily time you choose, before the intended charging deadline.
 

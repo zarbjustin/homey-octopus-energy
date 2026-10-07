@@ -6,11 +6,10 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
-Documentation/support update: 7 October 2026. Release and Homey observations below
-are dated 5 October; this documentation sync does not reverify the installed app
-or App Store channels and does not publish another build.
-On 7 October, the documentation branch passed all 672 tests and lint; production
-audit reported zero vulnerabilities. GitHub still lists four development-scope
+Release/install/channel readback: 7 October 2026. Scoped S78 charging guidance is
+delivered as v1.0.39 / Build 39 Test and installed on the local Pro. All 678 tests,
+build, lint, production audit, publish validation and release CI/CodeQL pass.
+Production audit reported zero vulnerabilities. GitHub still lists four development-scope
 alerts (two high `js-yaml`, two medium `brace-expansion`); track their remediation
 under S77 separately from the passing production audit.
 
@@ -20,36 +19,40 @@ BBA-10. Missing cost/night/standing coverage fails closed; last-known
 costs and timestamps are retained with a source-specific coverage flag, while
 settled cumulative readings continue. The
 [current review](blueprint/08-bug-bash-report.md) records the evidence. User requested
-App Store Test delivery, confirmed and completed on 5 October: v1.0.38 / Build 38.
-Local Pro upgrade verified. No certification/Live submission;
-field/reporter gates remain open.
+App Store Test delivery completed on 5 October: v1.0.38 / Build 38.
+Fresh 7 October readback found Build 38 already Live before this task; the agent
+did not promote it. v1.0.39 is Test only; field/reporter gates remain open.
 
 | Field | Value |
 |---|---|
 | Repository | `zarbjustin/homey-octopus-energy` |
-| Branch | `main`; implementation PR #46 and release PR #47 merged |
-| App version | `1.0.38` (release merge `6ff6c13`) |
-| Homey build | `38` Test; `36` remains Live |
-| GitHub release | [`v1.0.38`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.38) |
-| Publish workflow | `37378428284` succeeded, using exact release tag |
-| Local deployment | v1.0.38 running on Pro; 2 available meters; identities/settings/6 standard/5 Advanced Flows unchanged |
-| Last recorded release test baseline | 672 passing tests; build/lint/audit/publish validation and CodeQL green |
+| Branch | `main`; implementation PR #51 and release PR #52 merged |
+| App version | `1.0.39` (release merge `f48f2e1`) |
+| Homey build | `39` Test; `38` Live |
+| GitHub release | [`v1.0.39`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.39) |
+| Publish workflow | `37635125770` succeeded, using exact release tag |
+| Local deployment | v1.0.39 running on Pro; 2 available meters; identities/settings/6 standard/5 Advanced Flows unchanged |
+| Last recorded release test baseline | 678 passing tests; build/lint/audit/publish validation and CodeQL green |
 | Original formal backlog | Complete through `BL-31` |
 | Next phase | Charging/reliability field acceptance, then S77/S78; S76 gaps remain open |
-| Homey channel | Build 38 Test verified on 5 October 2026; no certification/Live submission |
+| Homey channel | Build 39 Test and Build 38 Live verified on 7 October; no certification/Live action by this task |
 
 ## Immediate Next Work
 
-7 October: the authorised S78 charging-guidance slice is implemented and locally
-validated in source: clearer Flow hints, a [Standard Flow guide](charging-flows.md)
+7 October: the authorised S78 charging-guidance slice is delivered on Pro and Test:
+clearer Flow hints, a [charging Flow guide](charging-flows.md)
 with separate configure/start/late-battery/stop paths, and synthetic regressions.
 678 tests pass; build, lint, production audit and publish validation pass. IDs,
 arguments, tokens and runtime behaviour are unchanged. Legacy price/cheapest
 triggers remain numeric-change-driven, explicitly documented rather than silently
 changed. See [S78 execution](handover/s78-charging-guidance.md).
-This is not full S78 closure: new Test delivery, real Homey UI and requester
-acceptance remain pending, as do broader health/onboarding work. No local install,
-Flow edit, battery command, version bump or App Store/public post was performed.
+This is not full S78 closure: real Homey UI and requester acceptance remain pending,
+as does broader health/onboarding work. No Flow edit, battery command, public post
+or certification/Live promotion was performed. Release/install evidence is in the
+S78 record, including the supported dashboard fallback after CLI connectivity failure.
+The configure action returns output tags and is Advanced-only: the corrected
+guide uses one Advanced setup and three Standard controls. A no-output Standard
+setup card remains proposed S78 work, not shipped functionality.
 
 S81–S83 charging software is delivered for testing on 5 October:
 14 additive cards, exact Homey-local deadlines, every qualifying slot, optional
@@ -70,7 +73,7 @@ Reporter, widget UI, IOG night and unsupported-tariff gates remain open.
 [`handover/sprints-73-76-execution.md`](handover/sprints-73-76-execution.md)
 records reliability delivery; S77–S80 remain separate proposed future work.
 
-Build 38 is Test, Build 36 Live (channel readback 5 October). Test URL:
+Build 39 is Test, Build 38 Live (channel readback 7 October). Test URL:
 <https://homey.app/a/uk.co.zarb.octopusenergy/test/>.
 The approved Test announcement was posted on 5 October in the
 [public support topic](https://community.homey.app/t/156860/36).
@@ -99,9 +102,13 @@ remains open. Only generic requirements are retained here, not private messages.
 
 ## Latest Delivered Sprint
 
+Version `1.0.39` delivers the S78 charging-guidance slice: hint-only presentation
+changes, Standard Flow recipes and six new regressions. Pro/Test delivery is
+verified; real UI/requester and broader S78 work remain open.
+
 Version `1.0.38` delivers S81–S83 charging software and the app-wide bug-bash
 fixes including BBA-10. See the charging execution record and current bug-bash
-report. Publication is Test only; physical/reporter acceptance remains open.
+report. Build 38 is now Live; physical/reporter acceptance remains open.
 
 Version `1.0.37` previously delivered reliability S73–S75: persisted history-safe lifecycle,
 cache-only widgets and bounded background recovery, and evidence-based dispatch
@@ -146,16 +153,16 @@ Key commits:
 
 ## Current Operational Status
 
-- Last runtime/install observations: 5 October. No new Homey reads or deployment
-  were performed for the 7 October documentation update.
-- Local Pro v1.0.38 normal install/readback verified; no clean install or re-pair.
-  Official CLI 4.5.2 uses isolated Node 24.21.0 tooling; app/project Node 22 unchanged.
-  A skip-build attempt failed with a missing widget asset; fresh build/install
-  succeeded. Never reuse a test-mutated `.homeybuild` as an install package.
-- The v1.0.38 publish workflow passed production audit, lint, tests, validation
-  and upload. GitHub annotated tag/release resolve to release merge `6ff6c13`.
-  Cached cost/billing and other source diagnostics show post-install success;
-  no coverage failures in this readback. This is not an overnight/account matrix test.
+- Last runtime/install/channel observations: 7 October. Local Pro v1.0.39
+  running/enabled/not crashed; both meters available, all four identity/settings/
+  standard/Advanced Flow fingerprints preserved. No clean install or re-pair.
+- Official CLI 4.5.2 local/forwarded discovery failed; its supported cloud strategy
+  rejected devkit upload with 400. Developer Tools Build 39 Install on the selected
+  Pro succeeded and was independently read back. App/project Node 22 unchanged.
+  Never reuse a test-mutated `.homeybuild` as an install package.
+- The v1.0.39 publish workflow passed audit, lint, 678 tests, validation and upload.
+  GitHub annotated tag/release resolve to `f48f2e1`. Build 39 Test, Build 38 Live;
+  Live was observed, not promoted here. This is not an overnight/account matrix test.
 - The previous v1.0.37 smoke registered all seven widgets. First successful session
   poll returned 71 expired rows with zero trigger attempts. No synthetic production
   event or manual Flow trigger was used.

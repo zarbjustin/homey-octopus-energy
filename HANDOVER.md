@@ -10,6 +10,27 @@ Last updated: 7 October 2026
 
 ## Current state
 
+- **7 October — v1.0.39 guidance update delivered for testing.** Implementation
+  PR [#51](https://github.com/zarbjustin/homey-octopus-energy/pull/51) merged as
+  `5527baa`; release PR [#52](https://github.com/zarbjustin/homey-octopus-energy/pull/52)
+  merged as `f48f2e1`. Version run `37634301291`, release run `37634645420` and
+  exact-tag publish run `37635125770` passed; annotated tag/GitHub release
+  `v1.0.39` resolve to the release merge. All required CI/CodeQL green; 678 tests.
+  Build 39 manually promoted to Test only. Fresh channel readback found Build 38
+  already Live; this task did not promote or submit any build for certification.
+  CLI local/forwarded install could not connect; the cloud devkit attempt returned
+  400. Supported Developer Tools Build 39 Install on the selected Pro succeeded.
+  Independent readback: v1.0.39 running/enabled/not crashed. 14:20 UTC smoke:
+  two available meters and unchanged identity/settings/six standard/five Advanced
+  Flow fingerprints. The known degraded dispatch account remains unchanged.
+  Scoped S78 hints/guide/regressions delivered, not full health/onboarding closure.
+  Post-delivery SDK check corrected the recipe: the configuration action's output
+  tags make it Advanced-only; the three control Flows can be Standard. An additive
+  no-output setup card remains S78 follow-up, not a change to the released contract.
+  No clean install, re-pair, live Flow edit/manual trigger, battery command or
+  support reply. UI/requester/overnight/physical gates and S76 coverage gaps remain.
+  See [S78 record](docs/handover/s78-charging-guidance.md).
+
 - **7 October — S78 charging guidance implemented in source.** Authorised scoped
   follow-up adds future-versus-current and trigger-versus-condition hints, a
   mobile-friendly configure/start/late-battery/stop guide and six new regressions.
