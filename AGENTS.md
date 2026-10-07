@@ -30,6 +30,9 @@ Read these files before planning or changing code:
   5 October, not as a verified 48-hour pass. Field gates remain open.
   Read `docs/handover/sprints-73-76-execution.md` for actual evidence and field gaps.
 - Last validated integration baseline: 672 passing tests; field gates remain open.
+- 7 October S78 charging-guidance source candidate: 678 tests; hint-only manifest
+  changes and Standard Flow recipes. No new Test build or install; broader S78
+  and real-UI/requester checks remain open. Read `docs/handover/s78-charging-guidance.md`.
 - S81–S83 charging software and app-wide reliability fixes delivered in v1.0.38
   Test: 14 additive cards, 80 existing Flow contracts preserved. BBA-10 reporting
   coverage blocker closed. Read the charging execution record; prior local-only

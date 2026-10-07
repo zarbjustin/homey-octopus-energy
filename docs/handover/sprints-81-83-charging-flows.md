@@ -103,6 +103,11 @@ requester acceptance remain open under S78. No example Flow was installed.
 
 ## Standard Flow Recipe: Every Cheap Slot
 
+For four separate mobile-friendly Flows, including a battery that becomes low
+after the selected period has begun, see [Charging with Standard Flows](../charging-flows.md).
+The guidance/hint update is source-only pending later delivery; it does not change
+the v1.0.38 planner contracts or install an example on a real Homey.
+
 1. On a chosen daily clock event, configure the selected meter: mode **all**,
    below **10p**, deadline **07:00**; duration **1**, fallback **off**, maximum
    **10** (the last three fields are ignored in all mode). A pending unknown

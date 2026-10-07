@@ -40,6 +40,17 @@ field/reporter gates remain open.
 
 ## Immediate Next Work
 
+7 October: the authorised S78 charging-guidance slice is implemented and locally
+validated in source: clearer Flow hints, a [Standard Flow guide](charging-flows.md)
+with separate configure/start/late-battery/stop paths, and synthetic regressions.
+678 tests pass; build, lint, production audit and publish validation pass. IDs,
+arguments, tokens and runtime behaviour are unchanged. Legacy price/cheapest
+triggers remain numeric-change-driven, explicitly documented rather than silently
+changed. See [S78 execution](handover/s78-charging-guidance.md).
+This is not full S78 closure: new Test delivery, real Homey UI and requester
+acceptance remain pending, as do broader health/onboarding work. No local install,
+Flow edit, battery command, version bump or App Store/public post was performed.
+
 S81–S83 charging software is delivered for testing on 5 October:
 14 additive cards, exact Homey-local deadlines, every qualifying slot, optional
 bounded-duration fallback, and a persisted one-plan-per-meter lifecycle with
@@ -74,8 +85,9 @@ price bounds, not colour identifiers, and belong to the Flow rather than a widge
 instance. See the charging record's price-band example. A current-price condition
 checks when the Flow runs; horizon availability and configured plans are separate
 cards. Guidance and an invitation for further feedback were sent; a question or
-intention to test is not field confirmation. S78 now carries the wording/example
-acceptance work. Only generic requirements are retained here, not private messages.
+intention to test is not field confirmation. The 7 October S78 source update adds
+future-versus-current and event-versus-condition guidance; UI/requester acceptance
+remains open. Only generic requirements are retained here, not private messages.
 
 ## Recommended Reading Order
 

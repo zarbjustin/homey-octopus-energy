@@ -156,6 +156,139 @@ test('threshold candidates follow adjacent slot edges, persist attempts, and see
   device.thresholdEdgeBaseline = null;
   await device.onPriceUpdated(10, rate(3));
   assert.equal(fired.filter((id) => id.startsWith('threshold_slot')).length, 2);
+  assert.equal(fired.filter((id) => id === 'price_changed').length, 0);
+  assert.equal(fired.filter((id) => id === 'cheapest_slot_started').length, 0);
+  await device.onPriceUpdated(11, rate(4));
+  assert.equal(fired.filter((id) => id === 'price_changed').length, 1);
+  assert.equal(fired.filter((id) => id === 'cheapest_slot_started').length, 1);
+});
+
+test('future cheap availability does not grant current eligibility or emit an early plan start', async () => {
+  const originalNow = Date.now;
+  const start = Date.parse('2026-11-02T00:00:00Z');
+  let at = start;
+  Date.now = () => at;
+  try {
+    const device = Object.create(OctopusMeterDevice.prototype);
+    const store = new Map();
+    const events = [];
+    const timers = new Map();
+    let timerId = 0;
+    device.vatInc = () => true;
+    device.getSetting = () => 60;
+    device.getDataFreshness = () => ({ problem: false, sources: { prices: { state: 'current', updatedAt: new Date(start).toISOString() } } });
+    device.rates = [29, 18, 18, 29].map((value, i) => ({
+      valid_from: new Date(start + i * 1800000).toISOString(),
+      valid_to: new Date(start + (i + 1) * 1800000).toISOString(),
+      value_inc_vat: value,
+    }));
+    device.getStoreValue = (key) => store.get(key);
+    device.setStoreValue = async (key, value) => store.set(key, value);
+    device.error = () => {};
+    device.refresh = () => {
+      throw new Error('Provider refresh forbidden');
+    };
+    device.client = new Proxy({}, {
+      get() {
+        throw new Error('Network forbidden');
+      },
+    });
+    device.homey = {
+      clock: { getTimezone: () => 'Europe/London' },
+      setTimeout: (fn, ms) => {
+        timerId += 1; timers.set(timerId, { fn, ms }); return timerId;
+      },
+      clearTimeout: (id) => timers.delete(id),
+      flow: { getDeviceTriggerCard: (id) => ({ trigger: async () => events.push(id) }) },
+    };
+    assert.equal(device.getThresholdSlotsBefore(20, '02:00').status, 'some');
+    assert.equal(device.isInThresholdSlot(20, 1), false);
+    await device.configureChargingPlan('all', 20, '02:00', 1, 'off', 20);
+    assert.equal(device.getChargingPlanEligibility(), false);
+    assert.deepEqual(events, []);
+    assert.equal([...timers.values()][0].ms, 1800000);
+    const tick = async (time) => {
+      at = time;
+      [...timers.values()][0].fn();
+      await device.chargingController.queue;
+    };
+    await tick(start + 1800000);
+    assert.equal(device.getChargingPlanEligibility(), true);
+    assert.deepEqual(events, ['charging_plan_run_started']);
+    await tick(start + 3600000);
+    assert.equal(device.getChargingPlanEligibility(), true);
+    assert.deepEqual(events, ['charging_plan_run_started']); // Equal-priced adjacency stays active.
+    await tick(start + 5400000);
+    assert.equal(device.getChargingPlanEligibility(), false);
+    assert.deepEqual(events, ['charging_plan_run_started', 'charging_plan_run_ended']);
+    await device.onUninit();
+    assert.equal(timers.size, 0);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('a late battery event can check current plan eligibility without replaying the plan start', async () => {
+  const { reconcileChargingPlan } = require('../lib/planning/chargingPlan');
+  const originalNow = Date.now;
+  const start = Date.parse('2026-11-02T00:00:00Z');
+  let at = start;
+  Date.now = () => at;
+  try {
+    const listeners = new Map();
+    const driver = Object.create(Driver.prototype);
+    const card = (id) => ({
+      registerRunListener(fn) {
+        listeners.set(id, fn); return this;
+      },
+    });
+    driver.homey = { flow: { getDeviceTriggerCard: card, getConditionCard: card, getActionCard: card } };
+    driver.log = () => {};
+    await driver.onInit();
+    const device = Object.create(OctopusMeterDevice.prototype);
+    device.rates = [18, 18, 29, 29].map((value, i) => ({
+      valid_from: new Date(start + i * 1800000).toISOString(),
+      valid_to: new Date(start + (i + 1) * 1800000).toISOString(),
+      value_inc_vat: value,
+    }));
+    device.vatInc = () => true;
+    device.getSetting = () => 60;
+    let source = 'current';
+    device.getDataFreshness = () => ({ problem: false, sources: { prices: { state: source, updatedAt: new Date(start).toISOString() } } });
+    const policy = {
+      mode: 'all', price: 20, deadline: start + 7200000, duration: 0, fallback: false, maximum: 20,
+    };
+    const initial = reconcileChargingPlan(null, policy, device.rates, { current: true, until: start + 9000000 }, start);
+    device.getStoreValue = () => initial.state;
+    device.setStoreValue = () => {
+      throw new Error('Condition must not write or emit');
+    };
+    device.refresh = () => {
+      throw new Error('Condition must not refresh');
+    };
+    assert.deepEqual(initial.edges, ['started']);
+    let batteryLow = false;
+    let simulatedStarts = 0;
+    const evaluateStart = async () => {
+      if (batteryLow && await listeners.get('charging_plan_active')({ device })) simulatedStarts += 1;
+    };
+    await evaluateStart();
+    assert.equal(simulatedStarts, 0); // Battery was not low at the period start.
+    at += 600000;
+    batteryLow = true;
+    await evaluateStart(); // A separate battery-low trigger runs the same current condition.
+    assert.equal(simulatedStarts, 1);
+    const later = reconcileChargingPlan(initial.state, policy, device.rates, { current: true, until: start + 9000000 }, at);
+    assert.deepEqual(later.edges, []); // No second plan-start event is required.
+    at = start + 3600000;
+    await evaluateStart();
+    assert.equal(simulatedStarts, 1); // A later battery event outside selected time cannot start.
+    source = 'stale';
+    await assert.rejects(evaluateStart(), /unavailable|stale/);
+    assert.equal(simulatedStarts, 1);
+  } finally {
+    Date.now = originalNow;
+  }
 });
 
 test('run listeners suppress adjacent qualifying slots and detect expensive gaps', async () => {
