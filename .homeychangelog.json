@@ -115,5 +115,8 @@
   },
   "1.0.38": {
     "en": "Adds configurable charging Flow plans with price thresholds, exact local deadlines, optional bounded fallback and separate slot start/end events. Improves API timeout and rate-limit handling, carbon and balance validation, and ambiguous tariff handling. Missing cost prices or standing charges no longer understate totals; existing Flow contracts are preserved."
+  },
+  "1.0.39": {
+    "en": "Clarifies charging Flow conditions and start/stop guidance, including batteries becoming low during a selected period. Existing charging behaviour and Flow contracts are unchanged."
   }
 }
