@@ -6,7 +6,7 @@
         "en": "Configured charging plan run started"
       },
       "hint": {
-        "en": "Eligibility only, not a charging command. Verify battery consent and limits."
+        "en": "Runs when a selected period begins, not when future cheap slots are merely found. Check that the plan is active and the battery needs charge. For a battery that becomes low during an active period, use its own trigger with the plan-active condition too. No charging command."
       },
       "tokens": [
         {
@@ -36,7 +36,7 @@
         "en": "Configured charging plan run ended"
       },
       "hint": {
-        "en": "Includes gaps, deadline, replans, cancellation and unavailable/stale data. Use an independent battery stop guard."
+        "en": "Connect a separate stop Flow without a price or battery-low condition. Includes gaps, deadline, replans, cancellation and unavailable/stale data. Events are attempted once, not guaranteed delivered; keep an independent battery-native stop limit."
       },
       "tokens": [
         {
@@ -234,7 +234,7 @@
         "en": "The unit rate changed"
       },
       "hint": {
-        "en": "Triggers each half hour when the electricity unit rate changes."
+        "en": "Runs on an observed numeric price change after the first reading. Equal-priced adjacent half-hours do not trigger it. It is not a 30-minute clock or an API refresh; use configured-plan start/end events for selected charging periods."
       },
       "tokens": [
         {
@@ -264,7 +264,7 @@
         "en": "The unit rate drops below [[price]] p/kWh"
       },
       "hint": {
-        "en": "Triggers when a new half-hourly unit rate is below your threshold."
+        "en": "Runs when an observed price crosses from at/above the limit to strictly below it. Remaining below the limit does not repeat the trigger. For selected charging periods and stop events, use a configured charging plan."
       },
       "args": [
         {
@@ -351,7 +351,7 @@
         "en": "Now is the cheapest half-hour in the next [[hours]] h"
       },
       "hint": {
-        "en": "Triggers when the current half-hour is the cheapest within the look-ahead window."
+        "en": "Checks the cheapest remaining published half-hour in the look-ahead window on an observed numeric price change. Equal-priced adjacent slots do not retrigger it. Not every slot below a cap or a whole-calendar-day plan; use configured-plan events for charging start and stop."
       },
       "args": [
         {
@@ -531,7 +531,7 @@
         "en": "There are !{{|no }}slots below [[price]] p/kWh before [[by]]"
       },
       "hint": {
-        "en": "Complete fresh horizon required. Unknown raises an error even when inverted. Next real HH:MM in Homey's timezone; no fixed publication assumption."
+        "en": "Checks whether qualifying slots exist between now and the deadline, not whether one is active now. Do not use this alone to start charging. Use the plan-active or qualifying-slot-now condition for that. Complete fresh prices required; unknown raises an error even when inverted. Deadline is the next real HH:MM in Homey's timezone."
       },
       "args": [
         {
@@ -562,7 +562,7 @@
         "en": "Configured charging plan is !{{active|inactive}}"
       },
       "hint": {
-        "en": "Checks the one persisted plan on this selected meter. Unknown/missing plan raises an error, never inverted permission. Eligibility is not measured charging."
+        "en": "True only while a selected period in this meter's configured plan is active now, not just because cheap slots exist later. Evaluate with a plan-start or battery-change trigger. Conditions do not wait or run on their own. Unknown/missing plan raises an error, including inversion. Not measured charging."
       }
     },
     {
@@ -574,7 +574,7 @@
         "en": "There are !{{|no }}slots below [[price]] p/kWh in the next [[within]] hours"
       },
       "hint": {
-        "en": "Requires complete fresh prices for the whole horizon. Missing data raises an error, including when inverted. VAT follows the meter setting."
+        "en": "Checks whether any qualifying slots exist in the future horizon, not whether the current slot qualifies. Do not use this alone to start charging; use the qualifying-slot-now or configured-plan-active condition. Complete fresh prices required; missing data raises an error, including inversion. VAT follows the meter setting."
       },
       "args": [
         {
@@ -608,7 +608,7 @@
         "en": "A slot below [[price]] p/kWh is !{{active|inactive}} now within a [[within]] hour horizon"
       },
       "hint": {
-        "en": "Every qualifying slot, including separated slots. Missing/stale/partial prices raise an error. Not measured battery charging."
+        "en": "Checks the current slot when this Flow runs; it does not wait for a future slot or trigger the Flow. Every slot strictly below the cap qualifies, including separated slots. Missing/stale/partial prices raise an error. Use configured-plan events for timed start/stop. Not measured charging."
       },
       "args": [
         {
@@ -642,7 +642,7 @@
         "en": "Price is !{{|not }}[[band]] (upper bounds [[green]], [[yellow]], [[orange]] p/kWh)"
       },
       "hint": {
-        "en": "Explicit price bands, not carbon bands or widget settings. Upper bounds are inclusive; negative prices are separate. Invalid or stale data raises an error."
+        "en": "Checks the current price when this Flow runs, not future slots. Enter three increasing p/kWh upper bounds directly, or use Number tags; these are not colour IDs or inherited widget settings. Upper bounds are inclusive; negative prices are separate. Invalid or stale data raises an error. A condition is not a trigger."
       },
       "args": [
         {
@@ -744,6 +744,9 @@
       },
       "titleFormatted": {
         "en": "Now !{{is|is not}} the cheapest half-hour in the next [[hours]] h"
+      },
+      "hint": {
+        "en": "Compares now with remaining published slots in a rolling look-ahead window, including equal cheapest prices. Not the cheapest slot of the whole calendar day or every slot below a cap. Checks only when the Flow runs; does not schedule charging or refresh prices."
       },
       "args": [
         {
@@ -1312,7 +1315,7 @@
         "en": "Plan [[mode]] slots below [[price]] p/kWh before [[by]], duration [[duration]] h, fallback [[fallback]] up to [[maximum]] p/kWh"
       },
       "hint": {
-        "en": "One persisted plan per meter, replacing its prior plan. 'all' ignores duration/fallback. 'duration' prefers cheap slots, optional bounded supplement. Replans preserve elapsed eligible duration, not measured charging. No battery commands or outbound requests."
+        "en": "Configure once for a deadline; this selects slots, not a battery command. Connect separate plan-start and plan-end Flows. One persisted plan per meter; a different policy replaces it. 'all' ignores duration/fallback; 'duration' prefers cheap slots with optional bounded supplement. Local timers use cached prices, no API refresh Flow needed. Unknown prices wait without charging eligibility."
       },
       "args": [
         {

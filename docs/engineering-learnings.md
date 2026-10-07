@@ -63,6 +63,16 @@ This document captures durable constraints, root causes, and workflow gotchas th
   inherit a widget instance's settings. Bands include their upper boundary, while
   “below X” charging eligibility is strict. Explain current checks, horizon
   availability and configured-plan lifecycle separately.
+- A future-availability condition in an OR branch can allow a start during an
+  expensive current slot. Use current plan eligibility at start; future existence
+  is a planning question. Neither a condition nor Else continuously watches state.
+- A battery-low event and a selected-period start are independent edges. Recipes
+  need both guarded start paths to cover either order; two simultaneous Flows can
+  still duplicate battery commands, so use idempotent actions or a user-owned guard.
+  Stop runs must not depend on the battery remaining low or the price being cheap.
+- Legacy price-change/cheapest-start triggers only run after an observed numeric
+  change, not every equal-price boundary. Keep their contracts explicit; configured
+  plan boundary/expiry timers are cache-only and do not require provider refreshes.
 
 | Learning | Required behavior | Evidence |
 |---|---|---|

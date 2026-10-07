@@ -10,6 +10,19 @@ Last updated: 7 October 2026
 
 ## Current state
 
+- **7 October — S78 charging guidance implemented in source.** Authorised scoped
+  follow-up adds future-versus-current and trigger-versus-condition hints, a
+  mobile-friendly configure/start/late-battery/stop guide and six new regressions.
+  All 678 tests, Homey build, lint, production audit and publish validation pass
+  (only the two expected cumulative-direction warnings). Electricity card
+  contracts match v1.0.38 after excluding hints; generated manifest matches Compose.
+  No runtime code, legacy trigger semantics, IDs/arguments/tokens, widget, polling,
+  version or dependency change. Legacy equal-price suppression is characterised
+  and documented, not silently changed. Broader S78 health/onboarding and real
+  UI/requester acceptance remain open. No Homey install/Flow change/battery action,
+  App Store upload/promotion or support reply was performed. See
+  [execution record](docs/handover/s78-charging-guidance.md).
+
 - **7 October — documentation and project-memory sync.** Local `main` matched
   GitHub at `273e59a` before this update. Current takeover, roadmap and engineering
   learnings now capture the 5–6 October support follow-up and remaining acceptance

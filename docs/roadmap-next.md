@@ -11,8 +11,9 @@ BBA-10 legacy reporting coverage is fixed and regression-tested. Local Pro
 upgrade preserves device/settings/Flow fingerprints. Build 38 Test and Build 36
 Live verified on 5 October; no certification/Live submission.
 Reporter confirmation remains unavailable; malformed
-IOG handling needs an affected-account retest. S78 source-status/Flow guidance
-and S77 API contract fixtures remain priorities, not completed roadmap work.
+IOG handling needs an affected-account retest. S78 Flow guidance is implemented
+in source on 7 October; delivery/UI/requester acceptance and broader source-status
+work remain open. S77 API contract fixtures remain proposed.
 
 5 October: S81–S83 software delivered for testing, including exact local deadlines,
 all-slot selection, bounded duration/fallback, replanning and persisted per-run
@@ -43,7 +44,7 @@ evidence, dependencies and release gates are in
 | Reliability | S75 — Dispatch eligibility and graceful degradation | Unsupported accounts are distinguished from unknown/degraded state without false charging/cancellation signals | P2 / M | None; reuse S74 recovery conventions | Delivered for testing in v1.0.37 |
 | Release confidence | S76 — Field validation and support closure | A verified release candidate, migration/restart evidence, and an explicit record of remaining field gaps | P1 / M | S73–S75 | Monitoring ended early; field gates pending |
 | Maintainability | S77 — Release and maintenance hygiene | SHA-pinned workflow upkeep, runbook validation, translation inventory, and an explicit façade-cleanup decision | P2 / S–M | S76; urgent security fixes may pre-empt | Proposed |
-| Supportability | S78 — Health, onboarding and trust | Existing settings/widgets explain freshness, eligibility, failure and next steps using cached diagnostics | P2 / M | S74–S76 | Proposed |
+| Supportability | S78 — Health, onboarding and trust | Existing settings/widgets explain freshness, eligibility, failure and next steps using cached diagnostics | P2 / M | S74–S76 | Charging guidance implemented in source; delivery/field and broader health work pending |
 | Product growth | S79 — Paired import/export opportunities | A complete-horizon solar/battery recommendation with eligibility and estimate labels | P2 / L | S76, scoped feasibility review | Proposed |
 | Product growth | S80 — Run-now-or-wait advice | Plain-language cost/carbon trade-offs using the existing planners | P3 / M | S76; S78 presentation conventions | Proposed |
 | Charging Flows | S81 — Price-band and horizon availability conditions | Configurable price-band checks and explicit-horizon threshold availability, with unknown separate from none | P2 / M | S76; S78 naming conventions | Delivered in v1.0.38 Test; field pending |
@@ -124,9 +125,12 @@ part of this roadmap. Price-band “green” is a price range, not a carbon clai
 
 ### S78 Follow-up: Flow Inputs and Examples
 
-5–6 October support questions added a guidance requirement, not a demonstrated
-calculation bug. The charging record now explains the existing contract; changes
-to card hints/onboarding remain proposed S78 implementation work.
+5–7 October support questions added guidance requirements, not a demonstrated
+calculation bug. The authorised charging-guidance slice now includes source hint
+updates, a [Standard Flow guide](charging-flows.md) and future/current, boundary
+and late-battery regressions. All 678 tests and local build/lint/audit/publish
+validation pass. [Execution and remaining checks](handover/s78-charging-guidance.md).
+This is not a new Test release or full S78 completion.
 
 - Explain direct numeric p/kWh limits first, with Number-variable tags optional.
   Colour names are labels, not numeric IDs. Flow inputs do not inherit an arbitrary
@@ -135,6 +139,11 @@ to card hints/onboarding remain proposed S78 implementation work.
   and the separate negative band. Include a worked 1p/10p/20p example.
 - Distinguish a current-price condition from future-horizon availability and a
   configured plan. A condition is evaluated when its Flow runs, not a new trigger.
+- Provide separate configure, period-start, late battery-low and unconditional
+  period-stop Standard Flows. Future-slot existence cannot shortcut start logic;
+  battery threshold-crossing is not continuous monitoring. Keep native stop limits.
+- Document and test unchanged legacy numeric-change triggers on equal-priced
+  boundaries; do not use them as a guaranteed half-hourly watchdog or add polling.
 - Distinguish inclusive band boundaries from charging slots strictly below a cap;
   missing/stale prices remain unavailable, including inverted conditions.
 - Check wording, direct values and compatible Number tags in the real Homey UI,

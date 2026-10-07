@@ -28,6 +28,15 @@
 
 Public tariff prices need no auth; consumption and balance use your API key.
 
+## Charging Flows
+
+“There are cheap slots before a deadline” checks future availability. It does
+not mean “charge now”. Use configured-plan start/end events and current plan
+eligibility for timed charging, with separate battery limits and a stop Flow.
+See the [mobile-friendly Standard Flow guide](docs/charging-flows.md) for the
+configure/start/stop recipes, late battery changes, missing prices and the
+difference between a price cap and the cheapest remaining slot.
+
 ## Development
 
 ```bash
@@ -52,15 +61,20 @@ npx homey app install # install on the configured local Homey Pro
 
 ## Current release
 
-Source version `1.0.37`, available in the [Test channel](https://homey.app/a/uk.co.zarb.octopusenergy/test/)
-(Build 37; Build 36 remains Live). Homey App Store builds are uploaded by the publish
+Source version `1.0.38`. The [Test channel](https://homey.app/a/uk.co.zarb.octopusenergy/test/)
+was verified as Build 38 on 5 October 2026; Build 36 remained Live at that readback.
+Later source guidance changes are not yet a new Test build. Homey App Store builds are uploaded by the publish
 workflow; promotion to Test/Live is a manual dashboard step. The committed
 multi-model roadmap and its optional BL-25/26/27/31 follow-ons are complete.
 Highlights across the recent releases:
 
+- **v1.0.38** — additive charging-plan, price-band and slot-availability cards,
+  plus app-wide timeout, missing-data and cost-coverage fixes. Field acceptance
+  remains separate from software/Test delivery.
 - **v1.0.37** — history-safe session announcements, cache-only widget reads,
   bounded background recovery, and evidence-based dispatch eligibility with
-  fail-closed stale plans. S76 field soak and reporter confirmation remain open.
+  fail-closed stale plans. S76 monitoring ended early, not as a verified 48-hour
+  pass; reporter and other field gates remain open.
 - **v1.0.36** — configurable five-band price colours in Agile Prices and Price
   Timeline, with standard, colour-blind-friendly and high-contrast palettes,
   accessible price-band labels, and an Agile classic-mode fallback.
