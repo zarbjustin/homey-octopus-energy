@@ -108,6 +108,10 @@ This document captures durable constraints, root causes, and workflow gotchas th
 
 ## Testing Patterns
 
+- Action output tokens make a card Advanced-only in Homey, even without an
+  explicit `advanced` flag. Check manifest tokens before promising Standard Flow
+  setup; retain existing outputs and use a separately scoped additive no-output
+  action if Standard-only configuration is required.
 - Pure calculations belong under `lib/` and use deterministic unit tests.
 - Device adapter tests can use `Object.create(OctopusMeterDevice.prototype)` with explicit stubs.
 - Flow contract tests verify every manifest card has a runtime reference.
@@ -132,6 +136,7 @@ This document captures durable constraints, root causes, and workflow gotchas th
 | A historical `gh` command-line pull-request merge did not trigger the push-based release workflow. | Always verify the tag and GitHub release after a PR merge; create them manually if absent. |
 | Sprint completion has three delivery targets. | Install locally, commit and push GitHub, then publish the Homey App Store build. |
 | A documentation sync is not app delivery. | Keep release SHA/channel/runtime observations dated; do not reinstall, republish or claim field acceptance merely to refresh a handover. |
+| Cloud read access does not prove the CLI devkit upload route works. | If direct discovery fails and cloud devkit upload returns 400, use the supported Developer Tools build-install route on the explicitly selected Pro. Verify the installed version and identity/settings/Flow fingerprints independently; never use a clean install or restart as an unapproved connectivity workaround. |
 
 ## Security and Privacy
 

@@ -46,6 +46,9 @@ test('current checks and legacy trigger hints do not promise periodic polling or
 
 test('the Standard Flow guide includes late battery events, separate stops and explicit field limits', () => {
   const guide = fs.readFileSync(path.join(root, 'docs/charging-flows.md'), 'utf8');
+  assert.ok(card('actions', 'configure_charging_plan').tokens.length > 0);
+  assert.match(guide, /only in Advanced Flow/);
+  assert.match(guide, /fully Standard-only setup would need a new no-output/);
   assert.match(guide, /Start if the battery becomes low during an active period/);
   assert.match(guide, /Stop when the selected period ends/);
   assert.match(guide, /Do not put a price, plan-active or battery-low condition before stop/);

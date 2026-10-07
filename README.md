@@ -33,7 +33,7 @@ Public tariff prices need no auth; consumption and balance use your API key.
 “There are cheap slots before a deadline” checks future availability. It does
 not mean “charge now”. Use configured-plan start/end events and current plan
 eligibility for timed charging, with separate battery limits and a stop Flow.
-See the [mobile-friendly Standard Flow guide](docs/charging-flows.md) for the
+See the [charging Flow guide](docs/charging-flows.md) for the
 configure/start/stop recipes, late battery changes, missing prices and the
 difference between a price cap and the cheapest remaining slot.
 
@@ -61,13 +61,17 @@ npx homey app install # install on the configured local Homey Pro
 
 ## Current release
 
-Source version `1.0.38`. The [Test channel](https://homey.app/a/uk.co.zarb.octopusenergy/test/)
-was verified as Build 38 on 5 October 2026; Build 36 remained Live at that readback.
-Later source guidance changes are not yet a new Test build. Homey App Store builds are uploaded by the publish
+Source version `1.0.39`. The [Test channel](https://homey.app/a/uk.co.zarb.octopusenergy/test/)
+is Build 39; Build 38 / v1.0.38 is Live (verified 7 October 2026).
+Homey App Store builds are uploaded by the publish
 workflow; promotion to Test/Live is a manual dashboard step. The committed
 multi-model roadmap and its optional BL-25/26/27/31 follow-ons are complete.
 Highlights across the recent releases:
 
+- **v1.0.39** — clearer charging Flow hints and Standard Flow guidance for
+  future versus current eligibility, late battery-low events and separate stops.
+  The existing plan-configuration action requires Advanced Flow; controls can be Standard.
+  Existing runtime behaviour and Flow contracts are unchanged; field checks remain open.
 - **v1.0.38** — additive charging-plan, price-band and slot-availability cards,
   plus app-wide timeout, missing-data and cost-coverage fixes. Field acceptance
   remains separate from software/Test delivery.
