@@ -16,8 +16,8 @@ production Flow edit, forced refresh or battery command is authorised here.
 - Keep the existing unused-catch policy, permit Homey's TypeScript/CommonJS entry
   points explicitly and preserve the asynchronous onDeleted hook with a narrowly
   explained SDK-type exception. Promise executor formatting does not change timers.
-  CI now audits development tooling separately; existing production release gates
-  and immutable action pins remain unchanged. Legacy ESLint/glob deprecation
+  CI now audits development tooling separately; production release gates remain.
+  Checkout/setup-node action pins remain unchanged. Legacy ESLint/glob deprecation
   warnings are not a claim that their whole ecosystem is modernised.
 - Summary values have independent source badges: balance → balance, usage/cost
   (24h) → meter_data, month → monthly_cost, points → points. Never inherit the
@@ -46,7 +46,7 @@ production Flow edit, forced refresh or battery command is authorised here.
 
 ## Evidence
 
-- 741 tests pass, zero failures/skips. Covers privacy allowlists, invalid/future
+- 742 tests pass, zero failures/skips. Covers privacy allowlists, invalid/future
   timestamps, null/zero semantics, bounded sampling, authenticated manifest route,
   failure isolation, user initiation/retry/clear and repeated real cached getters
   across cold/current/stale/failure paths with no provider calls or writes.
@@ -81,5 +81,16 @@ count or physical response gates from these checks. Existing workflows assign th
 release version. No certification, Live or community posting follows automatically.
 
 ## Delivery Record
+
+PR #54 initially passed lint/build/tests/audits but Athom's Docker wrappers failed
+before validation with repeated Docker Hub HTTP 429 responses. A separate deliberate
+maintenance commit replaces those three wrappers with their equivalent official
+Homey CLI 4.3.1 commands on Node 22: publish-level validate, version/changelog,
+and headless publish using the existing step-scoped secret. No secret is extracted
+or logged, no check is skipped, and release PR/check/tag gates remain. The CLI pin
+matches the locally validated tool; it is not a claim that all CLI transitive
+dependencies are lockfile-pinned or covered by the app's development audit.
+CodeQL's two case-sensitive HTML assertions were strengthened with mixed-case
+fixtures and case-insensitive checks; runtime escaping was unchanged.
 
 Pending review/CI, release workflow and independently verified Pro/Test readback.

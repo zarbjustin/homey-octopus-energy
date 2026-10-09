@@ -15,7 +15,7 @@ Last updated: 9 October 2026
   js-yaml/brace-expansion patched, full and production audits clear. Summary
   displays per-value source ages without whole-device fallback; Settings provides
   an opt-in, allowlisted, protected cache-only support preview/download. No IDs,
-  credentials, raw logs/settings or automatic upload. 741 tests pass, lint/build/
+  credentials, raw logs/settings or automatic upload. 742 tests pass, lint/build/
   validation pass; 94 released Flow contracts preserved. Source remains 1.0.39
   pending release workflow. GitHub review, Pro installation and Test delivery
   authorised; no Live, Flow edits or battery writes. See

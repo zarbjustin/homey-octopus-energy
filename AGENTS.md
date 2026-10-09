@@ -35,7 +35,7 @@ Read these files before planning or changing code:
   released Flow contracts preserved. Not yet committed, installed
   or released; v1.0.39 / Build 39 does not include these additions. Read
   `docs/handover/charging-summary-health-and-battery.md` before delivery work.
-- Combined maintenance/support candidate: 741 tests; per-value Summary badges,
+- Combined maintenance/support candidate: 742 tests; per-value Summary badges,
   protected cache-only support preview/download and full/production audits clear.
   Delivery is authorised but pending. Read
   `docs/handover/maintenance-freshness-support.md` for current acceptance gates.

@@ -18,6 +18,7 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm ci
-      - uses: athombv/github-action-homey-app-validate@0f3b42c15d26aab79d7c48cde4d2805524da910e
-        with:
-          level: publish
+      # The official Docker action wraps this same CLI command. Run it directly
+      # on Node 22 to avoid Docker Hub pull limits; keep the CLI version explicit.
+      - name: Validate Homey App
+        run: npm exec --yes --package=homey@4.3.1 -- homey app validate --level publish

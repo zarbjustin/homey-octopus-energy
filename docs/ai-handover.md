@@ -6,7 +6,7 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
-9 October maintenance/support extension: combined candidate now has 741 passing
+9 October maintenance/support extension: combined candidate now has 742 passing
 tests, independent Summary value badges and an explicit Settings support preview/
 download via a protected cache-only API. Toolchain migration removes the older
 unpatched dependency chain; full and production audits report zero findings. CI

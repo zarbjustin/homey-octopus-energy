@@ -6,7 +6,7 @@ Last updated: 9 October 2026
 
 9 October maintenance/support extension: dependency migration, full-audit CI gate,
 independent Summary metric badges and opt-in support preview/download implemented
-with 741 passing tests. Full and production audits clear. This is scoped S77/S78
+with 742 passing tests. Full and production audits clear. This is scoped S77/S78
 progress, not their full closure. Combined release/Pro/Test delivery is authorised
 and pending; actual runtime and physical gates stay open. See
 [execution and acceptance checklist](handover/maintenance-freshness-support.md).
