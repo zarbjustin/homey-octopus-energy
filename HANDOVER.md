@@ -1,6 +1,6 @@
 # Project Handover
 
-Last updated: 7 October 2026
+Last updated: 9 October 2026
 
 > **AI/LLM takeover:** start with [`docs/ai-handover.md`](docs/ai-handover.md), then read
 > [`AGENTS.md`](AGENTS.md), [`docs/roadmap-next.md`](docs/roadmap-next.md), and
@@ -9,6 +9,49 @@ Last updated: 7 October 2026
 > in the current takeover or roadmap documents.
 
 ## Current state
+
+- **9 October — maintenance, metric freshness and support export validated.**
+  Homey lint configuration 4.0.2 removes the older unpatched glob dependency chain;
+  js-yaml/brace-expansion patched, full and production audits clear. Summary
+  displays per-value source ages without whole-device fallback; Settings provides
+  an opt-in, allowlisted, protected cache-only support preview/download. No IDs,
+  credentials, raw logs/settings or automatic upload. 742 tests pass, lint/build/
+  validation pass; 94 released Flow contracts preserved. Source remains 1.0.39
+  pending release workflow. GitHub review, Pro installation and Test delivery
+  authorised; no Live, Flow edits or battery writes. See
+  [execution and acceptance record](docs/handover/maintenance-freshness-support.md).
+
+- **9 October — four recommended follow-ups implemented locally.** The existing
+  Summary widget now presents selected charging periods, deadline, caps and
+  planned budget; Summary/settings add independently aged source-health guidance.
+  An additive decision-change trigger persists a dedup marker in the existing
+  plan store, seeds older plans silently and never adds polling. An Advanced
+  explicit-input SOC/capacity/power/efficiency helper estimates duration, requires
+  a real fresh reading timestamp and rejects invalid/stale/over-24-hour inputs.
+  No automatic battery discovery, continuous SOC control, solar/export planning
+  or battery command. Combined candidate has six additive cards; all 94 released
+  Flow contracts remain unchanged. 726 tests, normal build, lint, production audit
+  and publish validation pass; synthetic mobile light/dark and keyboard/focus
+  checks pass. Source version stays 1.0.39; candidate not committed, installed or
+  published. Real Homey UI/event/physical and release gates remain separate. See
+  [execution and acceptance record](docs/handover/charging-summary-health-and-battery.md).
+
+- **9 October — charging capacity and status follow-up implemented locally.**
+  Four additive cards provide Standard-compatible plan setup, enough cheaper
+  time before a deadline, a plan-decision condition and Advanced status outputs.
+  They reuse the existing cache-only planner and controller; no new polling,
+  scheduler, persisted key or battery control. Partial current slots and separated
+  periods count as real remaining time; unknown coverage raises in conditions,
+  including inversion. Current preferred eligibility is distinguished from a
+  whole plan containing later fallback. All 703 tests, lint, production audit,
+  Homey build and publish validation pass; all 94 released Flow contracts and
+  other manifest fields are unchanged after removing the four additions.
+  Source version remains 1.0.39; these additions are **not in released Build 39**.
+  Local main and GitHub main matched `8e52c0a` before the work. No commit/push,
+  version bump, install, upload, promotion, live Flow edit, battery command or
+  community reply. Review/CI, Test delivery and notification-only field checks
+  remain next; automatic SOC/solar/export planning is not implemented. See
+  [execution record](docs/handover/charging-capacity-and-status.md).
 
 - **7 October — v1.0.39 guidance update delivered for testing.** Implementation
   PR [#51](https://github.com/zarbjustin/homey-octopus-energy/pull/51) merged as

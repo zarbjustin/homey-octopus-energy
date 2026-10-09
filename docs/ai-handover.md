@@ -6,12 +6,32 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
+9 October maintenance/support extension: combined candidate now has 742 passing
+tests, independent Summary value badges and an explicit Settings support preview/
+download via a protected cache-only API. Toolchain migration removes the older
+unpatched dependency chain; full and production audits report zero findings. CI
+now audits tooling separately. GitHub review, Pro install and Test delivery are
+authorised and pending; no Live/Flow/battery authority. See
+[current execution and acceptance record](handover/maintenance-freshness-support.md).
+
+Local source update: 9 October 2026. Six additive charging cards and cache-only
+Summary/settings improvements are implemented and validated with 726 tests.
+The initial four setup/capacity/status cards are extended by a deduplicated
+decision-change trigger and an explicit-input battery duration estimator with
+SOC timestamp/age validation. Summary shows selected periods, budgets and caps;
+health guidance separates independent source ages and unsupported/unknown dispatch.
+They reuse the existing planner/controller without new polling or battery control. All 94
+released Flow contracts remain unchanged. This is an **unreleased local candidate**;
+source version remains 1.0.39 and released Build 39 does not contain these cards.
+No commit/push, version bump, install or publication in this step. See
+[scope, evidence and pending gates](handover/charging-summary-health-and-battery.md).
+
 Release/install/channel readback: 7 October 2026. Scoped S78 charging guidance is
 delivered as v1.0.39 / Build 39 Test and installed on the local Pro. All 678 tests,
 build, lint, production audit, publish validation and release CI/CodeQL pass.
-Production audit reported zero vulnerabilities. GitHub still lists four development-scope
-alerts (two high `js-yaml`, two medium `brace-expansion`); track their remediation
-under S77 separately from the passing production audit.
+Production audit reported zero vulnerabilities. The four development-scope GitHub
+alerts observed on 7 October are historical; the 9 October candidate has a clear
+full npm audit. GitHub alert closure needs post-merge readback, not an inference.
 
 5 October app-wide bug bash: delivered transport, throttle, balance, carbon, billing,
 IOG ambiguity and gas fixes plus deadline optimisation; 672 tests after closing
@@ -39,6 +59,15 @@ did not promote it. v1.0.39 is Test only; field/reporter gates remain open.
 
 ## Immediate Next Work
 
+9 October: review the local charging-capacity/status candidate, then run GitHub
+checks and the normal release workflow only within separately confirmed delivery
+scope. Real Homey card selection and notification-only recipes remain untested;
+physical battery response needs separate authority and evidence. Do not announce
+the six cards or UI improvements as available on Test until readback proves delivery.
+Battery sizing is explicit-input estimation only; automatic integration, continuous
+SOC replanning, solar/export optimisation and a new widget are not implemented.
+Existing S76 and broader S77/S78 gates remain.
+
 7 October: the authorised S78 charging-guidance slice is delivered on Pro and Test:
 clearer Flow hints, a [charging Flow guide](charging-flows.md)
 with separate configure/start/late-battery/stop paths, and synthetic regressions.
@@ -50,9 +79,10 @@ This is not full S78 closure: real Homey UI and requester acceptance remain pend
 as does broader health/onboarding work. No Flow edit, battery command, public post
 or certification/Live promotion was performed. Release/install evidence is in the
 S78 record, including the supported dashboard fallback after CLI connectivity failure.
-The configure action returns output tags and is Advanced-only: the corrected
-guide uses one Advanced setup and three Standard controls. A no-output Standard
-setup card remains proposed S78 work, not shipped functionality.
+The released configure action returns output tags and is Advanced-only. The
+9 October candidate adds a separate no-output Standard setup action; the released
+configuration action and its four output tags are preserved. Standard-only setup
+is implemented locally but is not yet shipped functionality.
 
 S81–S83 charging software is delivered for testing on 5 October:
 14 additive cards, exact Homey-local deadlines, every qualifying slot, optional

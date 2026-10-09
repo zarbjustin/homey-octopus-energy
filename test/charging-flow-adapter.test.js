@@ -111,7 +111,7 @@ test('configured plans reconcile through selected-meter cache only, including ti
     assert.equal(b.getThresholdSlotsBefore(10, '02:00').status, 'none');
     await a.configureChargingPlan('duration', 10, '02:00', 0.25, 'off', 21);
     assert.equal(a.getChargingPlanEligibility(), true);
-    assert.deepEqual(a.events, ['charging_plan_run_started']);
+    assert.deepEqual(a.events, ['charging_plan_run_started', 'charging_plan_decision_changed']);
     assert.equal(a.timer.ms, 900000);
     const restarted = make(store, 5);
     await restarted.updateChargingPlanFromCache();
@@ -120,7 +120,7 @@ test('configured plans reconcile through selected-meter cache only, including ti
     restarted.timer.fn();
     await restarted.chargingController.queue;
     assert.equal(restarted.getChargingPlanEligibility(), false);
-    assert.deepEqual(restarted.events, ['charging_plan_run_ended']);
+    assert.deepEqual(restarted.events, ['charging_plan_run_ended', 'charging_plan_decision_changed']);
     assert.throws(() => b.getChargingPlanEligibility(), /No charging plan/);
     await restarted.onUninit();
     assert.equal(restarted.timer, null);
@@ -205,7 +205,7 @@ test('future cheap availability does not grant current eligibility or emit an ea
     assert.equal(device.isInThresholdSlot(20, 1), false);
     await device.configureChargingPlan('all', 20, '02:00', 1, 'off', 20);
     assert.equal(device.getChargingPlanEligibility(), false);
-    assert.deepEqual(events, []);
+    assert.deepEqual(events, ['charging_plan_decision_changed']); // Diagnostic only, not a start edge.
     assert.equal([...timers.values()][0].ms, 1800000);
     const tick = async (time) => {
       at = time;
@@ -214,13 +214,13 @@ test('future cheap availability does not grant current eligibility or emit an ea
     };
     await tick(start + 1800000);
     assert.equal(device.getChargingPlanEligibility(), true);
-    assert.deepEqual(events, ['charging_plan_run_started']);
+    assert.deepEqual(events, ['charging_plan_decision_changed', 'charging_plan_run_started', 'charging_plan_decision_changed']);
     await tick(start + 3600000);
     assert.equal(device.getChargingPlanEligibility(), true);
-    assert.deepEqual(events, ['charging_plan_run_started']); // Equal-priced adjacency stays active.
+    assert.deepEqual(events, ['charging_plan_decision_changed', 'charging_plan_run_started', 'charging_plan_decision_changed']); // Equal-priced adjacency stays active and quiet.
     await tick(start + 5400000);
     assert.equal(device.getChargingPlanEligibility(), false);
-    assert.deepEqual(events, ['charging_plan_run_started', 'charging_plan_run_ended']);
+    assert.deepEqual(events, ['charging_plan_decision_changed', 'charging_plan_run_started', 'charging_plan_decision_changed', 'charging_plan_run_ended', 'charging_plan_decision_changed']);
     await device.onUninit();
     assert.equal(timers.size, 0);
   } finally {

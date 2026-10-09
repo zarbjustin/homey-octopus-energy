@@ -1,8 +1,23 @@
 # Roadmap After v1.0.39 Test
 
-Last updated: 7 October 2026
+Last updated: 9 October 2026
 
 ## Current Status and Direction
+
+9 October maintenance/support extension: dependency migration, full-audit CI gate,
+independent Summary metric badges and opt-in support preview/download implemented
+with 742 passing tests. Full and production audits clear. This is scoped S77/S78
+progress, not their full closure. Combined release/Pro/Test delivery is authorised
+and pending; actual runtime and physical gates stay open. See
+[execution and acceptance checklist](handover/maintenance-freshness-support.md).
+
+9 October local follow-up: Standard-compatible setup, cheaper-time capacity,
+read-only plan/status, a deduplicated decision trigger, explicit-input battery
+duration estimation and Summary/settings health presentation are implemented.
+726 tests pass; all 94 released Flow contracts are preserved. This is an
+unreleased source candidate, not a new Test build or field pass. Review/CI and
+separately authorised delivery precede real-Homey notification-only checks.
+See [execution record](handover/charging-summary-health-and-battery.md).
 
 App-wide bug bash: confirmed bug families fixed plus deadline
 formatter optimisation; 672 tests, delivered as v1.0.38 / Build 38 Test. The
@@ -23,8 +38,10 @@ requests. Standard/Advanced Flow recipes and implementation evidence are in
 Source, local Pro and Test delivery are verified. Real UI/requester/physical
 acceptance remains open. No live Flow edits or battery writes.
 
-The user authorised completion of this charging software. S77–S80 remain separate
-future proposals; broader product growth is not silently included.
+The user authorised completion of the charging software and the four 9 October
+follow-ups (summary, decision events, battery-duration helper and cached health).
+This is scoped S78 supportability work, not full S77–S80 closure or broader
+product-growth delivery.
 
 S73–S75 were delivered as v1.0.37 and remain included in v1.0.39. Build 38
 is Live (channel readback 7 October; not promoted here). S76 monitoring ended early at user request with stable
@@ -68,6 +85,10 @@ two high for `js-yaml` and two medium for `brace-expansion`. The production audi
 reports zero vulnerabilities; that does not close the tooling alerts. Prioritise
 their investigation in S77 with separate dependency changes and full CI, rather
 than bundling lockfile fixes into this documentation sync.
+
+9 October: those observations are historical. The new toolchain/lockfile candidate
+reports zero findings in both audit scopes; verify GitHub alert closure after merge.
+Workflow action runtime maintenance and broader S77 tasks remain separate.
 
 ## Release Milestones
 
@@ -144,7 +165,8 @@ This is not full S78 completion; UI/requester and broader cached-health work rem
 - Provide separate configure, period-start, late battery-low and unconditional
   period-stop controls. Setup currently requires Advanced Flow because the action
   has output tags; start, late-battery and stop can be Standard. Track an additive
-  no-output setup card for Standard-only users; do not remove existing output tags.
+  no-output setup card for Standard-only users; this is implemented locally in the
+  9 October candidate, not yet released. Do not remove existing output tags.
   Future-slot existence cannot shortcut start logic;
   battery threshold-crossing is not continuous monitoring. Keep native stop limits.
 - Document and test unchanged legacy numeric-change triggers on equal-priced
@@ -158,6 +180,40 @@ This is not full S78 completion; UI/requester and broader cached-health work rem
 No new widget, polling cadence, automatic charging control or promised release
 date is implied by this support follow-up. UI, requester, overnight, unsupported-
 tariff and physical acceptance gates remain open.
+
+### Charging Capacity and Status Follow-up
+
+Implemented locally on 9 October, reusing S81–S83 rather than introducing a
+second charging scheduler:
+
+- A no-output Standard configuration action uses the same policy arguments and
+  single persisted controller as the existing Advanced action.
+- A condition checks whether enough time strictly below a chosen price exists
+  before the next local deadline. Partial current slots and separated periods
+  count; full fresh coverage is required even for a negative result.
+- A decision condition and Advanced diagnostic action explain current preferred
+  or fallback eligibility, waiting, insufficient capacity, completed duration
+  and expired deadlines. Missing data is explicit and cannot grant inverse permission.
+
+Next: source review/CI and Test delivery, then notification-only real Homey
+examples for a duration target, deadline, hard ceiling, early fallback and late
+price publication. Do not require a fixed provider publication time. Existing
+cached-rate updates already replan the fixed deadline and remaining time budget.
+Native battery SOC limits and independent stop controls remain necessary.
+
+9 October extension, implemented locally: the existing Summary widget shows plan
+periods, deadline, caps and remaining budget; Summary/settings show safe source-age
+and unsupported/degraded guidance. A semantic decision-change trigger is persisted
+before emission with legacy silent seeding and no polling. An Advanced helper
+converts explicit SOC/usable-capacity/AC-power/efficiency inputs into estimated
+duration and requires the actual recent SOC timestamp. At/above target is no need,
+not a zero-duration plan; impossible/stale inputs are rejected.
+
+Later, with a concrete integration and separately scoped design: automatic
+battery telemetry, continuously adapting SOC budgets, tapering/house loads,
+validated charge limits and observed response. Solar/export optimisation remains
+S79, not a completed part of this follow-up. Broader cached-health/onboarding and
+S77 maintenance remain separate from these local presentation improvements.
 
 ## Later or Conditional Ideas
 

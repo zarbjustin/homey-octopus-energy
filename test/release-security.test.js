@@ -21,6 +21,28 @@ test('GitHub Actions are pinned to immutable commit SHAs', () => {
   }
 });
 
+test('CI audits the full development toolchain separately from the production release gate', () => {
+  const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'ci.yml'), 'utf8');
+  assert.match(workflow, /run: npm audit --omit=dev/);
+  assert.match(workflow, /name: Audit development toolchain\s+run: npm audit\s/);
+});
+
+test('Homey release gates use the pinned official CLI without Docker Hub wrappers', () => {
+  for (const name of ['homey-app-validate.yml', 'homey-app-version.yml', 'homey-app-publish.yml']) {
+    const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', name), 'utf8');
+    assert.match(workflow, /npm exec --yes --package=homey@4\.3\.1 -- homey app validate --level publish/);
+    assert.doesNotMatch(workflow, /uses: athombv\/github-action-homey-app-/);
+    assert.match(workflow, /node-version: 22/);
+  }
+  const version = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'homey-app-version.yml'), 'utf8');
+  assert.match(version, /homey app version "\$VERSION_INCREMENT" --changelog "\$CHANGELOG"/);
+  const publish = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'homey-app-publish.yml'), 'utf8');
+  assert.match(publish, /homey app publish/);
+  assert.match(publish, /HOMEY_HEADLESS: '1'/);
+  assert.match(publish, /HOMEY_PAT: \$\{\{ secrets\.HOMEY_PAT \}\}/);
+  assert.doesNotMatch(publish, /echo.*HOMEY_PAT|console\.log.*HOMEY_PAT/);
+});
+
 test('version automation opens a validated release PR instead of pushing main', () => {
   const workflow = fs.readFileSync(
     path.join(__dirname, '..', '.github', 'workflows', 'homey-app-version.yml'),

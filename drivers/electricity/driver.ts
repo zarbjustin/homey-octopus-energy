@@ -4,8 +4,15 @@ import Homey from 'homey';
 import { OctopusMeterDriver } from '../../lib/OctopusMeterDriver';
 import { crossedBelow } from '../../lib/rates';
 import { slotSelection } from '../../lib/planning/priceAvailability';
+import { CHARGING_PLAN_DECISIONS } from '../../lib/planning/chargingPlan';
+import { estimateBatteryDuration } from '../../lib/planning/batteryDuration';
 
 interface ElectricityDevice extends Homey.Device {
+  hasEnoughThresholdTimeBefore(price: number, by: string, duration: number): boolean;
+  getChargingPlanStatus(): {
+    status: string; selection: string; active: boolean; decision: string;
+    explanation: string; estimate_label: string;
+  };
   getThresholdSlotsBefore(price: number, by: string): { status: string; slots: Array<{ start: number; end: number; price: number }> };
   configureChargingPlan(mode: string, price: number, by: string, duration: number, fallback: string, maximum: number): Promise<{
     status: string; selection: string; active: boolean; slots: unknown[];
@@ -121,10 +128,35 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
     // Conditions.
     flow.getDeviceTriggerCard('charging_plan_run_started').registerRunListener(async () => true);
     flow.getDeviceTriggerCard('charging_plan_run_ended').registerRunListener(async () => true);
+    flow.getDeviceTriggerCard('charging_plan_decision_changed').registerRunListener(async () => true);
     flow.getConditionCard('threshold_slots_before')
       .registerRunListener(async (args: Args<{ price: number; by: string }>) => args.device.getThresholdSlotsBefore(args.price, args.by).status === 'some');
     flow.getConditionCard('charging_plan_active')
       .registerRunListener(async (args: Args<unknown>) => args.device.getChargingPlanEligibility());
+    flow.getConditionCard('enough_threshold_time_before')
+      .registerRunListener(async (args: Args<{ price: number; by: string; duration: number }>) => (
+        args.device.hasEnoughThresholdTimeBefore(args.price, args.by, args.duration)
+      ));
+    flow.getConditionCard('charging_plan_decision_is')
+      .registerRunListener(async (args: Args<{ decision: string }>) => {
+        if (!CHARGING_PLAN_DECISIONS.includes(args.decision)) throw new Error('Choose a valid charging plan decision.');
+        const result = args.device.getChargingPlanStatus();
+        if (['waiting_for_prices', 'not_configured'].includes(result.decision)) {
+          throw new Error('Charging plan data is unavailable, stale, incomplete or not configured.');
+        }
+        return result.decision === args.decision;
+      });
+    flow.getActionCard('configure_charging_plan_standard')
+      .registerRunListener(async (args: Args<{ mode: string; price: number; by: string; duration: number; fallback: string; maximum: number }>) => {
+        await args.device.configureChargingPlan(args.mode, args.price, args.by, args.duration, args.fallback, args.maximum);
+      });
+    flow.getActionCard('get_charging_plan_status')
+      .registerRunListener(async (args: Args<unknown>) => args.device.getChargingPlanStatus());
+    flow.getActionCard('estimate_battery_duration')
+      .registerRunListener(async (args: Args<{
+        currentSoc: number; targetSoc: number; capacity: number; power: number;
+        efficiency: number; readAt: string; maxAgeMinutes: number;
+      }>) => estimateBatteryDuration(args));
     flow.getActionCard('configure_charging_plan')
       .registerRunListener(async (args: Args<{ mode: string; price: number; by: string; duration: number; fallback: string; maximum: number }>) => {
         const state = await args.device.configureChargingPlan(args.mode, args.price, args.by, args.duration, args.fallback, args.maximum);

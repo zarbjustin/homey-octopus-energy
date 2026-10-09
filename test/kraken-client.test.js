@@ -932,7 +932,9 @@ test('concurrent token consumers share a single obtainKrakenToken request (S51 s
     if (request.query.includes('obtainKrakenToken')) {
       tokenRequests += 1;
       // Defer so both callers are waiting on the same in-flight token.
-      await new Promise((r) => setTimeout(r, 5));
+      await new Promise((r) => {
+        setTimeout(r, 5);
+      });
       return jsonResponse({ data: { obtainKrakenToken: { token: 'jwt-token' } } });
     }
     return jsonResponse({ data: { account: { balance: 100 } } });

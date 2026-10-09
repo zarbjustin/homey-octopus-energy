@@ -31,6 +31,13 @@
     ]
   },
   "permissions": [],
+  "api": {
+    "getSupportSnapshot": {
+      "method": "GET",
+      "path": "/support/snapshot",
+      "public": false
+    }
+  },
   "images": {
     "small": "/assets/images/small.png",
     "large": "/assets/images/large.png",

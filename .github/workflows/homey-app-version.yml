@@ -29,18 +29,21 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Update Homey App Version
-        uses: athombv/github-action-homey-app-version@3342f092b437550e78074797b52fac6467a456e1
-        id: update_app_version
-        with:
-          version: ${{ inputs.version }}
-          changelog: ${{ inputs.changelog }}
-
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
 
-      # The Homey version action bumps app.json/.homeycompose but not package.json.
+      # Same command/output as Athom's Docker action, with an explicit CLI pin.
+      - name: Update Homey App Version
+        id: update_app_version
+        run: |
+          npm exec --yes --package=homey@4.3.1 -- homey app version "$VERSION_INCREMENT" --changelog "$CHANGELOG"
+          node -e 'console.log("version=" + require("./app.json").version)' >> "$GITHUB_OUTPUT"
+        env:
+          VERSION_INCREMENT: ${{ inputs.version }}
+          CHANGELOG: ${{ inputs.changelog }}
+
+      # The Homey version command bumps app.json/.homeycompose but not package.json.
       # Keep package.json (and its lockfile) in lockstep so the manifest-version
       # test passes and the GitHub release reads the same version.
       - name: Sync package.json version
@@ -61,9 +64,7 @@ jobs:
           git diff --check
 
       - name: Validate Homey App
-        uses: athombv/github-action-homey-app-validate@0f3b42c15d26aab79d7c48cde4d2805524da910e
-        with:
-          level: publish
+        run: npm exec --yes --package=homey@4.3.1 -- homey app validate --level publish
 
       - name: Commit release branch
         id: release_commit

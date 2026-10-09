@@ -1,10 +1,13 @@
 'use strict';
 
+const { summaryMetricFreshness } = require('../../lib/statusPresentation');
+
 module.exports = {
 
   async getData({ homey, query }) {
     const wanted = query && query.id;
     let device = null;
+    let selectedDriver = null;
     for (const driverId of ['electricity', 'gas', 'export']) {
       let driver;
       try {
@@ -14,10 +17,13 @@ module.exports = {
       }
       const devices = driver.getDevices();
       if (wanted) {
-        device = devices.find((d) => d.getData().id === wanted) || device;
+        const found = devices.find((d) => d.getData().id === wanted);
+        if (found) {
+          device = found; selectedDriver = driverId;
+        }
         if (device) break;
-      } else {
-        device = device || devices[0];
+      } else if (!device && devices[0]) {
+        device = devices[0]; selectedDriver = driverId;
       }
     }
     if (wanted && !device) return { error: 'The selected meter is no longer available.' };
@@ -39,9 +45,20 @@ module.exports = {
     } catch (e) {
       breakdown = null;
     }
+    const freshness = typeof device.getDataFreshness === 'function' ? device.getDataFreshness() : null;
+    const metrics = {
+      balance: cap('measure_octopus_balance'),
+      usage: cap('octopus_usage_today'),
+      cost: cap('octopus_cost_today'),
+      month: cap('octopus_cost_month'),
+      points: cap('octopus_points'),
+    };
     return {
       name: device.getName(),
-      freshness: typeof device.getDataFreshness === 'function' ? device.getDataFreshness() : null,
+      freshness,
+      metricFreshness: summaryMetricFreshness(freshness, metrics),
+      health: typeof device.getDataHealthView === 'function' ? device.getDataHealthView() : null,
+      chargingPlan: selectedDriver === 'electricity' && typeof device.getChargingPlanView === 'function' ? device.getChargingPlanView() : null,
       live: typeof device.getLiveDemandView === 'function' ? device.getLiveDemandView() : null,
       dispatch: typeof device.getDispatchView === 'function' ? device.getDispatchView() : null,
       // S44: opt-in estimated effective rate (confidence-tagged). Null unless IOG.
@@ -49,11 +66,7 @@ module.exports = {
       // BL-18b: settled 7-day usage history (backfills what Homey Insights can't).
       breakdown,
       presentation: typeof device.getPresentationFreshness === 'function' ? device.getPresentationFreshness() : null,
-      balance: cap('measure_octopus_balance'),
-      usage: cap('octopus_usage_today'),
-      cost: cap('octopus_cost_today'),
-      month: cap('octopus_cost_month'),
-      points: cap('octopus_points'),
+      ...metrics,
     };
   },
 
