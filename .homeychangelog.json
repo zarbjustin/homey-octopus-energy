@@ -118,5 +118,8 @@
   },
   "1.0.39": {
     "en": "Clarifies charging Flow conditions and start/stop guidance, including batteries becoming low during a selected period. Existing charging behaviour and Flow contracts are unchanged."
+  },
+  "1.0.40": {
+    "en": "Adds simpler Standard Flow charging setup, capacity checks, plan-status and decision-change cards, and an explicit timestamp-aware battery-duration helper. Improves Summary plan details, independent metric freshness and data-health guidance. Adds a user-initiated privacy-safe cached support snapshot. Updates lint tooling and release validation. Existing Flow contracts are preserved; battery control remains in user Flows."
   }
 }
