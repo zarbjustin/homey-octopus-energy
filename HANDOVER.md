@@ -10,6 +10,27 @@ Last updated: 9 October 2026
 
 ## Current state
 
+- **9 October — v1.0.40 / Build 40 delivered to Test and Pro.** Implementation
+  PR [#54](https://github.com/zarbjustin/homey-octopus-energy/pull/54) merged as
+  `1ae9f39`; release PR [#55](https://github.com/zarbjustin/homey-octopus-energy/pull/55)
+  merged as `08784e7`. Version run `37992003666`, annotated release run
+  `37992298423` and exact-tag publish run `37992347564` succeeded. Current-head
+  CI/CodeQL and 742 tests pass; full/production audits and GitHub Dependabot open
+  alert readback are clear. Repeated Docker Hub 429s were resolved in a separate
+  maintenance commit by using pinned official Homey CLI 4.3.1 equivalents, with
+  genuine publish validation and release gates retained. Build 40 was manually
+  promoted to Test, then installed using its supported Developer Tools Install
+  action on the selected Pro. At 21:18 UTC, v1.0.40 is enabled/not crashed,
+  both meters available, identity/settings/six Standard/five Advanced Flow
+  fingerprints unchanged. Protected cached support GET responds with schema 1,
+  correct version and two meters; the known degraded dispatch account persists.
+  `running`/`ready` flags are unavailable in CLI readback; the responding app API
+  supplies runtime evidence, not physical charging acceptance. Build 38 remains
+  Live; no certification/Live, Flow edits, forced refresh or battery command.
+  Earlier local-only entries below describe the implementation sequence, not
+  today's delivery status. See
+  [acceptance and delivery record](docs/handover/maintenance-freshness-support.md).
+
 - **9 October — maintenance, metric freshness and support export validated.**
   Homey lint configuration 4.0.2 removes the older unpatched glob dependency chain;
   js-yaml/brace-expansion patched, full and production audits clear. Summary

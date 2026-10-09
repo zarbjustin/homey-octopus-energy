@@ -1,9 +1,9 @@
 # Maintenance, Metric Freshness and Support Snapshot
 
 9 October 2026. This extends the [charging/UI candidate](charging-summary-health-and-battery.md).
-Local validation is complete. GitHub review, release preparation, Pro installation
-and Test delivery are authorised but not yet verified. Source version is 1.0.39;
-released Build 39 does not include this combined candidate. No Live promotion,
+Delivered as v1.0.40 / Build 40 Test and installed on the selected Pro. GitHub
+CI/CodeQL, release provenance and scoped upgrade/API checks pass. Earlier local
+candidate records describe intermediate states, not current availability. No Live promotion,
 production Flow edit, forced refresh or battery command is authorised here.
 
 ## Implementation
@@ -67,14 +67,14 @@ production Flow edit, forced refresh or battery command is authorised here.
 
 | Check | Method / expected result | Status |
 |---|---|---|
-| Release provenance | Reviewed merge, green CI/CodeQL, release version/tag/build agree | Pending |
-| Pro upgrade integrity | Normal install, running/enabled/not crashed, two available meters; identity/settings/Flow fingerprints unchanged | Pending |
-| Snapshot runtime | Protected GET and Settings preview on Pro; expected version; no identifiers/errors; null unknowns retained | Pending |
+| Release provenance | Reviewed merge, green CI/CodeQL, release version/tag/build agree | Verified v1.0.40 / Build 40 |
+| Pro upgrade integrity | Supported upgrade, responding app API, enabled/not crashed, two available meters; identity/settings/Flow fingerprints unchanged | Verified; CLI running/ready flags unavailable |
+| Snapshot runtime | Protected GET and Settings preview on Pro; expected version; no identifiers/errors; null unknowns retained | Protected GET verified; actual Settings preview/download still pending |
 | Widget runtime/mobile | Choose existing meters, independent badge ages, narrow layout, keyboard disclosure and retained focus | Pending |
 | Standard setup / Number tags | Inspect card selection and fractional duration tags using a separately approved notification-only test Flow | Pending; no production Flow edits |
 | Planning transitions | Actual unknown/recovery, fallback, deadline, cancellation and restart delivery | Pending; no forced provider outage/refresh/restart |
 | SOC freshness | Real reading timestamps reject stale/future input; never substitute Flow time | Pending; no battery command |
-| Test channel | Read back exact new version/build Test; Live remains unchanged | Pending |
+| Test channel | Read back exact new version/build Test; Live remains unchanged | Verified Build 40 Test; Build 38 Live unchanged |
 
 Do not close shortened-S76, requester, IOG-night, unsupported-tariff, exact request
 count or physical response gates from these checks. Existing workflows assign the
@@ -93,4 +93,36 @@ dependencies are lockfile-pinned or covered by the app's development audit.
 CodeQL's two case-sensitive HTML assertions were strengthened with mixed-case
 fixtures and case-insensitive checks; runtime escaping was unchanged.
 
-Pending review/CI, release workflow and independently verified Pro/Test readback.
+- Implementation PR #54 merged as `1ae9f39`, release PR #55 as `08784e7`.
+  Current-head CI runs `37991835991`/`37991841363`, validation runs
+  `37991835984`/`37991841354` and CodeQL `37991837192` succeeded.
+- Version run `37992003666` and release-PR CodeQL `37992109851` passed.
+  Release run `37992298423` created annotated tag/release `v1.0.40`, resolving
+  to `08784e7bfd1366714a21e8db37ff8f28a3829953`.
+- Exact-tag publish run `37992347564` succeeded and created Build 40 (1.91 MB).
+  Manual Test promotion and supported Developer Tools Install on the selected
+  Pro completed. Readback at 21:18 UTC confirmed v1.0.40 enabled/not crashed,
+  two available meters and all four private before/after fingerprints unchanged.
+  Six Standard and five Advanced Flows remain untouched. No clean install.
+- Protected cached GET responds with schema 1, version 1.0.40, two successful
+  freshness reads and an unconfigured electricity plan. Known degraded dispatch
+  count remains one. This is app runtime evidence, not a configured-plan field pass.
+  CLI `running`/`ready` flags are null, not falsely recorded as true.
+- Read-only Homey Flow registry inspection confirms all six new card definitions:
+  three actions, two conditions and the decision trigger. Standard setup reports
+  `advanced: false` with no output tokens; status/estimate report `advanced: true`
+  with six/five token definitions, and the decision trigger has three. No card,
+  condition or Flow was executed. Registration does not prove editor selection,
+  compatible Number tags or timed event/physical delivery. Scope by the published
+  card titles when the CLI's legacy app URI lookup does not resolve driver-owned
+  cards; exclude owner/device identifiers from outputs.
+- Developer Tools verifies Build 40 Test, Build 39 superseded and Build 38 still
+  Live. No certification or Live promotion. GitHub Dependabot and open code-scanning
+  alert readback show zero open alerts after merge. Future action-runtime/runner
+  upkeep remains separate; the existing checkout/setup-node runtime warns about
+  its Node 20 declaration while the app/CLI commands use Node 22.
+- Baseline, post-upgrade smoke, support snapshot and portal proof remain private
+  outside Git under the workspace's `artifacts` directory. Actual Settings/mobile,
+  Number-tag setup, notification transitions, overnight/requester and physical
+  acceptance remain explicitly open. No provider refresh, production Flow edit,
+  restart, battery control or community posting was performed.
