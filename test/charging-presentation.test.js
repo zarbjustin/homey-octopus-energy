@@ -71,23 +71,23 @@ test('health distinguishes unsupported, degraded, unknown and fresh dispatch wit
 test('summary frontend escapes all plan/health fields and labels unknown separately from zero', () => {
   const ui = frontend('widgets/summary/public/index.html');
   const plan = chargingPlanView(state(), now, 'Europe/London');
-  plan.explanation = '<img onerror=evil>'; plan.estimateLabel = '<script>evil</script>';
+  plan.explanation = '<ImG onerror=evil>'; plan.estimateLabel = '<ScRiPt>evil</ScRiPt>';
   const html = ui.planHtml({ chargingPlan: plan }, true);
-  assert.match(html, /&lt;img/);
-  assert.doesNotMatch(html, /<img|<script>/);
+  assert.match(html, /&lt;img/i);
+  assert.doesNotMatch(html, /<img|<script>/i);
   assert.match(html, /Fallback/);
   assert.match(html, /open/);
   assert.match(ui.planHtml({ chargingPlan: chargingPlanView(state([]), now, 'UTC') }), /Selected time unknown/);
   const health = ui.healthHtml({
     health: {
-      advice: '<svg>',
+      advice: '<SvG>',
       items: [{
-        label: '<script>', state: '<b>', ageMinutes: null, advice: '<img>',
+        label: '<ScRiPt>', state: '<B>', ageMinutes: null, advice: '<ImG>',
       }],
     },
   });
-  assert.doesNotMatch(health, /<svg>|<script>|<b>|<img>/);
-  assert.match(health, /&lt;svg&gt;/);
+  assert.doesNotMatch(health, /<svg>|<script>|<b>|<img>/i);
+  assert.match(health, /&lt;svg&gt;/i);
   assert.match(ui.planTime('2026-10-25T01:30:00Z', 'Europe/London'), /01:30/);
 });
 
