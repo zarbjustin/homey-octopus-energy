@@ -1,4 +1,4 @@
-# Roadmap After v1.0.39 Test
+# Roadmap After v1.0.40 Test
 
 Last updated: 9 October 2026
 
@@ -7,16 +7,18 @@ Last updated: 9 October 2026
 9 October maintenance/support extension: dependency migration, full-audit CI gate,
 independent Summary metric badges and opt-in support preview/download implemented
 with 742 passing tests. Full and production audits clear. This is scoped S77/S78
-progress, not their full closure. Combined release/Pro/Test delivery is authorised
-and pending; actual runtime and physical gates stay open. See
+progress, not their full closure. Combined release/Pro/Test delivery is verified
+as v1.0.40 / Build 40, with green CI/CodeQL and an independently responding cached
+support API. Meter/settings/Flow fingerprints are unchanged. Actual UI/event and
+physical gates stay open. Build 38 remains Live. See
 [execution and acceptance checklist](handover/maintenance-freshness-support.md).
 
-9 October local follow-up: Standard-compatible setup, cheaper-time capacity,
+Included in that release: Standard-compatible setup, cheaper-time capacity,
 read-only plan/status, a deduplicated decision trigger, explicit-input battery
 duration estimation and Summary/settings health presentation are implemented.
-726 tests pass; all 94 released Flow contracts are preserved. This is an
-unreleased source candidate, not a new Test build or field pass. Review/CI and
-separately authorised delivery precede real-Homey notification-only checks.
+All 94 previously released Flow contracts are preserved. The earlier 726-test
+candidate is now part of the combined 742-test release, not a physical field pass.
+Real-Homey notification-only checks require a separately approved test Flow.
 See [execution record](handover/charging-summary-health-and-battery.md).
 
 App-wide bug bash: confirmed bug families fixed plus deadline
@@ -43,7 +45,7 @@ follow-ups (summary, decision events, battery-duration helper and cached health)
 This is scoped S78 supportability work, not full S77–S80 closure or broader
 product-growth delivery.
 
-S73–S75 were delivered as v1.0.37 and remain included in v1.0.39. Build 38
+S73–S75 were delivered as v1.0.37 and remain included in v1.0.40. Build 38
 is Live (channel readback 7 October; not promoted here). S76 monitoring ended early at user request with stable
 sampled observations and coverage gaps, not a verified 48-hour pass. Reporter/UI/
 IOG-night/unsupported-tariff gates remain open. No automatic Live clearance.
@@ -60,8 +62,8 @@ evidence, dependencies and release gates are in
 | Reliability | S74 — Cache-only widgets and bounded recovery | Opening, refreshing or configuring a widget causes zero outbound API requests; background recovery is bounded | P1 / M–L | None; release after S73 preferred | Delivered for testing in v1.0.37 |
 | Reliability | S75 — Dispatch eligibility and graceful degradation | Unsupported accounts are distinguished from unknown/degraded state without false charging/cancellation signals | P2 / M | None; reuse S74 recovery conventions | Delivered for testing in v1.0.37 |
 | Release confidence | S76 — Field validation and support closure | A verified release candidate, migration/restart evidence, and an explicit record of remaining field gaps | P1 / M | S73–S75 | Monitoring ended early; field gates pending |
-| Maintainability | S77 — Release and maintenance hygiene | SHA-pinned workflow upkeep, runbook validation, translation inventory, and an explicit façade-cleanup decision | P2 / S–M | S76; urgent security fixes may pre-empt | Proposed |
-| Supportability | S78 — Health, onboarding and trust | Existing settings/widgets explain freshness, eligibility, failure and next steps using cached diagnostics | P2 / M | S74–S76 | Charging guidance delivered in v1.0.39 Test/Pro; field and broader health work pending |
+| Maintainability | S77 — Release and maintenance hygiene | SHA-pinned workflow upkeep, runbook validation, translation inventory, and an explicit façade-cleanup decision | P2 / S–M | S76; urgent security fixes may pre-empt | Toolchain/audit and pinned CLI release maintenance delivered in v1.0.40; other tasks open |
+| Supportability | S78 — Health, onboarding and trust | Existing settings/widgets explain freshness, eligibility, failure and next steps using cached diagnostics | P2 / M | S74–S76 | Charging guidance, independent freshness and opt-in support snapshot delivered in v1.0.40 Test/Pro; actual UI/requester and broader onboarding pending |
 | Product growth | S79 — Paired import/export opportunities | A complete-horizon solar/battery recommendation with eligibility and estimate labels | P2 / L | S76, scoped feasibility review | Proposed |
 | Product growth | S80 — Run-now-or-wait advice | Plain-language cost/carbon trade-offs using the existing planners | P3 / M | S76; S78 presentation conventions | Proposed |
 | Charging Flows | S81 — Price-band and horizon availability conditions | Configurable price-band checks and explicit-horizon threshold availability, with unknown separate from none | P2 / M | S76; S78 naming conventions | Delivered in v1.0.38 Test; field pending |
@@ -87,7 +89,9 @@ their investigation in S77 with separate dependency changes and full CI, rather
 than bundling lockfile fixes into this documentation sync.
 
 9 October: those observations are historical. The new toolchain/lockfile candidate
-reports zero findings in both audit scopes; verify GitHub alert closure after merge.
+reports zero findings in both audit scopes; GitHub readback confirms zero open
+Dependabot and code-scanning alerts after merge. Equivalent official CLI commands
+replaced Docker wrappers after repeated upstream pull-rate failures, preserving gates.
 Workflow action runtime maintenance and broader S77 tasks remain separate.
 
 ## Release Milestones
@@ -109,7 +113,7 @@ no manual Live promotion is implied.
 | Item | Current evidence | Remaining check |
 |---|---|---|
 | Build 36 promotion | Live in Homey Developer Tools on 4 October | Closed for Build 36; verify the channel separately for each future build |
-| Local Homey Pro installation | v1.0.39 installed/read back; identities, settings and Flow fingerprints unchanged | Installation closed; affected real-UI/Flow and overnight behaviour remain separate gates |
+| Local Homey Pro installation | v1.0.40 installed/read back; cached app API responds; identities, settings and Flow fingerprints unchanged | Installation closed; affected real-UI/Flow and overnight behaviour remain separate gates |
 | Price-band widgets | Positive community screenshot and feedback | Both widgets, custom thresholds, non-default palettes, selection persistence and accessibility on a real Homey |
 | Meter selection | Community report did not explicitly confirm resolution | Reproduce with multiple meters and stale selections; never silently substitute another meter |
 | Energy Optimiser and representative Flows | Engineering delivery recorded | Real-Homey smoke checks, including equal-price slots and stale-data gates |
@@ -133,7 +137,7 @@ Roadmap capture approved on 4 October 2026 following private user feedback. This
 public record deliberately contains generic requirements only: no private-message
 quotes, sender identity, screenshots or private-thread links. Charging software is
 delivered initially in v1.0.38 Test; Build 38 is now Live. Field acceptance and
-promotion of the newer v1.0.39 guidance build remain separate.
+the current v1.0.40 Test build's UI/physical checks and any Live promotion remain separate.
 
 | ID | Sprint | Requirement | Acceptance focus |
 |---|---|---|---|
@@ -163,10 +167,10 @@ This is not full S78 completion; UI/requester and broader cached-health work rem
 - Distinguish a current-price condition from future-horizon availability and a
   configured plan. A condition is evaluated when its Flow runs, not a new trigger.
 - Provide separate configure, period-start, late battery-low and unconditional
-  period-stop controls. Setup currently requires Advanced Flow because the action
-  has output tags; start, late-battery and stop can be Standard. Track an additive
-  no-output setup card for Standard-only users; this is implemented locally in the
-  9 October candidate, not yet released. Do not remove existing output tags.
+  period-stop controls. The original setup action requires Advanced Flow because
+  it has output tags. v1.0.40 adds a separate no-output Standard setup card without
+  removing those tags; start, late-battery and stop can also be Standard. Actual
+  Standard editor/Number-tag/requester acceptance remains a field check.
   Future-slot existence cannot shortcut start logic;
   battery threshold-crossing is not continuous monitoring. Keep native stop limits.
 - Document and test unchanged legacy numeric-change triggers on equal-priced
@@ -183,7 +187,7 @@ tariff and physical acceptance gates remain open.
 
 ### Charging Capacity and Status Follow-up
 
-Implemented locally on 9 October, reusing S81–S83 rather than introducing a
+Implemented and delivered to Test/Pro in v1.0.40 on 9 October, reusing S81–S83 rather than introducing a
 second charging scheduler:
 
 - A no-output Standard configuration action uses the same policy arguments and
@@ -195,13 +199,13 @@ second charging scheduler:
   or fallback eligibility, waiting, insufficient capacity, completed duration
   and expired deadlines. Missing data is explicit and cannot grant inverse permission.
 
-Next: source review/CI and Test delivery, then notification-only real Homey
+Review/CI and Test delivery are verified. Next: separately approved notification-only real Homey
 examples for a duration target, deadline, hard ceiling, early fallback and late
 price publication. Do not require a fixed provider publication time. Existing
 cached-rate updates already replan the fixed deadline and remaining time budget.
 Native battery SOC limits and independent stop controls remain necessary.
 
-9 October extension, implemented locally: the existing Summary widget shows plan
+Included 9 October extension: the existing Summary widget shows plan
 periods, deadline, caps and remaining budget; Summary/settings show safe source-age
 and unsupported/degraded guidance. A semantic decision-change trigger is persisted
 before emission with legacy silent seeding and no polling. An Advanced helper
@@ -213,7 +217,7 @@ Later, with a concrete integration and separately scoped design: automatic
 battery telemetry, continuously adapting SOC budgets, tapering/house loads,
 validated charge limits and observed response. Solar/export optimisation remains
 S79, not a completed part of this follow-up. Broader cached-health/onboarding and
-S77 maintenance remain separate from these local presentation improvements.
+remaining S77 maintenance stay separate from these delivered presentation improvements.
 
 ## Later or Conditional Ideas
 

@@ -6,32 +6,38 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
-9 October maintenance/support extension: combined candidate now has 742 passing
-tests, independent Summary value badges and an explicit Settings support preview/
-download via a protected cache-only API. Toolchain migration removes the older
-unpatched dependency chain; full and production audits report zero findings. CI
-now audits tooling separately. GitHub review, Pro install and Test delivery are
-authorised and pending; no Live/Flow/battery authority. See
+9 October: v1.0.40 / Build 40 is delivered to Test and the selected Homey Pro.
+Implementation PR #54 and release PR #55 merged; 742 tests, CI/CodeQL, full and
+production audits, normal build and publish validation pass. Independent upgrade
+readback confirms two available meters and unchanged identity/settings/six
+Standard/five Advanced Flow fingerprints. The new protected cached support GET
+responds correctly. CLI running/ready flags are unavailable; API response is
+runtime evidence, not physical acceptance. No Live/Flow/battery authority. See
 [current execution and acceptance record](handover/maintenance-freshness-support.md).
 
-Local source update: 9 October 2026. Six additive charging cards and cache-only
-Summary/settings improvements are implemented and validated with 726 tests.
+The release includes six additive charging cards and cache-only Summary/settings
+improvements, independent per-value freshness badges and opt-in support preview/
+download. Toolchain migration removes the older unpatched dependency chain; CI
+audits development tooling separately. GitHub now reports zero open Dependabot
+and code-scanning alerts. Separate maintenance replaces Docker Hub-dependent
+Athom wrappers with equivalent pinned official Homey CLI 4.3.1 commands, retaining
+publish validation and release gates. Checkout/setup-node pins are unchanged;
+their action runtime upkeep remains future work.
+
 The initial four setup/capacity/status cards are extended by a deduplicated
 decision-change trigger and an explicit-input battery duration estimator with
 SOC timestamp/age validation. Summary shows selected periods, budgets and caps;
 health guidance separates independent source ages and unsupported/unknown dispatch.
 They reuse the existing planner/controller without new polling or battery control. All 94
-released Flow contracts remain unchanged. This is an **unreleased local candidate**;
-source version remains 1.0.39 and released Build 39 does not contain these cards.
-No commit/push, version bump, install or publication in this step. See
+previously released Flow contracts remain unchanged. Earlier local-only candidate
+notes and their 703/726 test counts are historical, not current availability. See
 [scope, evidence and pending gates](handover/charging-summary-health-and-battery.md).
 
-Release/install/channel readback: 7 October 2026. Scoped S78 charging guidance is
-delivered as v1.0.39 / Build 39 Test and installed on the local Pro. All 678 tests,
-build, lint, production audit, publish validation and release CI/CodeQL pass.
-Production audit reported zero vulnerabilities. The four development-scope GitHub
-alerts observed on 7 October are historical; the 9 October candidate has a clear
-full npm audit. GitHub alert closure needs post-merge readback, not an inference.
+Current channel readback: 9 October. Build 40 Test, Build 39 superseded and Build
+38 Live. This task did not submit certification or promote Live. The previously
+degraded dispatch account remains degraded; an unconfigured plan is not proof of
+charging lifecycle delivery. Actual Settings preview/download, mobile widget UI,
+Number-tag setup and field/physical acceptance remain open.
 
 5 October app-wide bug bash: delivered transport, throttle, balance, carbon, billing,
 IOG ambiguity and gas fixes plus deadline optimisation; 672 tests after closing
@@ -41,29 +47,28 @@ settled cumulative readings continue. The
 [current review](blueprint/08-bug-bash-report.md) records the evidence. User requested
 App Store Test delivery completed on 5 October: v1.0.38 / Build 38.
 Fresh 7 October readback found Build 38 already Live before this task; the agent
-did not promote it. v1.0.39 is Test only; field/reporter gates remain open.
+did not promote it. v1.0.40 is Test only; field/reporter gates remain open.
 
 | Field | Value |
 |---|---|
 | Repository | `zarbjustin/homey-octopus-energy` |
-| Branch | `main`; implementation PR #51 and release PR #52 merged |
-| App version | `1.0.39` (release merge `f48f2e1`) |
-| Homey build | `39` Test; `38` Live |
-| GitHub release | [`v1.0.39`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.39) |
-| Publish workflow | `37635125770` succeeded, using exact release tag |
-| Local deployment | v1.0.39 running on Pro; 2 available meters; identities/settings/6 standard/5 Advanced Flows unchanged |
-| Last recorded release test baseline | 678 passing tests; build/lint/audit/publish validation and CodeQL green |
+| Branch | `main`; implementation PR #54 and release PR #55 merged |
+| App version | `1.0.40` (release merge `08784e7`) |
+| Homey build | `40` Test; `38` Live |
+| GitHub release | [`v1.0.40`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.40) |
+| Publish workflow | `37992347564` succeeded, using exact release tag |
+| Local deployment | v1.0.40 enabled/not crashed on Pro; protected app GET responds; 2 available meters; identities/settings/6 Standard/5 Advanced Flows unchanged |
+| Last recorded release test baseline | 742 passing tests; build/lint/both audit scopes/publish validation and CodeQL green |
 | Original formal backlog | Complete through `BL-31` |
 | Next phase | Charging/reliability field acceptance, then S77/S78; S76 gaps remain open |
-| Homey channel | Build 39 Test and Build 38 Live verified on 7 October; no certification/Live action by this task |
+| Homey channel | Build 40 Test and Build 38 Live verified on 9 October; no certification/Live action by this task |
 
 ## Immediate Next Work
 
-9 October: review the local charging-capacity/status candidate, then run GitHub
-checks and the normal release workflow only within separately confirmed delivery
-scope. Real Homey card selection and notification-only recipes remain untested;
-physical battery response needs separate authority and evidence. Do not announce
-the six cards or UI improvements as available on Test until readback proves delivery.
+Next: actual Homey Settings preview/download, Summary/mobile layout and separately
+approved notification-only setup/Number-tag/event tests. Delivery is verified;
+physical battery response still needs separate authority and evidence. No production
+Flow edits, forced provider refresh, restart, battery command or public post.
 Battery sizing is explicit-input estimation only; automatic integration, continuous
 SOC replanning, solar/export optimisation and a new widget are not implemented.
 Existing S76 and broader S77/S78 gates remain.
@@ -80,9 +85,9 @@ as does broader health/onboarding work. No Flow edit, battery command, public po
 or certification/Live promotion was performed. Release/install evidence is in the
 S78 record, including the supported dashboard fallback after CLI connectivity failure.
 The released configure action returns output tags and is Advanced-only. The
-9 October candidate adds a separate no-output Standard setup action; the released
+v1.0.40 adds a separate no-output Standard setup action; the original
 configuration action and its four output tags are preserved. Standard-only setup
-is implemented locally but is not yet shipped functionality.
+is shipped in Test; actual Standard editor/requester acceptance is not established.
 
 S81–S83 charging software is delivered for testing on 5 October:
 14 additive cards, exact Homey-local deadlines, every qualifying slot, optional
@@ -103,7 +108,7 @@ Reporter, widget UI, IOG night and unsupported-tariff gates remain open.
 [`handover/sprints-73-76-execution.md`](handover/sprints-73-76-execution.md)
 records reliability delivery; S77–S80 remain separate proposed future work.
 
-Build 39 is Test, Build 38 Live (channel readback 7 October). Test URL:
+Build 40 is Test, Build 38 Live (channel readback 9 October). Test URL:
 <https://homey.app/a/uk.co.zarb.octopusenergy/test/>.
 The approved Test announcement was posted on 5 October in the
 [public support topic](https://community.homey.app/t/156860/36).
@@ -183,15 +188,16 @@ Key commits:
 
 ## Current Operational Status
 
-- Last runtime/install/channel observations: 7 October. Local Pro v1.0.39
-  running/enabled/not crashed; both meters available, all four identity/settings/
+- Last runtime/install/channel observations: 9 October. Local Pro v1.0.40
+  enabled/not crashed with a responding protected app API; both meters available, all four identity/settings/
   standard/Advanced Flow fingerprints preserved. No clean install or re-pair.
 - Official CLI 4.5.2 local/forwarded discovery failed; its supported cloud strategy
-  rejected devkit upload with 400. Developer Tools Build 39 Install on the selected
-  Pro succeeded and was independently read back. App/project Node 22 unchanged.
+  rejected devkit upload with 400 on 7 October. Supported Developer Tools Build
+  40 Install on the selected Pro succeeded on 9 October and was independently
+  read back. App/project Node 22 unchanged; CLI running/ready flags remain unavailable.
   Never reuse a test-mutated `.homeybuild` as an install package.
-- The v1.0.39 publish workflow passed audit, lint, 678 tests, validation and upload.
-  GitHub annotated tag/release resolve to `f48f2e1`. Build 39 Test, Build 38 Live;
+- The v1.0.40 publish workflow passed audit, lint, 742 tests, validation and upload.
+  GitHub annotated tag/release resolve to `08784e7`. Build 40 Test, Build 38 Live;
   Live was observed, not promoted here. This is not an overnight/account matrix test.
 - The previous v1.0.37 smoke registered all seven widgets. First successful session
   poll returned 71 expired rows with zero trigger attempts. No synthetic production
@@ -226,8 +232,9 @@ The original backlog is complete. Reliability S73–S75 is delivered for testing
 3. S75: dispatch eligibility, transient-failure handling and stale-state safety.
 4. S76: release, local/Test smoke, IOG overnight and reporter verification gates.
 5. Keep EV boost start/cancel verification separate and explicitly opt-in.
-6. Obtain charging/reliability field acceptance, then prioritise proposed S77/S78
-   maintenance/support work ahead of optional S79/S80. S81–S83 software is already
+6. Obtain charging/reliability field acceptance, then continue remaining S77/S78
+   maintenance/onboarding work ahead of optional S79/S80. Toolchain, independent
+   freshness and support export are delivered in v1.0.40. S81–S83 software is already
    delivered in Test; do not reimplement it as pending roadmap work;
    see [`roadmap-next.md`](roadmap-next.md).
 
@@ -247,9 +254,9 @@ npx homey app validate --level publish
 Expected result:
 
 - Clean worktree.
-- 672 or more passing tests.
+- 742 or more passing tests.
 - No lint failures.
-- No production dependency vulnerabilities.
+- No production or development app dependency vulnerabilities (`npm audit` too).
 - Publish validation succeeds with only the two documented cumulative-direction warnings.
 
 ## Important Interpretation Rule

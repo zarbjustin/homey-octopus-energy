@@ -22,22 +22,21 @@ Read these files before planning or changing code:
 
 ## Current Baseline
 
-- App version: `1.0.39`.
-- Homey App Store build: `39` Test; `38` Live (verified 7 October 2026).
-- GitHub release: `v1.0.39`; local Pro installation/readback verified.
+- App version: `1.0.40`.
+- Homey App Store build: `40` Test; `38` Live (verified 9 October 2026).
+- GitHub release: `v1.0.40`; local Pro installation and cached API readback verified.
 - Original formal engineering backlog: complete through `BL-31`; new S73–S76
   reliability S73–S75 is delivered for testing; S76 monitoring ended early on
   5 October, not as a verified 48-hour pass. Field gates remain open.
   Read `docs/handover/sprints-73-76-execution.md` for actual evidence and field gaps.
-- Last released integration baseline: 678 passing tests; field gates remain open.
-- 9 October local candidate: six additive charging/setup/status/decision/SOC-estimate
-  cards plus cache-only Summary/settings health presentation; 726 tests and 94
-  released Flow contracts preserved. Not yet committed, installed
-  or released; v1.0.39 / Build 39 does not include these additions. Read
-  `docs/handover/charging-summary-health-and-battery.md` before delivery work.
-- Combined maintenance/support candidate: 742 tests; per-value Summary badges,
+- Last released integration baseline: 742 passing tests; field gates remain open.
+- 9 October combined delivery: six additive charging/setup/status/decision/SOC-estimate
+  cards plus cache-only Summary/settings health presentation; 94 previously
+  released Flow contracts preserved. Included in v1.0.40 / Build 40 Test and Pro.
+- Combined maintenance/support delivery: 742 tests; per-value Summary badges,
   protected cache-only support preview/download and full/production audits clear.
-  Delivery is authorised but pending. Read
+  PRs #54/#55 merged; normal release tag/publish gates passed. Device/settings/
+  six Standard/five Advanced Flow fingerprints unchanged. Read
   `docs/handover/maintenance-freshness-support.md` for current acceptance gates.
 - 7 October S78 charging-guidance slice delivered in v1.0.39 Test and on local Pro:
   hint-only manifest changes and Standard Flow recipes. Broader S78 and
@@ -46,7 +45,7 @@ Read these files before planning or changing code:
   Test: 14 additive cards, 80 existing Flow contracts preserved. BBA-10 reporting
   coverage blocker closed. Read the charging execution record; prior local-only
   notes are historical. Build 38 is now Live (observed, not promoted by this task);
-  v1.0.39 is Test only. No physical acceptance clearance.
+  v1.0.40 is Test only. No physical acceptance clearance.
 - Runtime: Node.js 22, TypeScript, Homey Software Development Kit (SDK) v3.
 
 ## Non-Negotiable Product Rules

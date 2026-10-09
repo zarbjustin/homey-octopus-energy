@@ -6,6 +6,13 @@ This document captures durable constraints, root causes, and workflow gotchas th
 
 ## Data Authority and Trust
 
+- Athom's Docker validate/version/publish actions wrap official CLI commands.
+  Repeated Docker Hub HTTP 429 can fail before any app validation executes. In a
+  deliberate maintenance change, run equivalent explicitly version-pinned CLI
+  commands on the project's Node runtime; preserve publish validation, exact-tag
+  provenance and genuine release checks. Keep headless publishing credentials
+  step-scoped and never extract/log them. An exact CLI package pin does not lock
+  every transitive tool dependency or expand the app's npm audit coverage.
 - Missing rates must not silently skip consumption. Require the tariff's actual
   register even if that register returned no rows; never borrow the first night
   or standing row outside its validity. Explicit published zero remains valid.
