@@ -108,6 +108,14 @@ fixtures and case-insensitive checks; runtime escaping was unchanged.
   freshness reads and an unconfigured electricity plan. Known degraded dispatch
   count remains one. This is app runtime evidence, not a configured-plan field pass.
   CLI `running`/`ready` flags are null, not falsely recorded as true.
+- Read-only Homey Flow registry inspection confirms all six new card definitions:
+  three actions, two conditions and the decision trigger. Standard setup reports
+  `advanced: false` with no output tokens; status/estimate report `advanced: true`
+  with six/five token definitions, and the decision trigger has three. No card,
+  condition or Flow was executed. Registration does not prove editor selection,
+  compatible Number tags or timed event/physical delivery. Scope by the published
+  card titles when the CLI's legacy app URI lookup does not resolve driver-owned
+  cards; exclude owner/device identifiers from outputs.
 - Developer Tools verifies Build 40 Test, Build 39 superseded and Build 38 still
   Live. No certification or Live promotion. GitHub Dependabot and open code-scanning
   alert readback show zero open alerts after merge. Future action-runtime/runner
