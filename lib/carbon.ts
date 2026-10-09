@@ -121,7 +121,9 @@ export class CarbonClient {
         lastError = err;
       }
       if (attempt < 2) {
-        await new Promise((resolve) => globalThis.setTimeout(resolve, 500 * (2 ** attempt)));
+        await new Promise((resolve) => {
+          globalThis.setTimeout(resolve, 500 * (2 ** attempt));
+        });
       }
     }
     throw lastError instanceof Error ? lastError : new Error('Carbon API request failed.');

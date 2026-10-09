@@ -21,6 +21,12 @@ test('GitHub Actions are pinned to immutable commit SHAs', () => {
   }
 });
 
+test('CI audits the full development toolchain separately from the production release gate', () => {
+  const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'ci.yml'), 'utf8');
+  assert.match(workflow, /run: npm audit --omit=dev/);
+  assert.match(workflow, /name: Audit development toolchain\s+run: npm audit\s/);
+});
+
 test('version automation opens a validated release PR instead of pushing main', () => {
   const workflow = fs.readFileSync(
     path.join(__dirname, '..', '.github', 'workflows', 'homey-app-version.yml'),

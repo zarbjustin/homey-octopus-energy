@@ -121,7 +121,9 @@ test('a commit in progress blocks a later commit until it finishes (no interleav
   };
   const pA = device.refreshConsumption(1);
   const pB = device.refreshConsumption(1);
-  await new Promise((r) => setTimeout(r, 10)); // let A park on its gated first write
+  await new Promise((r) => {
+    setTimeout(r, 10);
+  }); // let A park on its gated first write
   assert.equal(store.cumulativeMeter, undefined); // A has not written the total yet
   release();
   await Promise.all([pA, pB]);
@@ -140,7 +142,9 @@ test('a slow commit write still serializes a later commit — no interleave, no 
   device.setStoreValue = async (k, v) => {
     if (slowFirst && k === 'lastConsumptionEnd') {
       slowFirst = false;
-      await new Promise((r) => setTimeout(r, 25)); // delayed, but does settle
+      await new Promise((r) => {
+        setTimeout(r, 25);
+      }); // delayed, but does settle
     }
     store[k] = v;
   };
