@@ -32,6 +32,13 @@
     ]
   },
   "permissions": [],
+  "api": {
+    "getSupportSnapshot": {
+      "method": "GET",
+      "path": "/support/snapshot",
+      "public": false
+    }
+  },
   "images": {
     "small": "/assets/images/small.png",
     "large": "/assets/images/large.png",
@@ -769,6 +776,45 @@
               "en": "Usage (kWh)"
             },
             "example": 22.4
+          }
+        ]
+      },
+      {
+        "id": "charging_plan_decision_changed",
+        "title": {
+          "en": "Charging plan decision changed"
+        },
+        "hint": {
+          "en": "For notification/logging Flows, not a battery-start command. Emits on initial setup and meaningful decision or whole-plan fallback changes, including missing prices and recovery, completion, expiry and cancellation. Existing plans seed silently on upgrade. Repeated refresh/restart does not replay a persisted attempt; delivery is not guaranteed. Recheck current plan eligibility and keep independent battery stops. No new polling or automatic timeline notification."
+        },
+        "tokens": [
+          {
+            "name": "decision",
+            "type": "string",
+            "title": {
+              "en": "Current decision"
+            }
+          },
+          {
+            "name": "explanation",
+            "type": "string",
+            "title": {
+              "en": "Decision explanation (planned, not measured)"
+            }
+          },
+          {
+            "name": "observed_at",
+            "type": "string",
+            "title": {
+              "en": "Decision observed at (ISO timestamp)"
+            }
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
           }
         ]
       },
@@ -1707,6 +1753,125 @@
         "hint": {
           "en": "Whether an Octopus Power Up free-electricity session is running right now."
         }
+      },
+      {
+        "id": "enough_threshold_time_before",
+        "title": {
+          "en": "There is !{{enough|not enough}} cheap time before a deadline"
+        },
+        "titleFormatted": {
+          "en": "There is !{{enough|not enough}} time for [[duration]] h below [[price]] p/kWh before [[by]]"
+        },
+        "hint": {
+          "en": "Counts available time, not just whether one cheap slot exists. Includes only the remaining part of the current slot and clips at the next Homey-local deadline. Strictly below the supplied price; VAT follows the meter. Complete fresh coverage required; invalid/missing data raises an error, including inversion. This is not measured charging or permission to start: also check current configured-plan eligibility and battery safeguards. A condition runs only when its Flow runs."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "name": "duration",
+            "type": "number",
+            "title": {
+              "en": "Required eligible hours (not SOC)"
+            },
+            "min": 0.1,
+            "max": 24,
+            "step": 0.1
+          },
+          {
+            "name": "price",
+            "type": "number",
+            "title": {
+              "en": "Strictly below p/kWh"
+            },
+            "min": -200,
+            "max": 200,
+            "step": 0.1
+          },
+          {
+            "name": "by",
+            "type": "text",
+            "title": {
+              "en": "Deadline (HH:MM, Homey timezone)"
+            },
+            "placeholder": {
+              "en": "16:00"
+            }
+          }
+        ]
+      },
+      {
+        "id": "charging_plan_decision_is",
+        "title": {
+          "en": "Configured charging plan decision !{{is|is not}} ..."
+        },
+        "titleFormatted": {
+          "en": "Configured charging plan decision !{{is|is not}} [[decision]]"
+        },
+        "hint": {
+          "en": "Reads this meter's current cached plan decision without polling, writing or sending battery commands. Preferred/fallback describe the currently selected period, not the whole day. Missing/stale/incomplete prices or a missing plan raise an error, including inversion. Use Get charging plan status in Advanced Flow to explain unknown states. Conditions do not trigger on changes; retain current eligibility and independent battery stop safeguards."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "name": "decision",
+            "type": "dropdown",
+            "title": {
+              "en": "Decision"
+            },
+            "values": [
+              {
+                "id": "eligible_preferred",
+                "label": {
+                  "en": "eligible now at the preferred price"
+                }
+              },
+              {
+                "id": "eligible_fallback",
+                "label": {
+                  "en": "eligible now using permitted fallback"
+                }
+              },
+              {
+                "id": "waiting_for_slot",
+                "label": {
+                  "en": "waiting for a selected period"
+                }
+              },
+              {
+                "id": "insufficient_capacity",
+                "label": {
+                  "en": "insufficient permitted time"
+                }
+              },
+              {
+                "id": "no_qualifying_slots",
+                "label": {
+                  "en": "no qualifying slots before the deadline"
+                }
+              },
+              {
+                "id": "duration_complete",
+                "label": {
+                  "en": "planned eligible-time budget elapsed"
+                }
+              },
+              {
+                "id": "deadline_passed",
+                "label": {
+                  "en": "deadline passed"
+                }
+              }
+            ]
+          }
+        ]
       },
       {
         "id": "threshold_slots_before",
@@ -2740,6 +2905,293 @@
       }
     ],
     "actions": [
+      {
+        "id": "estimate_battery_duration",
+        "title": {
+          "en": "Estimate charging duration for a battery target"
+        },
+        "titleFormatted": {
+          "en": "Estimate [[currentSoc]]% to [[targetSoc]]%, [[capacity]] usable kWh, [[power]] AC kW, [[efficiency]]% efficiency, SOC read [[readAt]] (max age [[maxAgeMinutes]] min)"
+        },
+        "hint": {
+          "en": "Advanced Flow estimate from explicit inputs/Number tags, not automatic battery discovery or a charging command. Supply the actual timestamp of the SOC reading (ISO with timezone), not the Flow start time. Rejects missing/stale/future readings and estimates over 24 h. If needs_charge is true, pass duration_hours to existing duration-plan setup; otherwise use your own stop/cancel path, never configure a zero-duration plan. Assumes constant AC input power and efficiency; tapering/house loads can prevent target SOC. Configure once per intended deadline; repeated recalculation with a changed duration starts a new budget. Keep native battery limits and independent stops."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "name": "currentSoc",
+            "type": "number",
+            "title": {
+              "en": "Current SOC (%)"
+            },
+            "min": 0,
+            "max": 100,
+            "step": 0.1
+          },
+          {
+            "name": "targetSoc",
+            "type": "number",
+            "title": {
+              "en": "Target SOC (%)"
+            },
+            "min": 0,
+            "max": 100,
+            "step": 0.1
+          },
+          {
+            "name": "capacity",
+            "type": "number",
+            "title": {
+              "en": "Usable capacity (kWh)"
+            },
+            "min": 0.1,
+            "max": 1000,
+            "step": 0.1
+          },
+          {
+            "name": "power",
+            "type": "number",
+            "title": {
+              "en": "Constant AC input power (kW)"
+            },
+            "min": 0.01,
+            "max": 1000,
+            "step": 0.01
+          },
+          {
+            "name": "efficiency",
+            "type": "number",
+            "title": {
+              "en": "AC-to-stored-energy efficiency (%)"
+            },
+            "min": 1,
+            "max": 100,
+            "step": 0.1
+          },
+          {
+            "name": "readAt",
+            "type": "text",
+            "title": {
+              "en": "Actual SOC reading timestamp (ISO with timezone)"
+            },
+            "placeholder": {
+              "en": "2026-10-09T12:00:00Z"
+            }
+          },
+          {
+            "name": "maxAgeMinutes",
+            "type": "number",
+            "title": {
+              "en": "Maximum SOC reading age (minutes)"
+            },
+            "min": 1,
+            "max": 60,
+            "step": 1
+          }
+        ],
+        "tokens": [
+          {
+            "name": "duration_hours",
+            "type": "number",
+            "title": {
+              "en": "Estimated required hours"
+            }
+          },
+          {
+            "name": "stored_energy_kwh",
+            "type": "number",
+            "title": {
+              "en": "Estimated stored energy needed (kWh)"
+            }
+          },
+          {
+            "name": "input_energy_kwh",
+            "type": "number",
+            "title": {
+              "en": "Estimated AC input energy (kWh)"
+            }
+          },
+          {
+            "name": "needs_charge",
+            "type": "boolean",
+            "title": {
+              "en": "Supplied SOC is below target"
+            }
+          },
+          {
+            "name": "estimate_label",
+            "type": "string",
+            "title": {
+              "en": "Estimate assumptions and safety label"
+            }
+          }
+        ]
+      },
+      {
+        "id": "configure_charging_plan_standard",
+        "title": {
+          "en": "Configure a charging eligibility plan (Standard compatible)"
+        },
+        "titleFormatted": {
+          "en": "Plan [[mode]] slots below [[price]] p/kWh before [[by]], duration [[duration]] h, fallback [[fallback]] up to [[maximum]] p/kWh"
+        },
+        "hint": {
+          "en": "Standard-compatible setup with no output tags. Uses the same persisted plan and scheduler as the Advanced action; one plan per meter, not a second planner. Configure before the deadline and connect separate start, late battery-low and unconditional stop Flows. Duration is planned eligible time, not measured charging or battery SOC. Fallback is explicit and its maximum is inclusive. Complete fresh prices are required; an unknown plan waits without eligibility and existing price updates can resolve it. No battery command or provider refresh. 'all' ignores duration/fallback/maximum. An identical policy/deadline preserves the elapsed-time budget."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          },
+          {
+            "name": "mode",
+            "type": "dropdown",
+            "title": {
+              "en": "Selection"
+            },
+            "values": [
+              {
+                "id": "all",
+                "label": {
+                  "en": "all"
+                }
+              },
+              {
+                "id": "duration",
+                "label": {
+                  "en": "duration"
+                }
+              }
+            ]
+          },
+          {
+            "name": "price",
+            "type": "number",
+            "title": {
+              "en": "Strictly below p/kWh"
+            },
+            "min": -200,
+            "max": 200,
+            "step": 0.1
+          },
+          {
+            "name": "by",
+            "type": "text",
+            "title": {
+              "en": "Deadline (HH:MM, Homey timezone)"
+            },
+            "placeholder": {
+              "en": "07:00"
+            }
+          },
+          {
+            "name": "duration",
+            "type": "number",
+            "title": {
+              "en": "Hours (ignored in all mode)"
+            },
+            "min": 0.1,
+            "max": 24,
+            "step": 0.1
+          },
+          {
+            "name": "fallback",
+            "type": "dropdown",
+            "title": {
+              "en": "Fallback (duration mode only)"
+            },
+            "values": [
+              {
+                "id": "off",
+                "label": {
+                  "en": "off"
+                }
+              },
+              {
+                "id": "on",
+                "label": {
+                  "en": "on"
+                }
+              }
+            ]
+          },
+          {
+            "name": "maximum",
+            "type": "number",
+            "title": {
+              "en": "Inclusive hard maximum (p/kWh)"
+            },
+            "min": -200,
+            "max": 200,
+            "step": 0.1
+          }
+        ]
+      },
+      {
+        "id": "get_charging_plan_status",
+        "title": {
+          "en": "Get charging plan status and explanation"
+        },
+        "hint": {
+          "en": "Read-only Advanced Flow diagnostic for this meter's configured plan. Re-evaluates cached prices and elapsed planned eligibility; it does not persist, reset a deadline, emit events, poll or control charging. Unknown and unconfigured are explicitly labelled, not no-cheaper-slots evidence. Active means planned eligibility, not physical charging. For Standard Flows use the plan-decision condition; always keep battery-native protections."
+        },
+        "tokens": [
+          {
+            "name": "decision",
+            "type": "string",
+            "title": {
+              "en": "Current decision"
+            }
+          },
+          {
+            "name": "explanation",
+            "type": "string",
+            "title": {
+              "en": "Decision explanation"
+            }
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "title": {
+              "en": "Plan status"
+            }
+          },
+          {
+            "name": "selection",
+            "type": "string",
+            "title": {
+              "en": "Whole-plan price selection"
+            }
+          },
+          {
+            "name": "active",
+            "type": "boolean",
+            "title": {
+              "en": "Eligibility active (not measured charging)"
+            }
+          },
+          {
+            "name": "estimate_label",
+            "type": "string",
+            "title": {
+              "en": "Estimate and safety label"
+            }
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          }
+        ]
+      },
       {
         "id": "configure_charging_plan",
         "title": {

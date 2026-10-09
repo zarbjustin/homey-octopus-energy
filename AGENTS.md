@@ -29,7 +29,16 @@ Read these files before planning or changing code:
   reliability S73–S75 is delivered for testing; S76 monitoring ended early on
   5 October, not as a verified 48-hour pass. Field gates remain open.
   Read `docs/handover/sprints-73-76-execution.md` for actual evidence and field gaps.
-- Last validated integration baseline: 678 passing tests; field gates remain open.
+- Last released integration baseline: 678 passing tests; field gates remain open.
+- 9 October local candidate: six additive charging/setup/status/decision/SOC-estimate
+  cards plus cache-only Summary/settings health presentation; 726 tests and 94
+  released Flow contracts preserved. Not yet committed, installed
+  or released; v1.0.39 / Build 39 does not include these additions. Read
+  `docs/handover/charging-summary-health-and-battery.md` before delivery work.
+- Combined maintenance/support candidate: 741 tests; per-value Summary badges,
+  protected cache-only support preview/download and full/production audits clear.
+  Delivery is authorised but pending. Read
+  `docs/handover/maintenance-freshness-support.md` for current acceptance gates.
 - 7 October S78 charging-guidance slice delivered in v1.0.39 Test and on local Pro:
   hint-only manifest changes and Standard Flow recipes. Broader S78 and
   real-UI/requester checks remain open. Read `docs/handover/s78-charging-guidance.md`.

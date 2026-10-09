@@ -22,6 +22,13 @@
 
 ## Setup
 
+The unreleased 9 October candidate also adds independent source-age badges beside
+Summary values and an opt-in support snapshot in App Settings: create, review/copy,
+then download JSON. It is cache-only and never uploads automatically. Review
+before sharing: source ages, counts and planning limits can reveal household
+behaviour even without identifiers. See the
+[execution and acceptance checklist](docs/handover/maintenance-freshness-support.md).
+
 1. Get your **API key**: Octopus account → *Personal details* → *Developer settings*.
 2. Find your **account number** (form `A-XXXXXXXX`), shown on your bills.
 3. Add an **Electricity** or **Gas** Meter device and enter both when prompted.
@@ -36,6 +43,13 @@ eligibility for timed charging, with separate battery limits and a stop Flow.
 See the [charging Flow guide](docs/charging-flows.md) for the
 configure/start/stop recipes, late battery changes, missing prices and the
 difference between a price cap and the cheapest remaining slot.
+
+Unreleased source candidate (9 October): Standard-compatible plan setup, cheaper
+time capacity and plan status, decision-change events and an explicit-input
+battery-duration estimate. The existing Summary widget shows selected periods,
+budgets and caps; Summary/settings explain source ages and safe next steps.
+These six additive cards and UI changes are not in released v1.0.39 / Build 39.
+See the [implementation and pending delivery record](docs/handover/charging-summary-health-and-battery.md).
 
 ## Development
 

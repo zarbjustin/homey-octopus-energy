@@ -11,6 +11,10 @@
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
     .cell .k { font-size: 11px; color: var(--homey-text-color-light, #888); }
     .cell .v { font-size: 18px; font-weight: 700; }
+    .cell { min-width: 0; }
+    .metric-age { font-size: 10px; margin-top: 3px; overflow-wrap: anywhere; }
+    .metric-age .prov-badge { margin-left: 0; }
+    .metric-note { font-size: 10px; color: var(--homey-text-color-light, #666); }
     .err { font-size: 13px; color: var(--homey-text-color-light, #888); }
     .freshness { color: #92400e; font-size: 10px; margin: -3px 0 7px; }
     .badge { font-size: 10px; padding: 1px 5px; border-radius: 6px; margin-left: 4px; }
@@ -31,12 +35,19 @@
     .prov-badge { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 6px; margin-left: 4px; }
     .prov-row { margin: 4px 0 6px; }
     .prov-msg { color: #92400e; font-size: 10px; margin-left: 4px; }
+    .plan, .health { margin-top: 10px; border-top: 1px solid var(--homey-line-color, #ddd); padding-top: 8px; font-size: 12px; overflow-wrap: anywhere; }
+    .plan p, .health p { margin: 5px 0; }
+    details summary { cursor: pointer; padding: 5px 0; }
+    details summary:focus-visible { outline: 2px solid var(--homey-text-color, #222); outline-offset: 2px; }
+    .plan ul, .health ul { padding-left: 18px; margin: 4px 0; }
+    .plan li, .health li { margin-bottom: 5px; }
+    .plan .muted { color: var(--homey-text-color-light, #666); }
   </style>
 </head>
 <body>
   <div id="content" aria-live="polite" role="region" aria-label="Octopus energy summary"><div class="err">Loading…</div></div>
   <script type="text/javascript">
-    function n(v, dp) { return (v === null || v === undefined || isNaN(v)) ? '–' : Number(v).toFixed(dp === undefined ? 2 : dp); }
+    function n(v, dp) { return (typeof v !== 'number' || !Number.isFinite(v)) ? '–' : v.toFixed(dp === undefined ? 2 : dp); }
     function esc(value) {
       return String(value).replace(/[&<>"']/g, function (char) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
@@ -151,22 +162,75 @@
       return age + '<div style="margin-top:8px"><div class="k">Last 7 days \u00b7 kWh (settled)</div>'
         + '<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:11px;margin-top:3px">' + parts + '</div></div>';
     }
+    function planTime(iso, timezone) {
+      var t = Date.parse(iso || '');
+      if (!Number.isFinite(t)) return 'Unavailable';
+      try { return new Date(t).toLocaleString([], { timeZone: timezone || 'UTC', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }); }
+      catch (e) { return new Date(t).toISOString(); }
+    }
+    function planHtml(d, expanded) {
+      var p = d && d.chargingPlan;
+      if (!p) return '';
+      var html = '<section class="plan" aria-label="Charging eligibility plan"><strong>Charging plan</strong>' + badge('Planned · not measured', 'b-planned');
+      html += '<p>' + esc(p.explanation || 'Plan unavailable.') + '</p>';
+      if (p.deadline) {
+        html += '<p>Deadline: ' + esc(planTime(p.deadline, p.timezone)) + '<br>Preferred: below ' + n(p.preferredPrice) + ' p/kWh';
+        html += p.fallback ? '; fallback up to ' + n(p.maximumPrice) + ' p/kWh (inclusive)' : '; fallback off';
+        html += '<br>' + (p.remainingHours === null ? 'All qualifying periods' : n(p.remainingHours) + ' h remaining planned budget');
+        html += ' · ' + (p.selectedHours === null ? 'Selected time unknown' : n(p.selectedHours) + ' h selected') + '</p>';
+      }
+      if (p.slots && p.slots.length) {
+        html += '<details id="plan-periods"' + (expanded ? ' open' : '') + '><summary id="plan-periods-toggle">Selected periods (' + p.slots.length + ')</summary><ul>';
+        p.slots.forEach(function (s) {
+          html += '<li>' + esc(planTime(s.start, p.timezone)) + ' – ' + esc(planTime(s.end, p.timezone)) + ': ' + n(s.price) + ' p/kWh · ' + (s.fallback ? 'Fallback' : 'Preferred') + '</li>';
+        });
+        html += '</ul></details>';
+      }
+      html += '<p class="muted">' + esc(p.estimateLabel || 'No battery command. Keep independent native stop limits.') + '</p></section>';
+      return html;
+    }
+    function healthHtml(d, expanded) {
+      var h = d && d.health;
+      if (!h) return '';
+      var html = '<details class="health" id="data-health"' + (expanded ? ' open' : '') + '><summary id="data-health-toggle">Data health and next steps</summary><p>' + esc(h.advice) + '</p><ul>';
+      (h.items || []).forEach(function (item) {
+        html += '<li><strong>' + esc(item.label) + ': ' + esc(item.state) + '</strong>'
+          + (item.ageMinutes === null ? '' : ' · last success ' + n(item.ageMinutes, 0) + ' min ago')
+          + '<br>' + esc(item.advice) + '</li>';
+      });
+      return html + '</ul></details>';
+    }
+    function metricCell(d, key, label, prefix, suffix) {
+      var f = d.metricFreshness && d.metricFreshness[key];
+      var state = f && ['current', 'stale'].includes(f.state) ? f.state : 'unknown';
+      var title = { current: 'Current', stale: 'Stale', unknown: 'Unknown' }[state];
+      var age = f && Number.isFinite(f.ageMinutes) && f.ageMinutes >= 0 ? ' · checked ' + n(f.ageMinutes, 0) + ' min ago' : ' · check time unknown';
+      var note = key === 'usage' || key === 'cost' || key === 'month' ? '<div class="metric-note">Delayed settled data</div>' : '';
+      return '<div class="cell"><div class="k">' + esc(label) + '</div><div class="v">' + esc(prefix || '') + n(d[key], key === 'points' ? 0 : 2) + esc(suffix || '')
+        + '</div><div class="metric-age">' + provenanceBadge(title + age, 'b-' + state) + '</div>' + note + '</div>';
+    }
     function render(d) {
       const el = document.getElementById('content');
+      const planOpen = document.getElementById('plan-periods')?.open;
+      const healthOpen = document.getElementById('data-health')?.open;
+      const focusId = document.activeElement?.id;
       if (!d || d.error) { el.innerHTML = '<div class="err">' + esc((d && d.error) || 'No data') + '</div>'; return; }
       let cells = '';
-      cells += '<div class="cell"><div class="k">Balance</div><div class="v">£' + n(d.balance) + '</div></div>';
-      cells += '<div class="cell"><div class="k">Used (24h)</div><div class="v">' + n(d.usage) + ' kWh</div></div>';
-      cells += '<div class="cell"><div class="k">Cost (24h)</div><div class="v">£' + n(d.cost) + '</div></div>';
-      cells += '<div class="cell"><div class="k">This month</div><div class="v">£' + n(d.month) + '</div></div>';
+      cells += metricCell(d, 'balance', 'Balance', '£');
+      cells += metricCell(d, 'usage', 'Used (24h)', '', ' kWh');
+      cells += metricCell(d, 'cost', 'Cost (24h)', '£');
+      cells += metricCell(d, 'month', 'This month', '£');
       if (d.points !== null && d.points !== undefined) {
-        cells += '<div class="cell"><div class="k">Octoplus</div><div class="v">' + n(d.points, 0) + ' pts</div></div>';
+        cells += metricCell(d, 'points', 'Octoplus', '', ' pts');
       }
       el.innerHTML = '<div class="name">' + esc(d.name || 'Octopus') + '</div>'
         + freshnessHtml(d, 'Device refresh') + '<div class="grid">' + cells + '</div>'
-        + breakdownHtml(d) + liveHtml(d) + dispatchHtml(d) + effectiveHtml(d);
+        + breakdownHtml(d) + liveHtml(d) + dispatchHtml(d) + effectiveHtml(d)
+        + planHtml(d, planOpen) + healthHtml(d, healthOpen);
+      if (focusId === 'plan-periods-toggle' || focusId === 'data-health-toggle') document.getElementById(focusId)?.focus();
     }
     function onHomeyReady(Homey) {
+      document.getElementById('content').addEventListener('toggle', function () { Homey.setHeight(document.body.scrollHeight); }, true);
       let deviceId = '';
       try { const s = Homey.getSettings(); if (s && s.device) deviceId = (typeof s.device === 'object') ? (s.device.id || '') : s.device; } catch (e) {}
       async function load() {

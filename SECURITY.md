@@ -21,6 +21,13 @@ current `main` branch.
   `devDependencies` are the Homey SDK type packages and the lint/test toolchain.
   `npm audit` (production scope) is a **hard release gate** — a release is not cut
   while any advisory is outstanding.
+- CI also audits the full development toolchain. The 9 October maintenance
+  candidate updates the Homey lint stack and vulnerable transitive packages;
+  full and production audits are separate from runtime or physical acceptance.
+- Support snapshots are on-demand, authenticated cache-only reads. They are built
+  by field allowlist and exclude raw settings/logs, credentials, stable identifiers
+  and meter readings. Review before sharing: aggregate counts and planning limits
+  can still reveal household behaviour. There is no automatic upload.
 - **SBOM.** Generate a Software Bill of Materials on demand with the pinned
   lockfile:
 

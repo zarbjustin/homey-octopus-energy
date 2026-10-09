@@ -45,8 +45,13 @@ import {
   iogHouseholdBands, iogRateTypeSummary, hasConflictingIogIntervals,
 } from './pricing/iogSchedule';
 import { evaluateTargetRate, TargetRateResult } from './planning/targetRate';
-import { evaluatePriceAvailability, evaluatePriceBand, evaluateBoundedSlots } from './planning/priceAvailability';
-import { ChargingPlanController, reconcileChargingPlan } from './planning/chargingPlan';
+import {
+  evaluatePriceAvailability, evaluatePriceBand, evaluateBoundedSlots, evaluateThresholdCapacity,
+} from './planning/priceAvailability';
+import {
+  ChargingPlanController, reconcileChargingPlan, describeChargingPlan, chargingPlanView,
+} from './planning/chargingPlan';
+import { dataHealthView } from './statusPresentation';
 import { CostCarbonPlan, evaluateCostCarbonPlan } from './planning/costCarbon';
 import {
   rankTariffs, TariffCandidateInput, TariffVolatility,
@@ -356,6 +361,20 @@ export class OctopusMeterDevice extends Homey.Device {
     return result;
   }
 
+  hasEnoughThresholdTimeBefore(price: number, by: string, duration: number): boolean {
+    const now = Date.now();
+    const snapshot = this.chargingSnapshot();
+    const result = evaluateThresholdCapacity(snapshot.rows, {
+      from: now,
+      to: nextLocalDeadline(by, this.homey.clock.getTimezone(), now),
+      threshold: price,
+      fresh: snapshot.fresh.current,
+      duration,
+    });
+    if (result.status === 'unknown') throw new Error('Choose a valid duration with complete fresh prices before the deadline.');
+    return result.status === 'sufficient';
+  }
+
   private chargingPlanController(): ChargingPlanController {
     if (!this.chargingController) {
       this.chargingController = new ChargingPlanController({
@@ -371,6 +390,14 @@ export class OctopusMeterDevice extends Homey.Device {
           });
         },
         error: () => this.error('Charging plan eligibility update failed; independent battery stop guard remains required.'),
+        emitDecision: async (state: unknown, now: number) => {
+          const description = describeChargingPlan(state, now);
+          await this.homey.flow.getDeviceTriggerCard('charging_plan_decision_changed').trigger(this, {
+            decision: description.decision,
+            explanation: description.explanation,
+            observed_at: new Date(now).toISOString(),
+          });
+        },
       });
     }
     return this.chargingController;
@@ -395,6 +422,41 @@ export class OctopusMeterDevice extends Homey.Device {
     const result = reconcileChargingPlan(previous, previous.policy, snapshot.rows, snapshot.fresh, Date.now());
     if (result.state.status === 'unknown') throw new Error('Charging plan data is unavailable, stale or incomplete.');
     return result.state.active;
+  }
+
+  /** Read-only diagnostic. Conditions must reject unknown/unconfigured for inversion safety. */
+  getChargingPlanStatus() {
+    const previous = this.getStoreValue('charging_plan_v1');
+    const now = Date.now();
+    const snapshot = previous?.policy ? this.chargingSnapshot() : null;
+    const state = snapshot
+      ? reconcileChargingPlan(previous, previous.policy, snapshot.rows, snapshot.fresh, now).state : null;
+    return {
+      ...describeChargingPlan(state, now),
+      status: state?.status ?? 'unconfigured',
+      selection: state?.selection ?? 'none',
+      active: state?.active ?? false,
+      estimate_label: 'Planned eligibility and time, not measured charging, delivered energy or battery SOC; battery safeguards remain required',
+    };
+  }
+
+  getChargingPlanView() {
+    try {
+      const previous = this.getStoreValue('charging_plan_v1');
+      const now = Date.now();
+      const snapshot = previous?.policy ? this.chargingSnapshot() : null;
+      const state = snapshot
+        ? reconcileChargingPlan(previous, previous.policy, snapshot.rows, snapshot.fresh, now).state : null;
+      return chargingPlanView(state, now, this.homey.clock.getTimezone());
+    } catch (err) {
+      return {
+        configured: true, decision: 'unavailable', explanation: 'The cached plan cannot be evaluated safely. Charging eligibility is unavailable; review the plan before configuring again.', slots: [],
+      };
+    }
+  }
+
+  getDataHealthView() {
+    return dataHealthView(this.getDataFreshness(), this.getDispatchView());
   }
 
   async cancelChargingPlan(): Promise<void> {
@@ -3069,6 +3131,8 @@ export class OctopusMeterDevice extends Homey.Device {
     }
   }
 
+  // Homey accepts asynchronous lifecycle hooks; its onDeleted type is void.
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   async onDeleted(): Promise<void> {
     this.chargingController?.stop();
     this.stopTimers();

@@ -47,6 +47,33 @@ This document captures durable constraints, root causes, and workflow gotchas th
 
 ## Planning and Trigger Semantics
 
+- Decision notifications should compare semantic decision/whole-plan selection,
+  not changing prices or countdowns. Persist a small attempt marker in the existing
+  plan state, seed legacy plans silently and retain the evaluation timestamp across
+  asynchronous lifecycle delivery. Failed diagnostics must not break old controls;
+  persistence-before-emission is at-most-once, not guaranteed delivery.
+- SOC-derived duration requires explicit usable capacity, AC input power, conversion
+  efficiency and a real timezone-aware measurement timestamp. Reject stale/future
+  readings; never replace the timestamp with Flow start time. At/above target is
+  zero need, not a discharge instruction or a valid zero-duration configuration.
+  Repeated changed-duration configuration resets the policy budget; an estimate
+  helper is not continuous SOC control or proof the physical target will be reached.
+- Health views must report independent source ages rather than call every source
+  healthy after one successful refresh. Whitelist labels/advice instead of rendering
+  raw diagnostic errors/IDs. Current source updates are not live settlement or
+  complete future horizons; optional dispatch failures need no destructive re-pair.
+- A cheap slot's existence does not establish enough capacity. Sum clipped real
+  time across separated qualifying periods and require complete fresh coverage
+  before reporting either sufficient or insufficient. A standalone next-local-
+  deadline condition is distinct from a configured plan's fixed absolute deadline
+  and persisted remaining budget; repeated setup would start a new budget.
+- Whole-plan fallback selection does not mean the current period is fallback.
+  Derive the current decision from the active selected slot and keep aggregate
+  selection separate. Explain insufficient duration without relaxing the ceiling.
+- Read-only plan diagnostics may expose unknown/unconfigured with labelled outputs;
+  invertible conditions must raise on those states. Reconcile cached state without
+  persisting, creating timers, replaying events or resetting the duration budget.
+  An explanation is not a new trigger or proof of physical charging.
 - Configured charging plans need a fixed absolute deadline, a persisted remaining
   duration budget and per-run edges, not just first/last plan endpoints. Replans
   must not reset elapsed planned eligibility. It is not measured charging time.
@@ -140,6 +167,18 @@ This document captures durable constraints, root causes, and workflow gotchas th
 
 ## Security and Privacy
 
+- Build support exports from whitelisted fields, never by serialising then
+  redacting device/settings objects. Opaque keys are still stable identifiers.
+  Use ephemeral positions, bounded counts, enums and null unknowns; exclude names,
+  values, SOC, periods, deadlines and raw errors. User review/download is explicit,
+  not auto-upload. Counts/plan caps can still reveal household behaviour.
+- Per-value source ages must use the matching domain (month cost is monthly_cost,
+  not billing_summary) and have no whole-device fallback. Name successful cached
+  checks accurately; a recent check does not prove a new value or live settlement.
+- A targeted lint-chain migration can remove an unpatched transitive dependency
+  without changing Node 22/ESLint 8 or runtime dependencies. Verify npm ci, full
+  lint/tests and both audit scopes; do not treat audit remediation as full ecosystem
+  modernisation or infer GitHub alert closure before merging and readback.
 - Store credentials only in Homey device storage or GitHub Secrets.
 - Redact account numbers, meter identifiers, device identifiers, tokens, and API errors.
 - Use synthetic Octopus-format identifiers in tests.

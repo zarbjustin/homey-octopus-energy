@@ -4,6 +4,63 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
+const { summaryMetricFreshness } = require('../lib/statusPresentation');
+
+test('Summary metrics use their own source ages, with no healthy whole-device fallback', () => {
+  const now = Date.parse('2026-10-09T12:00Z');
+  const stamp = (age) => new Date(now - age * 60000).toISOString();
+  const freshness = {
+    updatedAt: stamp(0),
+    problem: false,
+    sources: {
+      balance: { state: 'stale', updatedAt: stamp(180) },
+      meter_data: { state: 'current', updatedAt: stamp(3) },
+      billing_summary: { state: 'current', updatedAt: stamp(1) },
+      monthly_cost: { state: 'stale', updatedAt: stamp(120) },
+    },
+  };
+  const values = {
+    balance: 0, usage: 2, cost: 1, month: 30, points: 5,
+  };
+  const result = summaryMetricFreshness(freshness, values, now);
+  assert.equal(result.balance.state, 'stale');
+  assert.equal(result.balance.ageMinutes, 180);
+  assert.equal(result.usage.state, 'current');
+  assert.equal(result.cost.ageMinutes, 3);
+  assert.equal(result.month.source, 'monthly_cost', 'monthly cost is not the separate billing-period summary');
+  assert.equal(result.month.ageMinutes, 120);
+  assert.equal(result.points.state, 'unknown');
+  assert.equal(result.points.ageMinutes, null);
+  assert.equal(summaryMetricFreshness({ ...freshness, problem: true }, values, now).usage.state, 'stale');
+});
+
+test('Summary metric badges reject missing/invalid/future source timestamps and missing values', () => {
+  const now = Date.parse('2026-10-09T12:00Z');
+  for (const updatedAt of [null, 'invalid', new Date(now + 1).toISOString()]) {
+    const f = { sources: { balance: { state: 'current', updatedAt } } };
+    const view = summaryMetricFreshness(f, { balance: 0 }, now).balance;
+    assert.equal(view.state, 'unknown'); assert.equal(view.ageMinutes, null);
+  }
+  for (const balance of [null, undefined, NaN, Infinity, false, '0']) {
+    assert.equal(summaryMetricFreshness({ sources: { balance: { state: 'current', updatedAt: new Date(now).toISOString() } } }, { balance }, now).balance.state, 'unknown');
+  }
+});
+
+test('Summary per-metric badges show non-colour state/age and delayed settlement, escaping labels', () => {
+  const html = fs.readFileSync('widgets/summary/public/index.html', 'utf8');
+  const context = vm.createContext({});
+  vm.runInContext(html.match(/<script type="text\/javascript">([\s\S]*?)<\/script>/)[1], context);
+  const cell = context.metricCell({ cost: 0, metricFreshness: { cost: { state: 'stale', ageMinutes: 120 } } }, 'cost', '<img>', '£');
+  assert.match(cell, /£0.00/);
+  assert.match(cell, /Stale · checked 120 min ago/);
+  assert.match(cell, /Delayed settled data/);
+  assert.match(cell, /&lt;img&gt;/);
+  assert.doesNotMatch(cell, /<img>/);
+  assert.match(context.metricCell({ balance: null }, 'balance', 'Balance', '£'), /Unknown · check time unknown/);
+  assert.equal(context.n(Infinity), '–');
+  assert.equal(context.n(false), '–');
+});
 
 const widgetApis = [
   ['agile', 'electricity'],

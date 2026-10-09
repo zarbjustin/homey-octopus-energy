@@ -15,6 +15,9 @@
     .status-list li { border-top: 1px solid #ddd; padding: 10px 0; }
     .status-list strong, .status-list span { display: block; }
     .status-list span { color: #666; font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+    .support-preview { width: 100%; box-sizing: border-box; min-height: 180px; margin: 8px 0; font-size: 12px; }
+    button { min-height: 36px; margin: 4px 4px 4px 0; }
+    button:focus-visible { outline: 2px solid #333; outline-offset: 2px; }
   </style>
 </head>
 <body>
@@ -118,13 +121,44 @@
   </ul>
 
   <h2>Integration status</h2>
+  <p>Sources update independently. Consumption is delayed settlement data, not
+     live demand. A recent price update does not guarantee prices through your
+     charging deadline. Missing data is unknown, not zero.</p>
   <ul id="integration-status" class="status-list">
     <li><span>No device refresh status recorded yet.</span></li>
   </ul>
 
+  <h2>Support snapshot</h2>
+  <p>Create a read-only snapshot of cached source ages, planning decisions and
+     diagnostic counts. It excludes credentials, names, account/device/Flow IDs,
+     meter readings, raw settings and logs. Counts and plan limits can still reveal
+     household behaviour: review it before sharing. Nothing is uploaded automatically
+     and no Octopus refresh or battery command is triggered.</p>
+  <button type="button" id="support-generate">Create support snapshot</button>
+  <button type="button" id="support-download" disabled>Download JSON</button>
+  <button type="button" id="support-clear" disabled>Clear preview</button>
+  <p id="support-status" role="status" aria-live="polite">No snapshot created.</p>
+  <div id="support-preview-wrap" hidden>
+    <label for="support-preview">Review or select and copy this snapshot</label>
+    <textarea id="support-preview" class="support-preview" readonly spellcheck="false"></textarea>
+  </div>
+
   <p class="muted">Not affiliated with, or endorsed by, Octopus Energy.</p>
 
   <script type="text/javascript">
+    function integrationHealthLine(area, value, now) {
+      const labels = { prices: 'Tariff prices', meter_data: 'Consumption and cost', carbon: 'Carbon forecast', balance: 'Balance', billing_summary: 'Billing summary', daily_usage: 'Settled history', effective_rate: 'Estimated effective rate' };
+      if (!Object.prototype.hasOwnProperty.call(labels, area)) return null;
+      const stamp = Date.parse(value.lastSuccess || '');
+      const valid = Number.isFinite(stamp) && stamp <= now;
+      const age = valid ? Math.floor((now - stamp) / 60000) : null;
+      const last = age === null ? 'no successful update recorded' : 'last success ' + age + ' min ago';
+      let advice = 'Source freshness depends on its cadence; this is not live consumption or full future coverage.';
+      if (value.coverageUnavailable) advice = 'Required coverage is missing; retained figures are not a new complete result. Wait for background recovery.';
+      else if (value.lastError) advice = 'The last check failed; showing retained data if any. Background recovery will retry. Only use Repair for a confirmed authentication failure; do not delete the meter.';
+      else if (!valid) advice = 'Waiting for a successful background update; missing data is unknown, not zero.';
+      return labels[area] + ': ' + last + '. ' + advice;
+    }
     function onHomeyReady(Homey) {
       const checks = ['notify_plunge', 'notify_saving_sessions', 'notify_free_electricity', 'notify_dispatch', 'notify_low_balance', 'effective_rate_estimate', 'enable_boost_control'];
       const defaults = { notify_plunge: true, notify_saving_sessions: true, notify_free_electricity: true };
@@ -234,6 +268,7 @@
           + `${d.unknown || 0} unknown, ${d.degraded || 0} degraded, ${d.stale || 0} stale`
           + `; ${d.successfulEmptyPlans || 0} confirmed empty plan(s)`
           + (errors ? `, ${errors} with errors` : '');
+        detail.textContent += '; Unsupported dispatch accounts can still use ordinary tariffs/usage. Unknown/degraded is not proof of non-enrolment or permission to charge. Wait for background recovery; do not delete a healthy meter.';
         item.append(title, detail);
         dispatchStatus.appendChild(item);
       });
@@ -247,19 +282,65 @@
           const title = document.createElement('strong');
           title.textContent = Object.keys(diagnostics).length > 1 ? `Meter ${i + 1}` : 'Meter';
           const detail = document.createElement('span');
-          const entries = Object.entries(areas || {});
-          const failures = entries.filter(([, value]) => value.lastError);
-          const lastAttempt = entries.reduce((latest, [, value]) => {
-            const time = Date.parse(value.lastAttempt || '') || 0;
-            return Math.max(latest, time);
-          }, 0);
-          const checked = lastAttempt ? new Date(lastAttempt).toLocaleString() : 'not yet';
-          detail.textContent = failures.length
-            ? `Last checked ${checked} - ${failures.map(([area, value]) => `${area.replaceAll('_', ' ')}: ${value.lastError}`).join('; ')}`
-            : `Last checked ${checked} - ${entries.length} integration checks healthy`;
+          const lines = Object.entries(areas || {}).map(([area, value]) => integrationHealthLine(area, value || {}, Date.now())).filter(Boolean);
+          if (!lines.length) detail.textContent = 'No source status recorded yet.';
+          lines.forEach((line) => {
+            const source = document.createElement('span');
+            source.textContent = line;
+            detail.appendChild(source);
+          });
           item.append(title, detail);
           integrationStatus.appendChild(item);
         });
+      });
+
+      const generate = document.getElementById('support-generate');
+      const download = document.getElementById('support-download');
+      const clear = document.getElementById('support-clear');
+      const preview = document.getElementById('support-preview');
+      const previewWrap = document.getElementById('support-preview-wrap');
+      const supportStatus = document.getElementById('support-status');
+      let snapshotText = '';
+      function resetSnapshot() {
+        snapshotText = ''; preview.value = ''; previewWrap.hidden = true;
+        download.disabled = true; clear.disabled = true;
+      }
+      generate.addEventListener('click', () => {
+        resetSnapshot(); generate.disabled = true;
+        supportStatus.textContent = 'Reading cached diagnostics…';
+        function completed(err, snapshot) {
+          generate.disabled = false;
+          if (err || !snapshot || snapshot.schemaVersion !== 1) {
+            supportStatus.textContent = 'Snapshot unavailable. Try again later; no refresh or settings change was made.';
+            return;
+          }
+          snapshotText = JSON.stringify(snapshot, null, 2);
+          preview.value = snapshotText; previewWrap.hidden = false;
+          download.disabled = false; clear.disabled = false;
+          supportStatus.textContent = 'Snapshot ready for review. Source unknowns remain unknown; this is not a field-test result. Nothing has been uploaded.';
+        }
+        try { Homey.api('GET', '/support/snapshot', null, completed); }
+        catch (err) { completed(true); }
+      });
+      clear.addEventListener('click', () => {
+        resetSnapshot(); supportStatus.textContent = 'Preview cleared. Any downloaded copy remains on your device.';
+      });
+      download.addEventListener('click', () => {
+        if (!snapshotText) return;
+        let url;
+        let link;
+        try {
+          url = URL.createObjectURL(new Blob([snapshotText], { type: 'application/json' }));
+          link = document.createElement('a'); link.href = url;
+          link.download = 'octopus-support-snapshot.json';
+          document.body.appendChild(link); link.click();
+          supportStatus.textContent = 'Download requested. If Homey blocks downloads, select and copy the preview instead. Nothing was uploaded.';
+        } catch (err) {
+          supportStatus.textContent = 'Download unavailable in this view. Select and copy the preview instead.';
+        } finally {
+          if (link) link.remove();
+          if (url) setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
       });
 
       Homey.ready();
