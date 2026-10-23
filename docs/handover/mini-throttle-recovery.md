@@ -29,11 +29,14 @@ Build 40 contains one manual diagnostic; Build 38 has no listed reports.
 
 ## Verification and delivery
 
-- Initial 11 new regressions and the full 753-test suite passed on Node 22.23.2.
-- Additional toggle/cadence/invalidation regression added; final full checks pending.
+- All 754 tests, including 12 new regressions, pass on Node 22.23.2.
+- Fresh-checkout `npm ci`, full/production audits (zero vulnerabilities), lint,
+  normal Homey build and publish validation pass. Only the two expected
+  cumulative-direction warnings remain. Generated app manifest is unchanged.
 - Local cloud-backed `.npmrc` and `.homeyignore` files are not materialised;
-  packaging is being checked in a fresh validation checkout without overwriting
+  packaging was verified in a fresh validation checkout without overwriting
   or committing those local files. Existing user changes are preserved.
+- Implementation PR #57 is open; CI/CodeQL and normal patch release are pending.
 - Source remains 1.0.40 pending the normal release workflow. No installation,
   channel change, production Flow edit, battery command or external reply yet.
 
