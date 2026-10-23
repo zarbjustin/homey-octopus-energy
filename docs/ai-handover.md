@@ -6,6 +6,18 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
+23 October: a Mini live-demand recovery candidate is implemented on
+`codex/mini-rate-limit-recovery`, based on fetched main `5c11bf5`. HTTP-200
+GraphQL throttles (`KT-CT-1199` or exact throttle messages) now enter the same
+account cooldown as HTTP 429, before success rewards/auth retries/partial-data
+handling. Mini polling respects that cooldown; Summary explains the pause and
+retains the original reading timestamp with stale status. No new polling,
+settings/Flow/capability IDs or battery controls. Version remains 1.0.40 until
+the normal release workflow. Test/release/reporter gates are recorded in
+[Mini recovery execution](handover/mini-throttle-recovery.md). Portal readback
+23 October: Build 40 Test, Build 38 Live; a manually submitted diagnostic is
+not an automatic app crash. No affected-account recovery proven yet.
+
 9 October: v1.0.40 / Build 40 is delivered to Test and the selected Homey Pro.
 Implementation PR #54 and release PR #55 merged; 742 tests, CI/CodeQL, full and
 production audits, normal build and publish validation pass. Independent upgrade

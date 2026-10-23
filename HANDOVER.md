@@ -1,6 +1,6 @@
 # Project Handover
 
-Last updated: 9 October 2026
+Last updated: 23 October 2026
 
 > **AI/LLM takeover:** start with [`docs/ai-handover.md`](docs/ai-handover.md), then read
 > [`AGENTS.md`](AGENTS.md), [`docs/roadmap-next.md`](docs/roadmap-next.md), and
@@ -9,6 +9,16 @@ Last updated: 9 October 2026
 > in the current takeover or roadmap documents.
 
 ## Current state
+
+- **23 October — Mini throttle recovery candidate.** HTTP-200 GraphQL throttle
+  errors now open the shared Kraken account cooldown rather than rewarding a
+  nominally successful HTTP response. Mini polls pause without extra timers;
+  Summary explains automatic retry and shows the retained sample's original age.
+  Existing settings, capabilities, Flow contracts and billing paths are unchanged.
+  Based on fetched main `5c11bf5`; version stays 1.0.40 pending normal release.
+  The report is a manual functional diagnostic, not an automatic app crash.
+  No real-account recovery, installation or Test publication claimed yet. See
+  [execution and pending gates](docs/handover/mini-throttle-recovery.md).
 
 - **9 October — v1.0.40 / Build 40 delivered to Test and Pro.** Implementation
   PR [#54](https://github.com/zarbjustin/homey-octopus-energy/pull/54) merged as
