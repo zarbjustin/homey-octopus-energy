@@ -10,7 +10,7 @@ import { SmartFlexDevice, DispatchView, DispatchEligibility } from './lib/dispat
 import { deviceEligibility, dispatchFailure } from './lib/dispatch/eligibility';
 import { BackgroundRecovery } from './lib/BackgroundRecovery';
 import { PlannedInput, CompletedInput } from './lib/dispatch/reconcile';
-import { LiveDemandSource, LiveDemandCreds } from './lib/LiveDemandSource';
+import { LiveDemandSource, LiveDemandCreds, LiveDemandStatus } from './lib/LiveDemandSource';
 import { budgetDiagnostics } from './lib/KrakenBudget';
 import { Reading } from './lib/freshness';
 import { crossedAbove, crossedBelow } from './lib/rates';
@@ -181,6 +181,10 @@ module.exports = class OctopusEnergyApp extends Homey.App {
   /** Latest shared live-demand reading for an account, if any. */
   getLiveDemand(accountNumber: string): Reading<number> | null {
     return this.liveDemand?.getLiveDemand(accountNumber) ?? null;
+  }
+
+  getLiveDemandStatus(accountNumber: string): LiveDemandStatus | null {
+    return this.liveDemand?.getStatus(accountNumber) ?? null;
   }
 
   /** Sanitised dispatch presentation snapshot for widgets (deviceId-free). */

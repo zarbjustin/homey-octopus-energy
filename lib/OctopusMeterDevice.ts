@@ -668,9 +668,14 @@ export class OctopusMeterDevice extends Homey.Device {
   getLiveDemandView(): {
     netW: number | null; importW: number | null; exportW: number | null;
     state: string; readAt: string | null; source: string | null;
+    status: { reason: string; retryAt: string | null } | null;
     } {
-    const app = this.homey.app as Homey.App & { getLiveDemand?(a: string): { value: number | null; readAt: string | null; source: string; state: string } | null };
+    const app = this.homey.app as Homey.App & {
+      getLiveDemand?(a: string): { value: number | null; readAt: string | null; source: string; state: string } | null;
+      getLiveDemandStatus?(a: string): { reason: string; retryAt: string | null } | null;
+    };
     const reading = app.getLiveDemand?.(this.store().accountNumber) ?? null;
+    const status = app.getLiveDemandStatus?.(this.store().accountNumber) ?? null;
     if (!reading || reading.value === null) {
       return {
         netW: null,
@@ -679,6 +684,7 @@ export class OctopusMeterDevice extends Homey.Device {
         state: reading?.state ?? 'unknown',
         readAt: reading?.readAt ?? null,
         source: reading?.source ?? null,
+        status,
       };
     }
     const net = reading.value;
@@ -689,6 +695,7 @@ export class OctopusMeterDevice extends Homey.Device {
       state: reading.state,
       readAt: reading.readAt,
       source: reading.source,
+      status,
     };
   }
 

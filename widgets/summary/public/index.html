@@ -86,13 +86,29 @@
     function liveHtml(d) {
       const l = d && d.live;
       if (!l) return '';
-      if (l.state === 'unknown' || l.netW === null || l.netW === undefined) {
-        return '<div class="live" role="status"><span class="k">Live power</span> <span class="v">–</span>' + badge('No data', 'b-unknown') + '</div>';
+      const reason = l.status && l.status.reason;
+      let detail = '';
+      if (reason === 'rate-limited') {
+        detail = 'Octopus rate-limited live power. Background updates will retry automatically; no need to restart or re-pair.';
+        const retryAt = l.status.retryAt;
+        if (typeof retryAt === 'string' && Number.isFinite(Date.parse(retryAt)) && Date.parse(retryAt) > Date.now()) {
+          detail += ' Waiting until at least ' + shortTime(retryAt) + '.';
+        }
+      } else if (reason === 'budget-limited') {
+        detail = 'Live power paused to protect the shared Octopus request allowance. Background updates will retry automatically.';
+      } else if (reason === 'no-device') {
+        detail = 'No Home Mini was found. Background discovery will retry automatically.';
+      } else if (reason === 'provider-error') {
+        detail = 'Live power is temporarily unavailable. Background updates will retry automatically.';
       }
-      const b = l.state === 'current' ? badge('Live · ' + ageText(l.readAt), 'b-current') : badge('Stale', 'b-stale');
+      const note = detail ? '<div class="muted">' + esc(detail) + '</div>' : '';
+      if (l.state === 'unknown' || l.netW === null || l.netW === undefined) {
+        return '<div class="live" role="status"><span class="k">Live power</span> <span class="v">–</span>' + badge('No data', 'b-unknown') + note + '</div>';
+      }
+      const b = l.state === 'current' && reason !== 'rate-limited' ? badge('Live · ' + ageText(l.readAt), 'b-current') : badge('Stale · ' + ageText(l.readAt), 'b-stale');
       const dir = l.exportW > 0 ? ('Export ' + n(l.exportW, 0) + ' W') : ('Import ' + n(l.importW, 0) + ' W');
       return '<div class="live" role="status"><span class="k">Live power</span> <span class="v">' + esc(dir) + '</span>' + b
-        + '<div class="muted">Net-derived from Home Mini</div></div>';
+        + '<div class="muted">Net-derived from Home Mini</div>' + note + '</div>';
     }
     function dispatchHtml(d) {
       const disp = d && d.dispatch;

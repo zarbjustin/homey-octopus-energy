@@ -1,7 +1,7 @@
 'use strict';
 
-import { KrakenClient } from './KrakenClient';
-import { isBudgetError } from './KrakenBudget';
+import { KrakenClient, KrakenApiError } from './KrakenClient';
+import { accountRetryAt, isBudgetError } from './KrakenBudget';
 import {
   Reading, unknownReading, currentReading, staleFrom, isStale,
 } from './freshness';
@@ -25,6 +25,11 @@ export interface LiveDemandCreds {
 
 export type LiveDemandListener = (reading: Reading<number>) => void;
 
+export interface LiveDemandStatus {
+  reason: 'unknown' | 'current' | 'stale' | 'rate-limited' | 'budget-limited' | 'no-device' | 'provider-error';
+  retryAt: string | null;
+}
+
 export interface LiveDemandDeps {
   getClient(creds: LiveDemandCreds): KrakenClient;
   setInterval(fn: () => void, ms: number): unknown;
@@ -42,6 +47,7 @@ interface AccountState {
   deviceIdResolved: boolean;
   inflight: Promise<void> | null;
   discoveryBackoffUntil: number;
+  reason: LiveDemandStatus['reason'];
 }
 
 const ALLOWED_CADENCE = [60, 120, 300];
@@ -88,6 +94,7 @@ export class LiveDemandSource {
         deviceIdResolved: false,
         inflight: null,
         discoveryBackoffUntil: 0,
+        reason: 'unknown',
       };
       this.accounts.set(creds.accountNumber, state);
     }
@@ -114,7 +121,22 @@ export class LiveDemandSource {
 
   /** The latest reading for an account, or null if no subscribers. */
   getLiveDemand(accountNumber: string): Reading<number> | null {
-    return this.accounts.get(accountNumber)?.reading ?? null;
+    const reading = this.accounts.get(accountNumber)?.reading;
+    if (!reading) return null;
+    return reading.state === 'current' && isStale(reading.readAt, this.cadenceMs, this.deps.now())
+      ? staleFrom(reading) : { ...reading };
+  }
+
+  /** Presentation only: reading this never polls or resets the shared gate. */
+  getStatus(accountNumber: string): LiveDemandStatus | null {
+    const state = this.accounts.get(accountNumber);
+    if (!state) return null;
+    const retryAt = accountRetryAt(accountNumber);
+    if (retryAt) return { reason: 'rate-limited', retryAt };
+    const reading = this.getLiveDemand(accountNumber);
+    const { reason: lastReason } = state;
+    const reason = lastReason === 'current' && reading?.state !== 'current' ? 'stale' : lastReason;
+    return { reason, retryAt: null };
   }
 
   /** Drop cached device id / reading after a credential change. */
@@ -125,6 +147,7 @@ export class LiveDemandSource {
     state.deviceIdResolved = false;
     state.discoveryBackoffUntil = 0;
     state.reading = unknownReading<number>();
+    state.reason = 'unknown';
   }
 
   /** Number of accounts currently being polled (diagnostics). */
@@ -158,6 +181,13 @@ export class LiveDemandSource {
 
   private async doPoll(state: AccountState): Promise<void> {
     const now = this.deps.now();
+    // No discovery/demand attempt while ANY Kraken consumer has opened this
+    // account's cooldown. Existing cadence performs recovery; no new timer.
+    if (accountRetryAt(state.creds.accountNumber)) {
+      state.reason = 'rate-limited';
+      this.markStale(state);
+      return;
+    }
     if (!state.deviceIdResolved) {
       if (now < state.discoveryBackoffUntil) return;
       try {
@@ -165,6 +195,7 @@ export class LiveDemandSource {
         state.deviceId = await client.getElectricityDeviceId(state.creds.accountNumber);
         state.deviceIdResolved = true;
       } catch (err) {
+        this.recordFailure(state, err);
         if (!isBudgetError(err)) this.deps.onError('Live demand device discovery failed', err);
         this.markStale(state);
         return;
@@ -174,6 +205,7 @@ export class LiveDemandSource {
       // No Home Mini on this account: retain "unknown" and back off discovery so
       // we do not waste the shared budget re-asking every cadence.
       state.reading = unknownReading<number>();
+      state.reason = 'no-device';
       state.deviceIdResolved = false;
       state.discoveryBackoffUntil = now + DISCOVERY_BACKOFF_MS;
       this.emit(state);
@@ -183,6 +215,7 @@ export class LiveDemandSource {
       const client = this.deps.getClient(state.creds);
       const { demand, readAt } = await client.getDemandReading(state.deviceId);
       if (demand === null) {
+        state.reason = 'provider-error';
         this.markStale(state);
         return;
       }
@@ -191,13 +224,20 @@ export class LiveDemandSource {
       // A returned-but-old sample is stale, not current.
       reading.state = isStale(at, this.cadenceMs, now) ? 'stale' : 'current';
       state.reading = reading;
+      state.reason = reading.state === 'current' ? 'current' : 'stale';
       this.emit(state);
     } catch (err) {
+      this.recordFailure(state, err);
       // A budget skip just means "keep the last reading, marked stale" — it is an
       // expected protection of the shared account budget, not a fault to surface.
       if (!isBudgetError(err)) this.deps.onError('Live demand refresh failed', err);
       this.markStale(state);
     }
+  }
+
+  private recordFailure(state: AccountState, err: unknown): void {
+    if (err instanceof KrakenApiError && err.status === 429) state.reason = 'rate-limited';
+    else state.reason = isBudgetError(err) ? 'budget-limited' : 'provider-error';
   }
 
   private markStale(state: AccountState): void {

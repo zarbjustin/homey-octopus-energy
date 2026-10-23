@@ -1,8 +1,16 @@
 # Roadmap After v1.0.40 Test
 
-Last updated: 9 October 2026
+Last updated: 23 October 2026
 
 ## Current Status and Direction
+
+Urgent reliability priority: Mini live-demand GraphQL throttling recovery.
+The 23 October candidate shares the HTTP-429 cooldown for HTTP-200 throttle
+errors, retains stale last-known readings/timestamps, and explains automatic
+background recovery in Summary. No new request cadence or account reset.
+See [execution and release/reporter gates](handover/mini-throttle-recovery.md).
+An affected Mini account must confirm sustained recovery on the Test build;
+synthetic tests and zero automatic crash counts do not close this gate.
 
 9 October maintenance/support extension: dependency migration, full-audit CI gate,
 independent Summary metric badges and opt-in support preview/download implemented

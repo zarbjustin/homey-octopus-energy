@@ -267,6 +267,18 @@ export class KrakenClient {
             throw new KrakenApiError(res.status, `Kraken request failed (${res.status}).`);
           }
           const json = await res.json() as GraphQLResponse<T>;
+          // Kraken can throttle a resolver inside HTTP 200 (including token
+          // acquisition). Classify BEFORE reward/auth retry/partial-data handling
+          // so every caller shares the same cooldown and no inline retry escapes it.
+          if (json.errors?.some((error) => error.extensions?.errorCode === 'KT-CT-1199'
+            || /^(too many requests|rate limit exceeded)[.!]?$/i.test(error.message.trim()))) {
+            const retry = res.headers.get('retry-after');
+            const retryAfterMs = retry && /^\d+$/.test(retry) ? Number(retry) * 1000
+              : Math.max(0, Date.parse(retry || '') - Date.now());
+            bucket.penalise(retryAfterMs);
+            throw new KrakenApiError(429, 'Kraken rate limited (429)',
+              Number.isFinite(retryAfterMs) ? retryAfterMs : undefined);
+          }
           bucket.reward();
           return json;
         });

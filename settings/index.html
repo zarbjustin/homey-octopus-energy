@@ -69,6 +69,9 @@
   <h2>Live power</h2>
   <p>How often to refresh live power from an Octopus Home Mini. Slower cadences use
      less of your Octopus API allowance, which is shared with other apps.</p>
+  <p>If Octopus rate-limits requests, updates pause and retry automatically after
+     a cooldown. The Summary widget explains the pause and marks retained readings
+     stale. Restarting, re-pairing or repeatedly toggling live power is not needed.</p>
   <div class="field">
     <label for="live_demand_cadence_s">Live power update interval</label>
     <select class="homey-form-input" id="live_demand_cadence_s">

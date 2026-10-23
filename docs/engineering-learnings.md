@@ -133,6 +133,13 @@ This document captures durable constraints, root causes, and workflow gotchas th
 
 ## API Budget and Failure Handling
 
+- HTTP success is not GraphQL success. Classify resolver throttling before a
+  request-budget success reward, partial-data handling or authentication retry.
+  Use the existing shared-account cooldown, never a new per-device retry loop.
+  Retain timestamps/last values and distinguish provider throttles from local
+  budget skips and unrelated missing smart-charge devices. Manual diagnostics
+  listed under Crashes do not establish that the app process crashed.
+
 | Learning | Required behavior |
 |---|---|
 | Kraken’s request allowance is shared by account and external clients. | Reuse account caches, single-flight calls, and the shared request budget. |

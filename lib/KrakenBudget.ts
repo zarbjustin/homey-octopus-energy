@@ -107,6 +107,11 @@ export class TokenBucket {
     return this.now() < this.backoffUntil;
   }
 
+  /** Cache-only cooldown readback; no account identity or provider payload. */
+  get retryAt(): string | null {
+    return this.gated ? new Date(this.backoffUntil).toISOString() : null;
+  }
+
   /**
    * Try to admit one request. Core requests are admitted whenever the gate is
    * clear; live/best requests require an available token.
@@ -188,6 +193,11 @@ export function getBucket(accountKey: string): TokenBucket {
     }
   }
   return bucket;
+}
+
+/** Non-mutating cooldown readback: never allocates a bucket from a widget read. */
+export function accountRetryAt(accountKey: string): string | null {
+  return registry.get(accountKey)?.retryAt ?? null;
 }
 
 /** Aggregate, identifier-free snapshot for diagnostics. */
