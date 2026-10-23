@@ -121,5 +121,8 @@
   },
   "1.0.40": {
     "en": "Adds simpler Standard Flow charging setup, capacity checks, plan-status and decision-change cards, and an explicit timestamp-aware battery-duration helper. Improves Summary plan details, independent metric freshness and data-health guidance. Adds a user-initiated privacy-safe cached support snapshot. Updates lint tooling and release validation. Existing Flow contracts are preserved; battery control remains in user Flows."
+  },
+  "1.0.41": {
+    "en": "Fix Home Mini live-power recovery after Octopus rate limiting, share account cooldown for GraphQL throttles, and explain stale readings and automatic retries in Summary."
   }
 }
