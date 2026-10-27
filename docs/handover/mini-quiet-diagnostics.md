@@ -21,9 +21,26 @@ Do not repeatedly refresh/restart or re-pair. Logs are bounded to five-minute
 intervals and no-subscription cases require the snapshot's enabled/subscribed
 flags. Actual cause and sustained recovery are not yet proven.
 
+## Reporter follow-up status
+
+27 October: the separately user-approved reply to J273 was sent and verified by
+reopening/reloading the saved reply. It shares the v1.0.42 Test URL above and
+asks for 10–15 minutes of normal operation, then a fresh Homey diagnostic/code
+if live readings remain missing or stop updating. It requests approximate check
+time and whether there was an initial reading, and explains the optional
+previewable Settings support snapshot (no automatic upload).
+
+**Waiting for J273's new diagnostics and field feedback.** Do not infer that he
+has installed the build or that recovery is established. Review new evidence
+against the interpretation table below before proposing another fix. No private
+message URL/text, report identifier, raw log or support payload is stored in Git.
+
+## Release boundaries
+
 Fresh portal readback shows Build 41 already Live, replacing the earlier review
 observation. This task makes no Live/certification change and does not install on
 the household Pro, edit Flows/settings, trigger provider refresh or post a reply.
+The later separately approved support reply is recorded above.
 The implementation-stage scope below is historical; reporter diagnosis and
 sustained recovery remain open after delivery.
 

@@ -13,6 +13,11 @@ The user subsequently authorised merge and Test delivery as v1.0.42, not Live or
 certification. Field diagnosis and sustained recovery remain open. Build 41 was
 already Live at the fresh 27 October portal readback; no promotion performed here.
 
+27 October: approved follow-up sent to J273 and verified, with the v1.0.42 Test
+link and diagnostic instructions. Next action is to review his fresh report and
+optional Settings support snapshot when received. Waiting for diagnostics and
+field feedback, not cleared for recovery/closure or Live promotion of v1.0.42.
+
 Urgent reliability priority: Mini live-demand GraphQL throttling recovery.
 The 23 October candidate shares the HTTP-429 cooldown for HTTP-200 throttle
 errors, retains stale last-known readings/timestamps, and explains automatic

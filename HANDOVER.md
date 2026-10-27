@@ -10,6 +10,14 @@ Last updated: 27 October 2026
 
 ## Current state
 
+- **27 October — Mini Test follow-up sent.** User-approved reply to J273 posted
+  and independently verified after reload. Shared v1.0.42 Test link and requested
+  a fresh diagnostic after 10–15 minutes of normal operation if the symptom
+  persists, plus approximate observation time and whether readings never arrive
+  or stop after an initial update. Optional Settings support snapshot explained.
+  Waiting for his new diagnostics/feedback; installation and sustained recovery
+  are unconfirmed. No private message URL/text, report ID or payload in Git.
+
 - **27 October — v1.0.42 release for targeted Mini diagnosis.** Implementation
   PR #59 merged as `4fe6b9f`, release PR #60 as `fdeaae5`; annotated tag/GitHub
   release v1.0.42 resolves to the release merge. Version run `40589259013`, release
