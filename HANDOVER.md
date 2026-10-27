@@ -10,6 +10,16 @@ Last updated: 27 October 2026
 
 ## Current state
 
+- **27 October — v1.0.42 release for targeted Mini diagnosis.** Implementation
+  PR #59 merged as `4fe6b9f`, release PR #60 as `fdeaae5`; annotated tag/GitHub
+  release v1.0.42 resolves to the release merge. Version run `40589259013`, release
+  `40589714724`, exact-tag Homey publish `40589805514`. 770 tests and release
+  validation pass. Build 42 is verified on Test in reloaded Developer Tools and
+  the independent public listing. User authorised Test only, not certification/Live, local
+  installation, Flow/battery changes or posting. Fresh readback found Build 41
+  already Live. Reporter cause/recovery remain unproven; see the
+  [delivery record](docs/handover/mini-quiet-diagnostics.md).
+
 - **27 October — targeted Mini diagnostics candidate.** Based on fetched main
   `809bbe2` / v1.0.41. Cache-only support metadata and bounded existing-loop logs
   distinguish subscription, discovery, budget/cooldown, telemetry and capability

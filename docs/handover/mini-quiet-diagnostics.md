@@ -1,5 +1,32 @@
 # Mini quiet-path diagnostics — 27 October 2026
 
+## Release execution
+
+User subsequently authorised merge and a new Test build. PR #59 merged as
+`4fe6b9f`; release PR #60 merged as `fdeaae5`. Version workflow `40589259013`
+passed all 770 tests, lint, audit and publish validation. Release workflow
+`40589714724` created annotated tag/GitHub release v1.0.42 at `fdeaae5`;
+Homey publish workflow `40589805514` uses that exact tag.
+
+Publish succeeded at 21:49 UTC. Build 42 was then explicitly published to Test;
+reloaded Developer Tools shows available for testing, and the independent public
+Test listing shows v1.0.42 and the matching diagnostics changelog. Test URL:
+<https://homey.app/a/uk.co.zarb.octopusenergy/test/>. No certification submitted.
+Release-head CI, CodeQL and Homey validation passed.
+
+Next reporter step: update to v1.0.42, leave normal polling running for 10–15
+minutes, then submit a fresh diagnostic after the symptom. If comfortable, also
+preview/download the protected Settings support snapshot and share privately.
+Do not repeatedly refresh/restart or re-pair. Logs are bounded to five-minute
+intervals and no-subscription cases require the snapshot's enabled/subscribed
+flags. Actual cause and sustained recovery are not yet proven.
+
+Fresh portal readback shows Build 41 already Live, replacing the earlier review
+observation. This task makes no Live/certification change and does not install on
+the household Pro, edit Flows/settings, trigger provider refresh or post a reply.
+The implementation-stage scope below is historical; reporter diagnosis and
+sustained recovery remain open after delivery.
+
 ## Scope and evidence
 
 Fetched main/release baseline `809bbe2` / v1.0.41; targeted diagnostic candidate
