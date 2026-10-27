@@ -9,7 +9,9 @@ A new quiet-path diagnostic candidate distinguishes subscription, discovery,
 cooldown/budget skips, empty or invalid telemetry, stale samples and capability
 writes. It adds no provider cadence and keeps support readback cache-only.
 See [implementation and pending field/release gates](handover/mini-quiet-diagnostics.md).
-No new build or channel change is authorised by this diagnostic implementation.
+The user subsequently authorised merge and Test delivery as v1.0.42, not Live or
+certification. Field diagnosis and sustained recovery remain open. Build 41 was
+already Live at the fresh 27 October portal readback; no promotion performed here.
 
 Urgent reliability priority: Mini live-demand GraphQL throttling recovery.
 The 23 October candidate shares the HTTP-429 cooldown for HTTP-200 throttle
