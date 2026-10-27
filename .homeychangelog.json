@@ -124,5 +124,8 @@
   },
   "1.0.41": {
     "en": "Fix Home Mini live-power recovery after Octopus rate limiting, share account cooldown for GraphQL throttles, and explain stale readings and automatic retries in Summary."
+  },
+  "1.0.42": {
+    "en": "Adds privacy-safe Home Mini diagnostics to identify discovery, polling, cooldown, telemetry and reading-delivery problems. Fixes missing demand values appearing as zero and invalid timestamps appearing fresh. Existing polling cadence and Flow contracts are unchanged."
   }
 }
