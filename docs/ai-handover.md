@@ -6,6 +6,15 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
+27 October support follow-up: the user-approved reply to J273 was sent and
+verified after reloading. It includes the v1.0.42 Test link, a request to leave
+normal polling running for 10–15 minutes, then send a fresh Homey diagnostic
+report/code if readings remain absent or stop. The optional Settings support
+snapshot was explained. **Waiting for J273's fresh diagnostics and field feedback**;
+installation, receipt of a new report and sustained Mini recovery are not yet
+confirmed. Do not re-pair, repeatedly restart/refresh or claim the cause is known.
+No private message text, report IDs or diagnostic payloads are retained in Git.
+
 27 October release update: diagnostics PR #59 merged as `4fe6b9f`, release PR #60
 as `fdeaae5`. Annotated tag/GitHub release v1.0.42 resolves to the release merge.
 Version run `40589259013` and release run `40589714724` passed; exact-tag Homey
@@ -13,7 +22,8 @@ publish run `40589805514` succeeded. Build 42 is verified on Test in both reload
 Developer Tools and the public listing. All 770 tests, lint, audit and
 publish validation passed. Fresh portal readback shows Build 41 already Live;
 this task did not promote it. No local install, production Flow/battery changes,
-certification submission or public reply authorised by this Test-only delivery.
+certification submission or public reply was part of that Test-only delivery;
+the separately approved support reply is recorded above.
 See the [delivery and field record](handover/mini-quiet-diagnostics.md).
 
 The implementation-stage notes below describe the candidate before this release.
@@ -33,7 +43,7 @@ See [execution, interpretation and gates](handover/mini-quiet-diagnostics.md).
 as `809bbe2`; tag/GitHub release v1.0.41 and Homey Build 41 delivered to Test.
 Version workflow `40026234241`, release `40026561272`, exact-tag publish
 `40026617249`; 754 tests and CI/CodeQL passed. Build 41 was explicitly authorised
-for certification and is still under review on 27 October. Build 38 was last
+for certification; the later 27 October readback found it Live. Build 38 was last
 verified Live on 23 October. The local v1.0.41 CLI install failed discovery;
 no successful upgrade is claimed. A later manual diagnostic contains no logged
 Mini throttle errors, but also no proof of recovered readings. The affected
