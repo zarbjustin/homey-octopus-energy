@@ -1,6 +1,6 @@
 # Project Handover
 
-Last updated: 23 October 2026
+Last updated: 27 October 2026
 
 > **AI/LLM takeover:** start with [`docs/ai-handover.md`](docs/ai-handover.md), then read
 > [`AGENTS.md`](AGENTS.md), [`docs/roadmap-next.md`](docs/roadmap-next.md), and
@@ -9,6 +9,24 @@ Last updated: 23 October 2026
 > in the current takeover or roadmap documents.
 
 ## Current state
+
+- **27 October — targeted Mini diagnostics candidate.** Based on fetched main
+  `809bbe2` / v1.0.41. Cache-only support metadata and bounded existing-loop logs
+  distinguish subscription, discovery, budget/cooldown, telemetry and capability
+  delivery. Null demand and missing measurement time no longer fabricate a live
+  zero/fresh sample. Existing IDs/settings/contracts and polling cadence remain
+  unchanged. No installation, provider refresh, Flow/battery action, new version,
+  publication or channel change. Reporter recovery remains unconfirmed. See
+  [diagnostic execution/interpretation](docs/handover/mini-quiet-diagnostics.md).
+
+- **23 October — v1.0.41 released for testing and certification.** PR #57 merged
+  as `cca1776`; release PR #58 as `809bbe2`, matching annotated tag/GitHub release.
+  Version run `40026234241`, release `40026561272`, exact-tag publish
+  `40026617249` succeeded; 754 tests/CI/CodeQL passed. Build 41 Test then explicitly
+  authorised certification; under review on 27 October. Build 38 last verified
+  Live on 23 October. A CLI v1.0.41 install failed local discovery: no successful
+  Pro upgrade claimed. A fresh manual report still does not prove Mini recovery.
+  The earlier candidate note below is historical, not the actual delivery state.
 
 - **23 October — Mini throttle recovery candidate.** HTTP-200 GraphQL throttle
   errors now open the shared Kraken account cooldown rather than rewarding a

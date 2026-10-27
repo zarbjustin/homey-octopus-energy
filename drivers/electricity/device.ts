@@ -14,6 +14,7 @@ interface LiveDemandApp {
     onUpdate: (reading: Reading<number>) => void,
   ): void;
   unsubscribeLiveDemand(accountNumber: string, subscriberId: string): void;
+  isLiveDemandSubscribed?(accountNumber: string, subscriberId: string): boolean;
 }
 
 module.exports = class ElectricityDevice extends OctopusMeterDevice {
@@ -29,6 +30,26 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   private previousLevel: string | null = null;
 
   private liveSubscribedAccount: string | null = null;
+
+  private miniReceivedAt: string | null = null;
+
+  private miniWrittenAt: string | null = null;
+
+  private miniWriteFailures = 0;
+
+  /** Cached delivery-stage metadata, never the power value or account identity. */
+  getMiniDiagnostics(): object {
+    const subscribed = typeof this.liveSubscribedAccount === 'string'
+      ? this.liveApp()?.isLiveDemandSubscribed?.(this.liveSubscribedAccount, this.getData().id) ?? false : false;
+    return {
+      enabled: this.getSetting('live_power') === true,
+      subscribed,
+      capabilityPresent: this.hasCapability('measure_power'),
+      receivedAt: this.miniReceivedAt ?? null,
+      writtenAt: this.miniWrittenAt ?? null,
+      writeFailures: this.miniWriteFailures ?? 0,
+    };
+  }
 
   private carbon = new CarbonClient();
 
@@ -280,9 +301,15 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
     }
     this.liveSubscribedAccount = accountNumber;
     app.subscribeLiveDemand({ apiKey, accountNumber }, this.getData().id, (reading) => {
+      this.miniReceivedAt = new Date().toISOString();
       // Only apply a genuinely current reading; never write a stale value as live.
       if (reading.state === 'current' && reading.value !== null && this.hasCapability('measure_power')) {
-        this.setCapabilityValue('measure_power', Math.round(reading.value)).catch(this.error);
+        this.setCapabilityValue('measure_power', Math.round(reading.value)).then(() => {
+          this.miniWrittenAt = new Date().toISOString();
+        }).catch(() => {
+          this.miniWriteFailures += 1;
+          this.error('Mini capability update failed');
+        });
       }
     });
   }

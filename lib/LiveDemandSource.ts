@@ -1,6 +1,6 @@
 'use strict';
 
-import { KrakenClient, KrakenApiError } from './KrakenClient';
+import { KrakenClient, KrakenApiError, KrakenFieldError } from './KrakenClient';
 import { accountRetryAt, isBudgetError } from './KrakenBudget';
 import {
   Reading, unknownReading, currentReading, staleFrom, isStale,
@@ -26,8 +26,34 @@ export interface LiveDemandCreds {
 export type LiveDemandListener = (reading: Reading<number>) => void;
 
 export interface LiveDemandStatus {
-  reason: 'unknown' | 'current' | 'stale' | 'rate-limited' | 'budget-limited' | 'no-device' | 'provider-error';
+  reason: 'unknown' | 'current' | 'stale' | 'rate-limited' | 'budget-limited' | 'no-device' | 'provider-error' | 'empty-telemetry' | 'invalid-demand' | 'invalid-timestamp';
   retryAt: string | null;
+}
+
+const COUNTERS = [
+  'polls', 'coalesced', 'cooldownSkips', 'discoveryBackoffSkips', 'budgetSkips', 'discoveryAttempts',
+  'demandAttempts', 'emptyReadings', 'invalidReadings', 'staleReadings', 'currentReadings', 'providerErrors', 'subscriberErrors',
+] as const;
+type Counters = Record<typeof COUNTERS[number], number>;
+type ErrorKind = 'none' | 'budget' | 'throttled' | 'authentication' | 'field' | 'transport' | 'other';
+
+export interface MiniDiagnostics {
+  schemaVersion: 1;
+  observedAt: string;
+  cadenceSeconds: number;
+  activeAccounts: number;
+  truncated: boolean;
+  accounts: Array<{
+    account: number; subscribers: number; timerActive: boolean; inFlight: boolean;
+    discovery: 'not-attempted' | 'found' | 'not-found' | 'failed';
+    reason: LiveDemandStatus['reason']; readingState: Reading<number>['state'];
+    lastPollAt: string | null; lastDiscoveryAt: string | null; lastDemandAt: string | null;
+    lastResponseAt: string | null; lastSuccessAt: string | null; readingAt: string | null;
+    nextDiscoveryAt: string | null; nextPollAt: string | null; cooldownUntil: string | null;
+    lastErrorKind: ErrorKind;
+    inFlightSince: string | null;
+    counters: Counters;
+  }>;
 }
 
 export interface LiveDemandDeps {
@@ -36,6 +62,7 @@ export interface LiveDemandDeps {
   clearInterval(handle: unknown): void;
   now(): number;
   onError(message: string, err?: unknown): void;
+  onDiagnostics?(snapshot: MiniDiagnostics): void;
 }
 
 interface AccountState {
@@ -48,6 +75,17 @@ interface AccountState {
   inflight: Promise<void> | null;
   discoveryBackoffUntil: number;
   reason: LiveDemandStatus['reason'];
+  discovery: MiniDiagnostics['accounts'][number]['discovery'];
+  counters: Counters;
+  lastPollAt: string | null;
+  lastDiscoveryAt: string | null;
+  lastDemandAt: string | null;
+  lastResponseAt: string | null;
+  lastSuccessAt: string | null;
+  generation: number;
+  nextPollAt: string | null;
+  lastErrorKind: ErrorKind;
+  inFlightSince: string | null;
 }
 
 const ALLOWED_CADENCE = [60, 120, 300];
@@ -64,6 +102,8 @@ export class LiveDemandSource {
 
   private cadenceMs: number;
 
+  private lastDiagnosticAt: number | null = null;
+
   constructor(private readonly deps: LiveDemandDeps, cadenceSeconds: number = DEFAULT_CADENCE) {
     this.cadenceMs = clampCadence(cadenceSeconds) * 1000;
   }
@@ -77,6 +117,7 @@ export class LiveDemandSource {
       if (state.timer !== null) {
         this.deps.clearInterval(state.timer);
         state.timer = this.deps.setInterval(() => this.tick(accountNumber), this.cadenceMs);
+        state.nextPollAt = new Date(this.deps.now() + this.cadenceMs).toISOString();
       }
     }
   }
@@ -95,15 +136,32 @@ export class LiveDemandSource {
         inflight: null,
         discoveryBackoffUntil: 0,
         reason: 'unknown',
+        discovery: 'not-attempted',
+        counters: Object.fromEntries(COUNTERS.map((key) => [key, 0])) as Counters,
+        lastPollAt: null,
+        lastDiscoveryAt: null,
+        lastDemandAt: null,
+        lastResponseAt: null,
+        lastSuccessAt: null,
+        generation: 0,
+        nextPollAt: null,
+        lastErrorKind: 'none',
+        inFlightSince: null,
       };
       this.accounts.set(creds.accountNumber, state);
     }
+    if (state.creds.apiKey !== creds.apiKey) this.invalidate(creds.accountNumber);
     state.creds = creds;
     const first = state.subscribers.size === 0;
     state.subscribers.set(subscriberId, onUpdate);
-    onUpdate(state.reading); // hand the newcomer the latest snapshot immediately
+    try {
+      onUpdate(this.getLiveDemand(creds.accountNumber) ?? unknownReading<number>());
+    } catch {
+      state.counters.subscriberErrors += 1;
+    }
     if (first) {
       state.timer = this.deps.setInterval(() => this.tick(creds.accountNumber), this.cadenceMs);
+      state.nextPollAt = new Date(this.deps.now() + this.cadenceMs).toISOString();
       this.pollAccount(creds.accountNumber).catch(() => { /* handled in doPoll */ });
     }
   }
@@ -139,6 +197,52 @@ export class LiveDemandSource {
     return { reason, retryAt: null };
   }
 
+  hasSubscriber(accountNumber: string, subscriberId: string): boolean {
+    return this.accounts.get(accountNumber)?.subscribers.has(subscriberId) ?? false;
+  }
+
+  /** Allowlisted cached metadata only: no keys, IDs, power values or raw errors. */
+  diagnostics(): MiniDiagnostics {
+    const now = this.deps.now();
+    return {
+      schemaVersion: 1,
+      observedAt: new Date(now).toISOString(),
+      cadenceSeconds: this.cadenceMs / 1000,
+      activeAccounts: this.accounts.size,
+      truncated: this.accounts.size > 5,
+      accounts: [...this.accounts.entries()].slice(0, 5).map(([account, state], index) => ({
+        account: index + 1,
+        subscribers: state.subscribers.size,
+        timerActive: state.timer !== null,
+        inFlight: state.inflight !== null,
+        discovery: state.discovery,
+        reason: this.getStatus(account)?.reason ?? 'unknown',
+        readingState: this.getLiveDemand(account)?.state ?? 'unknown',
+        lastPollAt: state.lastPollAt,
+        lastDiscoveryAt: state.lastDiscoveryAt,
+        lastDemandAt: state.lastDemandAt,
+        lastResponseAt: state.lastResponseAt,
+        lastSuccessAt: state.lastSuccessAt,
+        readingAt: state.reading.readAt,
+        nextDiscoveryAt: state.discoveryBackoffUntil > now ? new Date(state.discoveryBackoffUntil).toISOString() : null,
+        cooldownUntil: accountRetryAt(account),
+        nextPollAt: state.nextPollAt,
+        lastErrorKind: state.lastErrorKind,
+        inFlightSince: state.inFlightSince,
+        counters: { ...state.counters },
+      })),
+    };
+  }
+
+  private reportDiagnostics(): void {
+    const now = this.deps.now();
+    if (this.lastDiagnosticAt !== null && now - this.lastDiagnosticAt < 300000) return;
+    this.lastDiagnosticAt = now;
+    try {
+      this.deps.onDiagnostics?.(this.diagnostics());
+    } catch { /* Support telemetry must never stop live polling. */ }
+  }
+
   /** Drop cached device id / reading after a credential change. */
   invalidate(accountNumber: string): void {
     const state = this.accounts.get(accountNumber);
@@ -148,6 +252,8 @@ export class LiveDemandSource {
     state.discoveryBackoffUntil = 0;
     state.reading = unknownReading<number>();
     state.reason = 'unknown';
+    state.discovery = 'not-attempted';
+    state.generation += 1;
   }
 
   /** Number of accounts currently being polled (diagnostics). */
@@ -164,6 +270,8 @@ export class LiveDemandSource {
   }
 
   private tick(accountNumber: string): void {
+    const state = this.accounts.get(accountNumber);
+    if (state) state.nextPollAt = new Date(this.deps.now() + this.cadenceMs).toISOString();
     this.pollAccount(accountNumber).catch(() => { /* handled in doPoll */ });
   }
 
@@ -171,32 +279,53 @@ export class LiveDemandSource {
   async pollAccount(accountNumber: string): Promise<void> {
     const state = this.accounts.get(accountNumber);
     if (!state) return;
+    state.counters.polls += 1;
+    state.lastPollAt = new Date(this.deps.now()).toISOString();
     if (!state.inflight) {
+      state.inFlightSince = new Date(this.deps.now()).toISOString();
       state.inflight = this.doPoll(state).finally(() => {
         state.inflight = null;
+        state.inFlightSince = null;
+        this.reportDiagnostics();
       });
+    } else {
+      state.counters.coalesced += 1;
+      if (state.inFlightSince && this.deps.now() - Date.parse(state.inFlightSince) >= 300000) this.reportDiagnostics();
     }
     await state.inflight;
   }
 
   private async doPoll(state: AccountState): Promise<void> {
     const now = this.deps.now();
+    const { generation, creds } = state;
+    const active = () => this.accounts.get(creds.accountNumber) === state && generation === state.generation;
     // No discovery/demand attempt while ANY Kraken consumer has opened this
     // account's cooldown. Existing cadence performs recovery; no new timer.
     if (accountRetryAt(state.creds.accountNumber)) {
       state.reason = 'rate-limited';
+      state.counters.cooldownSkips += 1;
       this.markStale(state);
       return;
     }
     if (!state.deviceIdResolved) {
-      if (now < state.discoveryBackoffUntil) return;
+      if (now < state.discoveryBackoffUntil) {
+        state.counters.discoveryBackoffSkips += 1;
+        return;
+      }
       try {
+        state.counters.discoveryAttempts += 1;
+        state.lastDiscoveryAt = new Date(this.deps.now()).toISOString();
         const client = this.deps.getClient(state.creds);
-        state.deviceId = await client.getElectricityDeviceId(state.creds.accountNumber);
+        const deviceId = await client.getElectricityDeviceId(state.creds.accountNumber);
+        if (!active()) return;
+        state.deviceId = deviceId;
         state.deviceIdResolved = true;
+        state.discovery = deviceId ? 'found' : 'not-found';
       } catch (err) {
+        if (!active()) return;
+        state.discovery = 'failed';
         this.recordFailure(state, err);
-        if (!isBudgetError(err)) this.deps.onError('Live demand device discovery failed', err);
+        if (!isBudgetError(err)) this.deps.onError(`Live demand device discovery failed (${state.lastErrorKind})`);
         this.markStale(state);
         return;
       }
@@ -212,32 +341,62 @@ export class LiveDemandSource {
       return;
     }
     try {
+      state.counters.demandAttempts += 1;
+      state.lastDemandAt = new Date(this.deps.now()).toISOString();
       const client = this.deps.getClient(state.creds);
-      const { demand, readAt } = await client.getDemandReading(state.deviceId);
+      const { demand, readAt, outcome } = await client.getDemandReading(state.deviceId);
+      if (!active()) return;
+      state.lastResponseAt = new Date(this.deps.now()).toISOString();
+      state.lastErrorKind = 'none';
       if (demand === null) {
-        state.reason = 'provider-error';
+        state.reason = outcome === 'invalid-demand' ? 'invalid-demand' : 'empty-telemetry';
+        if (state.reason === 'invalid-demand') state.counters.invalidReadings += 1;
+        else state.counters.emptyReadings += 1;
         this.markStale(state);
         return;
       }
-      const at = readAt ?? new Date(now).toISOString();
+      // A receipt time cannot stand in for an absent/invalid measurement time.
+      const parsed = readAt ? Date.parse(readAt) : NaN;
+      if (!Number.isFinite(demand) || !Number.isFinite(parsed) || parsed > this.deps.now()) {
+        state.reason = Number.isFinite(demand) ? 'invalid-timestamp' : 'invalid-demand';
+        state.counters.invalidReadings += 1;
+        this.markStale(state);
+        return;
+      }
+      const at = new Date(parsed).toISOString();
       const reading = currentReading<number>(demand, at, 'graphql');
       // A returned-but-old sample is stale, not current.
-      reading.state = isStale(at, this.cadenceMs, now) ? 'stale' : 'current';
+      reading.state = isStale(at, this.cadenceMs, this.deps.now()) ? 'stale' : 'current';
       state.reading = reading;
       state.reason = reading.state === 'current' ? 'current' : 'stale';
+      if (reading.state === 'current') {
+        state.counters.currentReadings += 1;
+        state.lastSuccessAt = new Date(this.deps.now()).toISOString();
+      } else state.counters.staleReadings += 1;
       this.emit(state);
     } catch (err) {
+      if (!active()) return;
       this.recordFailure(state, err);
       // A budget skip just means "keep the last reading, marked stale" — it is an
       // expected protection of the shared account budget, not a fault to surface.
-      if (!isBudgetError(err)) this.deps.onError('Live demand refresh failed', err);
+      if (!isBudgetError(err)) this.deps.onError(`Live demand refresh failed (${state.lastErrorKind})`);
       this.markStale(state);
     }
   }
 
   private recordFailure(state: AccountState, err: unknown): void {
+    if (isBudgetError(err)) state.counters.budgetSkips += 1;
+    else state.counters.providerErrors += 1;
     if (err instanceof KrakenApiError && err.status === 429) state.reason = 'rate-limited';
     else state.reason = isBudgetError(err) ? 'budget-limited' : 'provider-error';
+    state.lastErrorKind = 'other';
+    if (isBudgetError(err)) state.lastErrorKind = 'budget';
+    else if (err instanceof KrakenFieldError) state.lastErrorKind = 'field';
+    else if (err instanceof KrakenApiError) {
+      if (err.status === 429) state.lastErrorKind = 'throttled';
+      else if ([401, 403].includes(err.status)) state.lastErrorKind = 'authentication';
+      else state.lastErrorKind = 'transport';
+    }
   }
 
   private markStale(state: AccountState): void {
@@ -250,7 +409,8 @@ export class LiveDemandSource {
       try {
         cb(state.reading);
       } catch (err) {
-        this.deps.onError('Live demand subscriber failed', err);
+        state.counters.subscriberErrors += 1;
+        this.deps.onError('Live demand subscriber failed');
       }
     }
   }

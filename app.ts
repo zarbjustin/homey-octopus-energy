@@ -10,7 +10,9 @@ import { SmartFlexDevice, DispatchView, DispatchEligibility } from './lib/dispat
 import { deviceEligibility, dispatchFailure } from './lib/dispatch/eligibility';
 import { BackgroundRecovery } from './lib/BackgroundRecovery';
 import { PlannedInput, CompletedInput } from './lib/dispatch/reconcile';
-import { LiveDemandSource, LiveDemandCreds, LiveDemandStatus } from './lib/LiveDemandSource';
+import {
+  LiveDemandSource, LiveDemandCreds, LiveDemandStatus, MiniDiagnostics,
+} from './lib/LiveDemandSource';
 import { budgetDiagnostics } from './lib/KrakenBudget';
 import { Reading } from './lib/freshness';
 import { crossedAbove, crossedBelow } from './lib/rates';
@@ -185,6 +187,14 @@ module.exports = class OctopusEnergyApp extends Homey.App {
 
   getLiveDemandStatus(accountNumber: string): LiveDemandStatus | null {
     return this.liveDemand?.getStatus(accountNumber) ?? null;
+  }
+
+  isLiveDemandSubscribed(accountNumber: string, subscriberId: string): boolean {
+    return this.liveDemand?.hasSubscriber(accountNumber, subscriberId) ?? false;
+  }
+
+  getMiniDiagnostics(): (MiniDiagnostics & { budget: ReturnType<typeof budgetDiagnostics> }) | null {
+    return this.liveDemand ? { ...this.liveDemand.diagnostics(), budget: budgetDiagnostics() } : null;
   }
 
   /** Sanitised dispatch presentation snapshot for widgets (deviceId-free). */
@@ -530,7 +540,9 @@ module.exports = class OctopusEnergyApp extends Homey.App {
       clearInterval: (handle) => this.homey.clearInterval(handle as NodeJS.Timeout),
       now: () => Date.now(),
       onError: (message, err) => this.error(message, err),
+      onDiagnostics: (snapshot) => this.log('Mini diagnostics (identifier-free):', JSON.stringify({ ...snapshot, budget: budgetDiagnostics() })),
     }, cadence);
+    this.log('Mini source ready; live-power device subscriptions initialise separately.');
     this.homey.settings.on('set', (key: string) => {
       if (key === 'live_demand_cadence_s') {
         this.liveDemand?.setCadenceSeconds(Number(this.homey.settings.get('live_demand_cadence_s')) || 120);
