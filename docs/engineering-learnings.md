@@ -133,6 +133,19 @@ This document captures durable constraints, root causes, and workflow gotchas th
 
 ## API Budget and Failure Handling
 
+- Silence is not recovery: a local budget skip, absent discovery result, empty
+  telemetry, old measurement, missing subscriber or rejected capability write can
+  produce no useful live reading without a provider exception. Distinguish method
+  attempts, actual decoded responses, fresh samples and completed Homey writes.
+- Never coerce null/blank/boolean demand through `Number()` or replace missing
+  measurement time with receipt time. Explicit zero demand is valid; unknown is
+  not zero. Fence late samples after credential invalidation/unsubscription.
+- Diagnostic reads must not trigger polling/logging/reset budget state. Keep
+  snapshots allowlisted and bounded, and emit routine logs on existing activity
+  only. A manual report needs an active-source log or reviewed cached support
+  snapshot to distinguish a quiet path; no error alone proves neither a request
+  nor a successfully delivered reading.
+
 - HTTP success is not GraphQL success. Classify resolver throttling before a
   request-budget success reward, partial-data handling or authentication retry.
   Use the existing shared-account cooldown, never a new per-device retry loop.

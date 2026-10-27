@@ -6,17 +6,27 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
-23 October: a Mini live-demand recovery candidate is implemented on
-`codex/mini-rate-limit-recovery`, based on fetched main `5c11bf5`. HTTP-200
-GraphQL throttles (`KT-CT-1199` or exact throttle messages) now enter the same
-account cooldown as HTTP 429, before success rewards/auth retries/partial-data
-handling. Mini polling respects that cooldown; Summary explains the pause and
-retains the original reading timestamp with stale status. No new polling,
-settings/Flow/capability IDs or battery controls. Version remains 1.0.40 until
-the normal release workflow. Test/release/reporter gates are recorded in
-[Mini recovery execution](handover/mini-throttle-recovery.md). Portal readback
-23 October: Build 40 Test, Build 38 Live; a manually submitted diagnostic is
-not an automatic app crash. No affected-account recovery proven yet.
+27 October: a targeted Mini diagnostic candidate is implemented on
+`codex/mini-quiet-diagnostics`, based on fetched main/release `809bbe2` (1.0.41).
+It distinguishes subscription, discovery/backoff, budget/cooldown skips,
+empty/invalid/stale telemetry and capability delivery without new polling.
+The existing protected support snapshot exposes allowlisted cached flags,
+times and counters; routine diagnostic logs are capped at one per five minutes
+on existing poll activity. Null demand is not coerced to zero and missing or
+future measurement time cannot masquerade as a fresh reading. No Homey changes,
+install, new version, release/channel change or external reply in this task.
+See [execution, interpretation and gates](handover/mini-quiet-diagnostics.md).
+
+23 October release: implementation PR #57 merged as `cca1776`, release PR #58
+as `809bbe2`; tag/GitHub release v1.0.41 and Homey Build 41 delivered to Test.
+Version workflow `40026234241`, release `40026561272`, exact-tag publish
+`40026617249`; 754 tests and CI/CodeQL passed. Build 41 was explicitly authorised
+for certification and is still under review on 27 October. Build 38 was last
+verified Live on 23 October. The local v1.0.41 CLI install failed discovery;
+no successful upgrade is claimed. A later manual diagnostic contains no logged
+Mini throttle errors, but also no proof of recovered readings. The affected
+Mini issue remains open; do not equate quiet logs with success. Older v1.0.40
+observations below are historical, not the current release.
 
 9 October: v1.0.40 / Build 40 is delivered to Test and the selected Homey Pro.
 Implementation PR #54 and release PR #55 merged; 742 tests, CI/CodeQL, full and
@@ -64,16 +74,16 @@ did not promote it. v1.0.40 is Test only; field/reporter gates remain open.
 | Field | Value |
 |---|---|
 | Repository | `zarbjustin/homey-octopus-energy` |
-| Branch | `main`; implementation PR #54 and release PR #55 merged |
-| App version | `1.0.40` (release merge `08784e7`) |
-| Homey build | `40` Test; `38` Live |
-| GitHub release | [`v1.0.40`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.40) |
-| Publish workflow | `37992347564` succeeded, using exact release tag |
+| Branch | Fetched `main` at `809bbe2`; new candidate on `codex/mini-quiet-diagnostics` |
+| App version | `1.0.41` (release merge `809bbe2`); new Mini diagnostics candidate is unreleased |
+| Homey build | `41` testing/certification review on 27 October; `38` last verified Live on 23 October |
+| GitHub release | [`v1.0.41`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.41) |
+| Publish workflow | `40026617249` succeeded, using exact release tag |
 | Local deployment | v1.0.40 enabled/not crashed on Pro; protected app GET responds; 2 available meters; identities/settings/6 Standard/5 Advanced Flows unchanged |
-| Last recorded release test baseline | 742 passing tests; build/lint/both audit scopes/publish validation and CodeQL green |
+| Last recorded release test baseline | 754 tests in v1.0.41; new diagnostic candidate has 770 passing tests |
 | Original formal backlog | Complete through `BL-31` |
 | Next phase | Charging/reliability field acceptance, then S77/S78; S76 gaps remain open |
-| Homey channel | Build 40 Test and Build 38 Live verified on 9 October; no certification/Live action by this task |
+| Homey channel | Build 41 under review on 27 October; no channel action by this diagnostic task |
 
 ## Immediate Next Work
 

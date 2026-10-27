@@ -100,6 +100,10 @@
         detail = 'No Home Mini was found. Background discovery will retry automatically.';
       } else if (reason === 'provider-error') {
         detail = 'Live power is temporarily unavailable. Background updates will retry automatically.';
+      } else if (reason === 'empty-telemetry') {
+        detail = 'A Mini was found, but Octopus returned no demand reading. Background updates will retry.';
+      } else if (reason === 'invalid-demand' || reason === 'invalid-timestamp') {
+        detail = 'The Mini sample is missing a valid value or measurement time. It cannot be shown as live. Background updates will retry.';
       }
       const note = detail ? '<div class="muted">' + esc(detail) + '</div>' : '';
       if (l.state === 'unknown' || l.netW === null || l.netW === undefined) {

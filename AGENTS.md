@@ -22,14 +22,17 @@ Read these files before planning or changing code:
 
 ## Current Baseline
 
-- App version: `1.0.40`.
-- Homey App Store build: `40` Test; `38` Live (verified 9 October 2026).
-- GitHub release: `v1.0.40`; local Pro installation and cached API readback verified.
+- App version: `1.0.41`; GitHub release tag resolves to `809bbe2`.
+- Build 41 is available for testing and under certification review (27 October
+  readback); Build 38 was last verified Live on 23 October. No Live action here.
+- 27 October candidate: targeted Mini diagnostics, cache-only support export and
+  null-demand/timestamp trust fixes. Not installed or published; see
+  `docs/handover/mini-quiet-diagnostics.md`. Reporter recovery remains unproven.
 - Original formal engineering backlog: complete through `BL-31`; new S73–S76
   reliability S73–S75 is delivered for testing; S76 monitoring ended early on
   5 October, not as a verified 48-hour pass. Field gates remain open.
   Read `docs/handover/sprints-73-76-execution.md` for actual evidence and field gaps.
-- Last released integration baseline: 742 passing tests; field gates remain open.
+- Last released integration baseline: 754 passing tests; field gates remain open.
 - 9 October combined delivery: six additive charging/setup/status/decision/SOC-estimate
   cards plus cache-only Summary/settings health presentation; 94 previously
   released Flow contracts preserved. Included in v1.0.40 / Build 40 Test and Pro.

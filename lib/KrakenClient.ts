@@ -832,7 +832,7 @@ export class KrakenClient {
    * callers can reason about freshness. Demand is watts (negative during export)
    * or null when unavailable.
    */
-  async getDemandReading(deviceId: string): Promise<{ demand: number | null; readAt: string | null }> {
+  async getDemandReading(deviceId: string): Promise<{ demand: number | null; readAt: string | null; outcome?: 'empty' | 'invalid-demand' }> {
     const query = `
       query Telemetry($deviceId: String!) {
         smartMeterTelemetry(deviceId: $deviceId) {
@@ -854,12 +854,15 @@ export class KrakenClient {
     } else if (telemetry) {
       list = [telemetry];
     }
-    if (!list.length) return { demand: null, readAt: null };
+    if (!list.length) return { demand: null, readAt: null, outcome: 'empty' };
     // Select the most recent sample by readAt rather than assuming array order.
     const latest = list.reduce((a, b) => (
       new Date(b.readAt ?? 0).getTime() >= new Date(a.readAt ?? 0).getTime() ? b : a
     ));
-    const demand = Number(latest?.demand);
+    const raw = latest?.demand;
+    const demand = (typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== ''))
+      ? Number(raw) : NaN;
+    if (!Number.isFinite(demand)) return { demand: null, readAt: latest?.readAt ?? null, outcome: 'invalid-demand' };
     return {
       demand: Number.isFinite(demand) ? demand : null,
       readAt: latest?.readAt ?? null,

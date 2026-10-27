@@ -1,8 +1,15 @@
 # Roadmap After v1.0.40 Test
 
-Last updated: 23 October 2026
+Last updated: 27 October 2026
 
 ## Current Status and Direction
+
+Mini field recovery remains open after the v1.0.41 throttle-handling release.
+A new quiet-path diagnostic candidate distinguishes subscription, discovery,
+cooldown/budget skips, empty or invalid telemetry, stale samples and capability
+writes. It adds no provider cadence and keeps support readback cache-only.
+See [implementation and pending field/release gates](handover/mini-quiet-diagnostics.md).
+No new build or channel change is authorised by this diagnostic implementation.
 
 Urgent reliability priority: Mini live-demand GraphQL throttling recovery.
 The 23 October candidate shares the HTTP-429 cooldown for HTTP-200 throttle

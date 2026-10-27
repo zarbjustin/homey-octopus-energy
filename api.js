@@ -26,6 +26,7 @@ module.exports = {
           freshness,
           freshnessRead: freshness !== null && typeof freshness === 'object' && !Array.isArray(freshness),
           plan: kind === 'electricity' ? read(() => device.getChargingPlanView()) : null,
+          miniDelivery: kind === 'electricity' ? read(() => device.getMiniDiagnostics()) : null,
         });
       }
     }
@@ -35,6 +36,7 @@ module.exports = {
       driverReads,
       sessions: read(() => homey.settings.get('saving_sessions_diagnostics_v1')),
       dispatch: read(() => homey.settings.get('dispatch_diagnostics_v2')),
+      mini: read(() => homey.app.getMiniDiagnostics()),
     });
   },
 };
