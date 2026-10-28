@@ -2,6 +2,12 @@
 
 ## Release execution
 
+Latest support follow-up: separately approved v1.0.44 Test reply sent and verified
+after reload on 28 October. Requested 15–20 minutes of normal operation, another
+report/support snapshot and live provider-app comparison. Awaiting new evidence;
+reporter recovery remains unproven. Private message text/links/report identifiers
+stay outside Git. See [cross-machine takeover](cross-machine-takeover.md).
+
 User subsequently authorised merge, new Test build and installation on the local
 Pro, preserving device/settings/Flow fingerprints and letting normal scheduled
 acquisition recover. No clean install/re-pair, forced refresh, Flow/battery write,
@@ -81,10 +87,11 @@ same; duplicates do not inflate candidate count.
 791 tests pass, including 403 legacy migration/bounds, 401 protection, health
 guidance, response evidence/candidate counts, mutation isolation and support
 privacy. Lint, full/production audits, normal build and publish validation pass
-with the two expected cumulative-direction warnings. No version bump/dependency
-change. Candidate based on main `2a135b9`, source version remains 1.0.43.
+with the two expected cumulative-direction warnings. Candidate was based on main
+`2a135b9` at 1.0.43; subsequently released as v1.0.44 through the workflow above,
+without dependency changes.
 
-Review/CI then separately approved install/Test delivery. Local acceptance needs
+Review/CI and authorised install/Test delivery are complete. Local acceptance needs
 real prices and availability recovery with preserved device/settings/Flow
 fingerprints; denial may persist upstream. Reporter acceptance needs the new
 response range/candidate count before choosing a meter-selection or bounded

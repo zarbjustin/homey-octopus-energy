@@ -1,8 +1,22 @@
-# Roadmap After v1.0.40 Test
+# Roadmap After v1.0.44 Test
 
 Last updated: 28 October 2026
 
 ## Current Status and Direction
+
+Current next actions supersede historical candidate/deploy/reply notes below:
+
+1. Await the new v1.0.44 reporter diagnostic/support snapshot. Approved Test reply
+   sent and verified: do not resend. Inspect candidate counts/response time ranges
+   before changing meter discovery or API queries.
+2. After Homey throttling clears, verify local cached price/meter recovery and
+   full pre/post fingerprints with scoped read-only checks. Installation did not
+   close this gate. Stop rather than retry through throttling.
+3. Then remaining UI/requester/IOG-night/unsupported-tariff acceptance and S77/S78
+   maintenance. S79/S80 remain optional; no automatic Live/physical clearance.
+
+See [cross-machine takeover](handover/cross-machine-takeover.md). The chronological
+notes below describe dated stages, not new instructions.
 
 28 October: recovery/evidence PR #66 and release PR #67 merged for v1.0.44.
 User authorised Test publication and local Pro installation with preservation
