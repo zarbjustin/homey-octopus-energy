@@ -1,6 +1,8 @@
 'use strict';
 
-import { KrakenClient, KrakenApiError, KrakenFieldError } from './KrakenClient';
+import {
+  KrakenClient, KrakenApiError, KrakenFieldError, MiniResponseEvidence,
+} from './KrakenClient';
 import { accountRetryAt, isBudgetError } from './KrakenBudget';
 import {
   Reading, unknownReading, currentReading, staleFrom, isStale,
@@ -53,6 +55,7 @@ export interface MiniDiagnostics {
     lastErrorKind: ErrorKind;
     inFlightSince: string | null;
     counters: Counters;
+    responseEvidence: MiniResponseEvidence | null;
   }>;
 }
 
@@ -86,6 +89,7 @@ interface AccountState {
   nextPollAt: string | null;
   lastErrorKind: ErrorKind;
   inFlightSince: string | null;
+  responseEvidence: MiniResponseEvidence | null;
 }
 
 const ALLOWED_CADENCE = [60, 120, 300];
@@ -147,6 +151,7 @@ export class LiveDemandSource {
         nextPollAt: null,
         lastErrorKind: 'none',
         inFlightSince: null,
+        responseEvidence: null,
       };
       this.accounts.set(creds.accountNumber, state);
     }
@@ -230,6 +235,7 @@ export class LiveDemandSource {
         lastErrorKind: state.lastErrorKind,
         inFlightSince: state.inFlightSince,
         counters: { ...state.counters },
+        responseEvidence: state.responseEvidence ? { ...state.responseEvidence } : null,
       })),
     };
   }
@@ -252,6 +258,7 @@ export class LiveDemandSource {
     state.discoveryBackoffUntil = 0;
     state.reading = unknownReading<number>();
     state.reason = 'unknown';
+    state.responseEvidence = null;
     state.discovery = 'not-attempted';
     state.generation += 1;
   }
@@ -318,6 +325,7 @@ export class LiveDemandSource {
         const client = this.deps.getClient(state.creds);
         const deviceId = await client.getElectricityDeviceId(state.creds.accountNumber);
         if (!active()) return;
+        state.responseEvidence = client.getMiniResponseEvidence?.() ?? null;
         state.deviceId = deviceId;
         state.deviceIdResolved = true;
         state.discovery = deviceId ? 'found' : 'not-found';
@@ -346,6 +354,7 @@ export class LiveDemandSource {
       const client = this.deps.getClient(state.creds);
       const { demand, readAt, outcome } = await client.getDemandReading(state.deviceId);
       if (!active()) return;
+      state.responseEvidence = client.getMiniResponseEvidence?.() ?? null;
       state.lastResponseAt = new Date(this.deps.now()).toISOString();
       state.lastErrorKind = 'none';
       if (demand === null) {

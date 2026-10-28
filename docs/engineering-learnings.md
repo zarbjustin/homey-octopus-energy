@@ -6,6 +6,15 @@ This document captures durable constraints, root causes, and workflow gotchas th
 
 ## Data Authority and Trust
 
+- HTTP 403 alone is not proof of invalid credentials. Do not turn it into a
+  permanent per-source lock or advise credential replacement. Existing scheduled
+  acquisition can retry with bounded backoff/Retry-After, retaining stale data and
+  preserving 401 blocking. Migrate older persisted locks without resetting failure
+  counts/cooldown; upstream denial and field recovery still need separate evidence.
+- Repeated successful telemetry responses with half-hourly selected timestamps
+  need response-range and discovery-ambiguity evidence, not a faster poller or a
+  wider freshness window. Do not select a different household meter speculatively.
+
 - Do not seed latest-telemetry reduction with an unvalidated timestamp: NaN
   comparisons can pin the first row forever. Rank finite, non-future dates across
   all rows, retain original times and let freshness reject old data. A valid date

@@ -60,6 +60,15 @@ test('authentication failures make the device unavailable immediately', () => {
   assert.match(result.message, /repair the device/i);
 });
 
+test('403 does not claim an invalid API key and retains bounded recovery guidance', () => {
+  const err = Object.assign(new Error('Forbidden'), { status: 403 });
+  const result = refreshHealthDecision(false, false, true, 3, err);
+  assert.equal(result.authenticationFailure, false);
+  assert.equal(result.markUnavailable, true);
+  assert.match(result.message, /retry automatically/i);
+  assert.doesNotMatch(result.message, /repair|API key/i);
+});
+
 test('successful refresh clears both availability and connection alarms', () => {
   const result = refreshHealthDecision(true, true, true, 0, null);
   assert.equal(result.fullyHealthy, true);

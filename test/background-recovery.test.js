@@ -33,7 +33,7 @@ test('Retry-After can exceed cap; restart retains cooldown; credentials get fres
 });
 
 test('auth blocks until credential reset; budget skip does not replace account-wide 429 gate', () => {
-  for (const status of [401, 403]) {
+  for (const status of [401]) {
     const r = new BackgroundRecovery();
     r.failure('balance', new OctopusApiError(status, 'Auth'), 1000);
     assert.equal(new BackgroundRecovery(r.snapshot()).allowed('balance', 1e12), false);
@@ -44,6 +44,27 @@ test('auth blocks until credential reset; budget skip does not replace account-w
   assert.deepEqual(r.snapshot(), {});
   r.failure('prices', new Error('Malformed shape'), 1000);
   assert.deepEqual(r.snapshot(), {}, 'schema failures are not silently treated as transient/auth');
+});
+
+test('403 retries on existing schedule and legacy persisted locks resume without resetting cooldown', () => {
+  const r = new BackgroundRecovery();
+  r.failure('prices', new OctopusApiError(403, 'Forbidden'), 1000);
+  assert.equal(r.state('prices').authBlocked, false);
+  assert.equal(r.allowed('prices', 300999), false);
+  assert.equal(r.allowed('prices', 301000), true);
+  const legacy = new BackgroundRecovery({
+    prices: {
+      failures: 3, retryAt: 900000, authBlocked: true, status: 403,
+    },
+  });
+  assert.equal(legacy.allowed('prices', 899999), false);
+  assert.equal(legacy.state('prices').authBlocked, false);
+  assert.equal(legacy.allowed('prices', 900000), true);
+  legacy.failure('prices', new OctopusApiError(403, 'Forbidden'), 900000);
+  assert.equal(legacy.state('prices').failures, 4);
+  assert.equal(legacy.state('prices').retryAt, 2700000);
+  legacy.success('prices');
+  assert.deepEqual(legacy.snapshot(), {});
 });
 
 test('malformed persisted recovery is ignored and cannot block all acquisition', () => {

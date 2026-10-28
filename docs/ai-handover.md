@@ -6,6 +6,17 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
+28 October follow-up candidate (unreleased): local Pro has both meters registered
+but unavailable, stale prices and cached REST 403 failures predating v1.0.43;
+Mini reads/writes remain current. Code confirms 403 permanently locked background
+recovery. Candidate migrates old 403 locks to existing bounded retry gates, keeps
+401 blocked, and stops labelling 403 as an invalid API key. Upstream 403 cause and
+actual local recovery remain unproven. J273's v1.0.43 report matches his snapshot:
+selected samples advance about half-hourly despite minute polling. Candidate adds
+cache-only candidate counts and response timestamp ranges; discovery selection
+and polling are unchanged. See [two-track investigation](handover/recovery-and-mini-evidence.md).
+No install, publication, forced refresh, Flow/battery change or reply here.
+
 28 October release execution: sample-selection PR #63 merged as `164296f`,
 release PR #64 as `6f377d2`. Version run `40611401663` passed all 787 tests,
 lint, audit and Homey validation. Release run `40611639501` created annotated

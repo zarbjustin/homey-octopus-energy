@@ -20,7 +20,10 @@ export class BackgroundRecovery {
       const s = value as RecoveryState;
       if (s && Number.isFinite(s.failures) && s.failures >= 0
         && Number.isFinite(s.retryAt) && typeof s.authBlocked === 'boolean'
-        && (s.status === null || Number.isFinite(s.status))) this.states.set(key, { ...s });
+        && (s.status === null || Number.isFinite(s.status))) {
+        // Older builds persisted all 403s as permanent credential failures.
+        this.states.set(key, { ...s, authBlocked: s.status === 403 ? false : s.authBlocked });
+      }
     }
   }
 
@@ -41,8 +44,8 @@ export class BackgroundRecovery {
     if (isBudgetError(err)) return; // Kraken's account-wide gate remains authoritative.
     const e = err as { status?: number; retryAfterMs?: number; name?: string } | null;
     const status = typeof e?.status === 'number' ? e.status : null;
-    const authBlocked = status === 401 || status === 403;
-    const transient = status === 0 || status === 429 || (status !== null && status >= 500)
+    const authBlocked = status === 401;
+    const transient = status === 0 || status === 403 || status === 429 || (status !== null && status >= 500)
       || err instanceof TypeError || e?.name === 'AbortError';
     if (!authBlocked && !transient) return;
     const failures = Math.min(10, (this.states.get(area)?.failures ?? 0) + 1);
