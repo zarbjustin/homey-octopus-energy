@@ -127,5 +127,8 @@
   },
   "1.0.42": {
     "en": "Adds privacy-safe Home Mini diagnostics to identify discovery, polling, cooldown, telemetry and reading-delivery problems. Fixes missing demand values appearing as zero and invalid timestamps appearing fresh. Existing polling cadence and Flow contracts are unchanged."
+  },
+  "1.0.43": {
+    "en": "Fix Home Mini sample selection so malformed timestamps or future-dated rows cannot hide a newer valid reading. Preserve original measurement times and keep genuinely old data marked stale. Polling frequency and Flow contracts are unchanged."
   }
 }
