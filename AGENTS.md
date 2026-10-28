@@ -22,7 +22,10 @@ Read these files before planning or changing code:
 
 ## Current Baseline
 
-- App version: `1.0.42`; GitHub release tag resolves to `fdeaae5`.
+- App version: `1.0.43`; GitHub release tag resolves to `6f377d2`.
+- 28 October sample-selection fix: PR #63 merged as `164296f`, release PR #64
+  as `6f377d2`; 787 tests pass. See `docs/handover/mini-sample-selection.md`
+  for Test delivery evidence and pending reporter acceptance. No Live authority.
 - Build 41 is Live (fresh 27 October portal readback); this task did not promote it.
 - 27 October release: targeted Mini diagnostics, cache-only support export and
   null-demand/timestamp trust fixes. Test delivery record and open field gates:
@@ -31,7 +34,7 @@ Read these files before planning or changing code:
   reliability S73–S75 is delivered for testing; S76 monitoring ended early on
   5 October, not as a verified 48-hour pass. Field gates remain open.
   Read `docs/handover/sprints-73-76-execution.md` for actual evidence and field gaps.
-- Last released integration baseline: 770 passing tests; field gates remain open.
+- Last released integration baseline: 787 passing tests; field gates remain open.
 - 9 October combined delivery: six additive charging/setup/status/decision/SOC-estimate
   cards plus cache-only Summary/settings health presentation; 94 previously
   released Flow contracts preserved. Included in v1.0.40 / Build 40 Test and Pro.

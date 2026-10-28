@@ -10,6 +10,17 @@ Last updated: 28 October 2026
 
 ## Current state
 
+- **28 October — v1.0.43 sample-selection release.** PR #63 merged as `164296f`;
+  release PR #64 as `6f377d2`. Version run `40611401663`, release `40611639501`;
+  annotated tag/GitHub release v1.0.43 resolves to release merge. 787 tests,
+  lint, audit, Homey validation and PR CodeQL green. Test-only delivery authorised;
+  no local installation, certification/Live, provider refresh, Flow/battery write
+  or reply. Reporter cause/recovery remain unproven; see
+  [delivery and field gates](docs/handover/mini-sample-selection.md).
+  Exact-tag Homey publish `40611698045` succeeded; Build 43 promoted to Test and
+  verified after reload plus independent public listing. Build 41 remains Live.
+  No v1.0.43 tester reply sent; field retest and recovery remain pending.
+
 - **28 October — Mini sample selection hardened.** Fresh v1.0.42 evidence confirms
   active polling but mostly stale selected samples, not Mini throttle/budget/write
   failure. Reproduced invalid-first-date poisoning, malformed-row exceptions and
