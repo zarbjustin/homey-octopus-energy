@@ -22,6 +22,11 @@ Read these files before planning or changing code:
 
 ## Current Baseline
 
+- Cross-machine takeover: `docs/handover/cross-machine-takeover.md`. Approved
+  v1.0.44 tester reply sent and verified; awaiting diagnostics. Full local
+  preservation/freshness readback remains blocked by Homey throttling.
+  A documentation sync is not hardware acceptance or release authority.
+
 - App version: `1.0.44`; GitHub release tag resolves to `55ec370`.
 - 28 October recovery/evidence release: PR #66 merged as `1da11fa`, release
   PR #67 as `55ec370`; 791 tests pass. See

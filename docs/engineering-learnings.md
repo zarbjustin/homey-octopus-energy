@@ -196,6 +196,11 @@ This document captures durable constraints, root causes, and workflow gotchas th
 
 ## Release and CI
 
+- Portable handovers need one current-state entry point, dated source/Test/Live/
+  installed/field gates and already-sent support status. Never copy private logs
+  or sessions into Git for continuity. A stalled cloud-backed checkout is not
+  proven clean; preserve it until local-only work has been reviewed.
+
 | Learning | Required behavior |
 |---|---|
 | The development ESLint toolchain can carry advisories that are not shipped. | Use `npm audit --omit=dev` for the release gate. |

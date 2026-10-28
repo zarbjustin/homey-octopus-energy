@@ -10,6 +10,14 @@ Last updated: 28 October 2026
 
 ## Current state
 
+- **28 October — cross-machine continuity and support sync.** Approved v1.0.44
+  Test reply sent and verified after reload. Requested 15–20 minutes of normal
+  operation, new diagnostic/support snapshot and provider-app comparison. Awaiting
+  evidence, not proven recovery. Current takeover guidance is consolidated in
+  `docs/ai-handover.md`; `docs/handover/cross-machine-takeover.md` covers setup,
+  private-evidence boundaries and the stalled original-checkout caveat. No runtime
+  or release change.
+
 - **28 October — v1.0.44 release execution.** User authorised Test and local Pro
   install, not Live/Flow/battery changes. PR #66 merged as `1da11fa`, release
   PR #67 as `55ec370`; annotated tag/GitHub release resolves to release merge.
