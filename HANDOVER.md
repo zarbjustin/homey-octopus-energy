@@ -1,6 +1,6 @@
 # Project Handover
 
-Last updated: 27 October 2026
+Last updated: 28 October 2026
 
 > **AI/LLM takeover:** start with [`docs/ai-handover.md`](docs/ai-handover.md), then read
 > [`AGENTS.md`](AGENTS.md), [`docs/roadmap-next.md`](docs/roadmap-next.md), and
@@ -9,6 +9,16 @@ Last updated: 27 October 2026
 > in the current takeover or roadmap documents.
 
 ## Current state
+
+- **28 October — Mini sample selection hardened.** Fresh v1.0.42 evidence confirms
+  active polling but mostly stale selected samples, not Mini throttle/budget/write
+  failure. Reproduced invalid-first-date poisoning, malformed-row exceptions and
+  future-row masking; select latest valid non-future date, retain invalid-only
+  diagnostics and never substitute receipt time or older demand for invalid newest
+  demand. 787 tests, lint/audits/build/publish validation pass. No version bump,
+  install, provider refresh, publication or reply. These defects are not established
+  as the reporter's cause; raw response rows are unavailable. See
+  [investigation and gates](docs/handover/mini-sample-selection.md).
 
 - **27 October — Mini Test follow-up sent.** User-approved reply to J273 posted
   and independently verified after reload. Shared v1.0.42 Test link and requested
