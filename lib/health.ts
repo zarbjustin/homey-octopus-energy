@@ -38,7 +38,7 @@ export function refreshHealthDecision(
 
   const raw = err instanceof Error ? err.message : String(err ?? '');
   const status = (err as { status?: number } | null)?.status;
-  const authenticationFailure = status === 401 || status === 403 || /401|authenticat|api key/i.test(raw);
+  const authenticationFailure = status === 401 || (status !== 403 && /401|authenticat|api key/i.test(raw));
 
   // A price-only degradation: connectivity and authentication are fine (at
   // least one other integration succeeded, no auth error) but the current
@@ -62,6 +62,8 @@ export function refreshHealthDecision(
   let message = 'Octopus Energy is temporarily unavailable.';
   if (authenticationFailure) {
     message = 'Authentication failed - repair the device to update your API key.';
+  } else if (status === 403) {
+    message = 'Octopus denied this data request (403). Background recovery will retry automatically.';
   }
 
   return {

@@ -106,6 +106,18 @@ test('empty telemetry retains the last reading/time but records an unsuccessful 
   assert.equal(d.readingAt, new Date(NOW).toISOString()); assert.equal(d.readingState, 'stale');
 });
 
+test('source copies cached response evidence without extra polling or leaking mutations', async () => {
+  const h = harness();
+  const evidence = { discoveryCandidates: 2, responseRows: 3 };
+  h.client.getMiniResponseEvidence = () => ({ ...evidence });
+  h.source.subscribe(CREDS, 'synthetic-meter', () => {});
+  await h.source.pollAccount(CREDS.accountNumber);
+  const snapshot = h.reading();
+  assert.equal(snapshot.responseEvidence.responseRows, 3);
+  snapshot.responseEvidence.responseRows = 999;
+  assert.equal(h.reading().responseEvidence.responseRows, 3);
+});
+
 test('a local budget skip is distinct from a provider error and does not fabricate a response', async () => {
   const h = harness();
   h.client.getElectricityDeviceId = async () => {

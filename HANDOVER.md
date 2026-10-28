@@ -10,6 +10,18 @@ Last updated: 28 October 2026
 
 ## Current state
 
+- **28 October — local 403 lock and Mini evidence candidate.** Read-only local
+  checks confirm retained meters/unavailable status and stale prices; Mini
+  readings/write callbacks work. Cached 403 failures predate v1.0.43; source
+  recovery permanently blocked 403 as auth. Bounded scheduled retry/migration and
+  non-credential-blaming health guidance implemented, with 401 still blocked.
+  Latest reporter manual report matched: selected readings step roughly half-hourly
+  despite minute polling. Identifier-free discovery candidate/response row counts
+  and timestamp ranges added without changing selection, queries or cadence.
+  Upstream denial cause, local recovery and reporter recovery remain open.
+  No install/release/Flow/battery change or reply. See
+  [execution and remaining gates](docs/handover/recovery-and-mini-evidence.md).
+
 - **28 October — v1.0.43 sample-selection release.** PR #63 merged as `164296f`;
   release PR #64 as `6f377d2`. Version run `40611401663`, release `40611639501`;
   annotated tag/GitHub release v1.0.43 resolves to release merge. 787 tests,

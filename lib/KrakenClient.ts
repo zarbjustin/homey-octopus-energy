@@ -163,7 +163,34 @@ export interface AccountIogTariff {
   standingCharge: number | null;
 }
 
+export interface MiniResponseEvidence {
+  discoveryCandidates: number | null;
+  responseRows: number | null;
+  validTimestampRows: number | null;
+  invalidTimestampRows: number | null;
+  futureTimestampRows: number | null;
+  oldestAt: string | null;
+  newestAt: string | null;
+  selectedAt: string | null;
+}
+
 export class KrakenClient {
+
+  private miniEvidence: MiniResponseEvidence = {
+    discoveryCandidates: null,
+    responseRows: null,
+    validTimestampRows: null,
+    invalidTimestampRows: null,
+    futureTimestampRows: null,
+    oldestAt: null,
+    newestAt: null,
+    selectedAt: null,
+  };
+
+  /** Cached counts/times only: no device/account identity or telemetry values. */
+  getMiniResponseEvidence(): MiniResponseEvidence {
+    return { ...this.miniEvidence };
+  }
 
   private readonly apiKey: string;
 
@@ -811,15 +838,17 @@ export class KrakenClient {
       };
     }
     const data = await this.query<Resp>(query, { accountNumber }, true, this.url, 'live');
+    const candidates = new Set<string>();
     for (const property of data?.account?.properties ?? []) {
       for (const mp of property.electricityMeterPoints ?? []) {
         for (const meter of mp.meters ?? []) {
           const id = meter.smartImportElectricityMeter?.deviceId;
-          if (id) return id;
+          if (id) candidates.add(id);
         }
       }
     }
-    return null;
+    this.miniEvidence.discoveryCandidates = candidates.size;
+    return candidates.values().next().value ?? null;
   }
 
   /** Latest instantaneous electricity demand in watts from a Home Mini, or null. */
@@ -854,6 +883,16 @@ export class KrakenClient {
     } else if (telemetry) {
       list = [telemetry];
     }
+    this.miniEvidence = {
+      discoveryCandidates: this.miniEvidence.discoveryCandidates,
+      responseRows: list.length,
+      validTimestampRows: 0,
+      invalidTimestampRows: 0,
+      futureTimestampRows: 0,
+      oldestAt: null,
+      newestAt: null,
+      selectedAt: null,
+    };
     if (!list.length) return { demand: null, readAt: null, outcome: 'empty' };
     // Do not seed a date comparison with an invalid timestamp: comparisons
     // against NaN are always false and can pin selection to the first row.
@@ -866,14 +905,25 @@ export class KrakenClient {
     let latest = rows[0];
     let latestAt = -Infinity;
     const now = Date.now();
+    let oldestAt = Infinity;
+    this.miniEvidence.invalidTimestampRows = list.length - rows.length;
     for (const row of rows) {
       const at = typeof row.readAt === 'string' ? Date.parse(row.readAt) : NaN;
+      if (!Number.isFinite(at)) this.miniEvidence.invalidTimestampRows! += 1;
+      else if (at > now) this.miniEvidence.futureTimestampRows! += 1;
+      else {
+        this.miniEvidence.validTimestampRows! += 1;
+        oldestAt = Math.min(oldestAt, at);
+      }
       if (Number.isFinite(at) && at <= now && at >= latestAt) {
         latest = row;
         latestAt = at;
       }
     }
     const readAt = typeof latest?.readAt === 'string' ? latest.readAt : null;
+    this.miniEvidence.oldestAt = Number.isFinite(oldestAt) ? new Date(oldestAt).toISOString() : null;
+    this.miniEvidence.newestAt = Number.isFinite(latestAt) ? new Date(latestAt).toISOString() : null;
+    this.miniEvidence.selectedAt = this.miniEvidence.newestAt;
     const raw = latest?.demand;
     const demand = (typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== ''))
       ? Number(raw) : NaN;

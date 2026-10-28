@@ -4,6 +4,13 @@ Last updated: 28 October 2026
 
 ## Current Status and Direction
 
+28 October priority: validate/deploy the local 403 recovery candidate and collect
+bounded Mini response evidence for the still-affected reporter. Keep these tracks
+separate. The source patch retains 401 credential protection, migrates legacy 403
+locks to capped scheduled retries and adds no timers. Diagnostic additions retain
+first-found discovery and existing requests; no guessed meter switch or freshness
+relaxation. See [two-track execution](handover/recovery-and-mini-evidence.md).
+
 28 October delivery update: sample-selection fix merged through PR #63 and
 released as v1.0.43 through PR #64. 787 tests and release validation pass; Test
 delivery is authorised, not certification/Live. The existing reporter's recovery

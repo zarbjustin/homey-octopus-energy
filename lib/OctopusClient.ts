@@ -245,7 +245,7 @@ export class OctopusClient {
             );
           }
           if (!res.ok) {
-            throw new OctopusApiError(res.status, `Octopus API request failed (${res.status}).`);
+            throw new OctopusApiError(res.status, `Octopus API request failed (${res.status}).`, parseRetryAfter(res.headers?.get?.('retry-after') ?? null));
           }
           return await res.json() as T;
         });
