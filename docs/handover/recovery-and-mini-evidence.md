@@ -1,5 +1,34 @@
 # Local price recovery and Mini response evidence — 28 October 2026
 
+## Release execution
+
+User subsequently authorised merge, new Test build and installation on the local
+Pro, preserving device/settings/Flow fingerprints and letting normal scheduled
+acquisition recover. No clean install/re-pair, forced refresh, Flow/battery write,
+Live/certification action or community reply. PR #66 merged as `1da11fa`, release
+PR #67 as `55ec370`. Version run `40699134769` passed 791 tests and release
+validation; release `40699514542` created annotated tag/GitHub release v1.0.44 at
+`55ec370`. Exact-tag Homey publish run `40699638752`.
+
+Publish succeeded at 13:48 UTC. Build 44 promoted Draft to Test, verified after
+reload and independently on the public v1.0.44 listing. Test URL:
+<https://homey.app/a/uk.co.zarb.octopusenergy/test/>. App Store Test install on the
+selected Pro returned v1.0.44 enabled/not crashed; an independent app read agreed.
+No clean install or re-pair. Release-head CI/CodeQL/validation passed.
+
+Post-install full device/settings/Flow fingerprint comparison and price freshness
+readback are temporarily blocked by Homey's `Too many requests` response. Do not
+claim preservation or price/availability recovery from the successful app-version
+read alone. No settings/Flows were edited by this task. Next is low-frequency
+read-only recheck after the Homey gate clears; never restart/refresh to force it.
+
+Before-install sanitized baseline: v1.0.43 enabled/not crashed, two registered
+unavailable meters, six relevant Standard and six Advanced Flow definitions.
+CLI truncates the scoped Advanced Flow JSON at about 64 KiB; a private read-only
+helper used sequential source-filtered chunks to hash complete definitions.
+Only compact sanitized hashes are saved outside Git. This is tooling readback,
+not a Flow edit. Candidate-stage scope below is historical.
+
 ## Local Pro track
 
 Read-only v1.0.43 app/device/support reads confirm app enabled/not crashed, two

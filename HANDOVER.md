@@ -10,6 +10,16 @@ Last updated: 28 October 2026
 
 ## Current state
 
+- **28 October — v1.0.44 release execution.** User authorised Test and local Pro
+  install, not Live/Flow/battery changes. PR #66 merged as `1da11fa`, release
+  PR #67 as `55ec370`; annotated tag/GitHub release resolves to release merge.
+  Version run `40699134769`, release `40699514542`, exact-tag Homey publish
+  `40699638752`; 791 tests/release validation pass. Pre-install private sanitized
+  baseline captured two unavailable meters and six Standard/six Advanced Flows.
+  See [delivery/acceptance record](docs/handover/recovery-and-mini-evidence.md).
+  Build 44 Test verified after reload/public listing; Test install and independent
+  Pro app read confirm v1.0.44 enabled/not crashed. No Live/certification action.
+
 - **28 October — local 403 lock and Mini evidence candidate.** Read-only local
   checks confirm retained meters/unavailable status and stale prices; Mini
   readings/write callbacks work. Cached 403 failures predate v1.0.43; source

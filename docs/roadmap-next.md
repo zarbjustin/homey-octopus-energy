@@ -4,6 +4,13 @@ Last updated: 28 October 2026
 
 ## Current Status and Direction
 
+28 October: recovery/evidence PR #66 and release PR #67 merged for v1.0.44.
+User authorised Test publication and local Pro installation with preservation
+checks; no Live/Flow/battery authority. Reporter acceptance remains separate.
+See [actual delivery/field gates](handover/recovery-and-mini-evidence.md).
+Build 44 is verified Test and installed v1.0.44 enabled/not crashed on Pro.
+Local recovery and reporter diagnosis remain separate acceptance gates.
+
 28 October priority: validate/deploy the local 403 recovery candidate and collect
 bounded Mini response evidence for the still-affected reporter. Keep these tracks
 separate. The source patch retains 401 credential protection, migrates legacy 403
