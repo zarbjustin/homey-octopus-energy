@@ -6,6 +6,18 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
+28 October v1.0.44 release: user authorised merge, Test publication and installation
+on the local Pro, preserving devices/settings/Flows and leaving Live/battery controls
+untouched. PR #66 merged as `1da11fa`, release PR #67 as `55ec370`; version run
+`40699134769` and release run `40699514542` passed. Annotated v1.0.44 tag/GitHub
+release resolves to `55ec370`; exact-tag Homey publish run `40699638752`.
+791 tests and release validation passed. See
+[delivery and local acceptance record](handover/recovery-and-mini-evidence.md).
+Build 44 is verified Test in reloaded portal and public listing; publish passed.
+App Store Test install and independent Pro app read confirm v1.0.44 enabled/not
+crashed. Field recovery/preservation readback is recorded in the execution record.
+Candidate-stage notes below precede this release.
+
 28 October follow-up candidate (unreleased): local Pro has both meters registered
 but unavailable, stale prices and cached REST 403 failures predating v1.0.43;
 Mini reads/writes remain current. Code confirms 403 permanently locked background
@@ -132,16 +144,16 @@ did not promote it. v1.0.40 is Test only; field/reporter gates remain open.
 | Field | Value |
 |---|---|
 | Repository | `zarbjustin/homey-octopus-energy` |
-| Branch | Release `main` at `6f377d2` |
-| App version | `1.0.43` (release merge `6f377d2`), including Mini sample selection fix |
-| Homey build | `43` verified Test; `41` verified Live on 28 October |
-| GitHub release | [`v1.0.43`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.43) |
-| Publish workflow | `40611698045` succeeded, using exact release tag |
+| Branch | Release `main` at `55ec370` |
+| App version | `1.0.44` (release merge `55ec370`), bounded 403 recovery and Mini evidence |
+| Homey build | `44` verified Test; `41` remains Live |
+| GitHub release | [`v1.0.44`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.44) |
+| Publish workflow | `40699638752` succeeded, using exact release tag |
 | Local deployment | v1.0.40 enabled/not crashed on Pro; protected app GET responds; 2 available meters; identities/settings/6 Standard/5 Advanced Flows unchanged |
-| Last recorded release test baseline | 787 tests in v1.0.43 |
+| Last recorded release test baseline | 791 tests in v1.0.44 |
 | Original formal backlog | Complete through `BL-31` |
 | Next phase | Charging/reliability field acceptance, then S77/S78; S76 gaps remain open |
-| Homey channel | v1.0.43 Test only; Build 41 Live unchanged |
+| Homey channel | v1.0.44 Test only; Build 41 Live unchanged |
 
 ## Immediate Next Work
 
