@@ -1,6 +1,6 @@
 {
   "id": "uk.co.zarb.octopusenergy",
-  "version": "1.0.42",
+  "version": "1.0.43",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
