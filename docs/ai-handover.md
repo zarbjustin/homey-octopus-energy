@@ -6,13 +6,23 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
+28 October: v1.0.42 retest and a matching manual report/support snapshot were
+received. Polling/subscription/discovery work; most selected samples are stale,
+with no Mini cooldown/budget skips or capability-write failures. Recovery remains
+open. Investigation reproduced malformed-first-date/null-row/future-row selection
+bugs and fixes latest-valid, non-future ranking, preserving original timestamps,
+old-data freshness and newest invalid-demand failure. 787 tests pass; lint,
+full/production audits, build and publish validation pass. Candidate remains
+v1.0.42 source only, not installed/published; no provider requests or public reply.
+See [sample-selection investigation](handover/mini-sample-selection.md).
+
 27 October support follow-up: the user-approved reply to J273 was sent and
 verified after reloading. It includes the v1.0.42 Test link, a request to leave
 normal polling running for 10–15 minutes, then send a fresh Homey diagnostic
 report/code if readings remain absent or stop. The optional Settings support
-snapshot was explained. **Waiting for J273's fresh diagnostics and field feedback**;
-installation, receipt of a new report and sustained Mini recovery are not yet
-confirmed. Do not re-pair, repeatedly restart/refresh or claim the cause is known.
+snapshot was explained. His subsequent retest/report is recorded above; sustained
+Mini recovery remains unconfirmed. Do not re-pair, repeatedly restart/refresh or
+claim the cause is known.
 No private message text, report IDs or diagnostic payloads are retained in Git.
 
 27 October release update: diagnostics PR #59 merged as `4fe6b9f`, release PR #60

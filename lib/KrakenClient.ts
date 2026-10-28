@@ -840,7 +840,7 @@ export class KrakenClient {
           demand
         }
       }`;
-    const data = await this.query<{ smartMeterTelemetry: Array<{ readAt?: string; demand: string | number }> | { readAt?: string; demand: string | number } | null }>(
+    const data = await this.query<{ smartMeterTelemetry: unknown }>(
       query,
       { deviceId },
       true,
@@ -848,24 +848,39 @@ export class KrakenClient {
       'live',
     );
     const telemetry = data?.smartMeterTelemetry;
-    let list: Array<{ readAt?: string; demand: string | number }> = [];
+    let list: unknown[] = [];
     if (Array.isArray(telemetry)) {
       list = telemetry;
     } else if (telemetry) {
       list = [telemetry];
     }
     if (!list.length) return { demand: null, readAt: null, outcome: 'empty' };
-    // Select the most recent sample by readAt rather than assuming array order.
-    const latest = list.reduce((a, b) => (
-      new Date(b.readAt ?? 0).getTime() >= new Date(a.readAt ?? 0).getTime() ? b : a
+    // Do not seed a date comparison with an invalid timestamp: comparisons
+    // against NaN are always false and can pin selection to the first row.
+    // Ignore malformed/future dates while ranking, without changing any sample
+    // timestamp or making an old sample fresh. Keep invalid-only data visible to
+    // the source's existing validation instead of inventing a receipt timestamp.
+    const rows = list.filter((row): row is { readAt?: unknown; demand?: unknown } => (
+      row !== null && typeof row === 'object' && !Array.isArray(row)
     ));
+    let latest = rows[0];
+    let latestAt = -Infinity;
+    const now = Date.now();
+    for (const row of rows) {
+      const at = typeof row.readAt === 'string' ? Date.parse(row.readAt) : NaN;
+      if (Number.isFinite(at) && at <= now && at >= latestAt) {
+        latest = row;
+        latestAt = at;
+      }
+    }
+    const readAt = typeof latest?.readAt === 'string' ? latest.readAt : null;
     const raw = latest?.demand;
     const demand = (typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== ''))
       ? Number(raw) : NaN;
-    if (!Number.isFinite(demand)) return { demand: null, readAt: latest?.readAt ?? null, outcome: 'invalid-demand' };
+    if (!Number.isFinite(demand)) return { demand: null, readAt, outcome: 'invalid-demand' };
     return {
       demand: Number.isFinite(demand) ? demand : null,
-      readAt: latest?.readAt ?? null,
+      readAt,
     };
   }
 

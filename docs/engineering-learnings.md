@@ -6,6 +6,12 @@ This document captures durable constraints, root causes, and workflow gotchas th
 
 ## Data Authority and Trust
 
+- Do not seed latest-telemetry reduction with an unvalidated timestamp: NaN
+  comparisons can pin the first row forever. Rank finite, non-future dates across
+  all rows, retain original times and let freshness reject old data. A valid date
+  with invalid newest demand must not silently borrow an older power value.
+  Selection hardening is not proof of the cause without response-row evidence.
+
 - Athom's Docker validate/version/publish actions wrap official CLI commands.
   Repeated Docker Hub HTTP 429 can fail before any app validation executes. In a
   deliberate maintenance change, run equivalent explicitly version-pinned CLI

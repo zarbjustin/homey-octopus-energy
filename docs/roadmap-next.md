@@ -1,8 +1,15 @@
 # Roadmap After v1.0.40 Test
 
-Last updated: 27 October 2026
+Last updated: 28 October 2026
 
 ## Current Status and Direction
+
+28 October: new v1.0.42 reporter evidence received and reviewed; polling works,
+selected telemetry is mostly stale. Latest-sample malformed-date/row selection
+fixes are validated with 787 tests but unreleased; affected-account cause/recovery
+not proven. Next gate is review/CI and separately authorised Test delivery, then
+field evidence. No polling increase or freshness relaxation. See
+[sample-selection investigation](handover/mini-sample-selection.md).
 
 Mini field recovery remains open after the v1.0.41 throttle-handling release.
 A new quiet-path diagnostic candidate distinguishes subscription, discovery,
