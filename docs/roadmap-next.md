@@ -4,6 +4,14 @@ Last updated: 28 October 2026
 
 ## Current Status and Direction
 
+28 October delivery update: sample-selection fix merged through PR #63 and
+released as v1.0.43 through PR #64. 787 tests and release validation pass; Test
+delivery is authorised, not certification/Live. The existing reporter's recovery
+still requires a retest; the reproduced selector defects are not proven as his
+root cause. See [delivery record](handover/mini-sample-selection.md).
+Build 43 is now verified Test (publish `40611698045`); Build 41 remains Live.
+Next is a separately approved tester reply and v1.0.43 field diagnostics.
+
 28 October: new v1.0.42 reporter evidence received and reviewed; polling works,
 selected telemetry is mostly stale. Latest-sample malformed-date/row selection
 fixes are validated with 787 tests but unreleased; affected-account cause/recovery

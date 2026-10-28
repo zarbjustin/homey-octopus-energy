@@ -1,5 +1,22 @@
 # Mini sample selection — 28 October 2026
 
+## Release execution
+
+User subsequently authorised merge and Test delivery. Implementation PR #63
+merged as `164296f`, release PR #64 as `6f377d2`. Version workflow `40611401663`
+passed all 787 tests, lint, audit and publish validation. Release workflow
+`40611639501` created annotated tag/GitHub release v1.0.43 at `6f377d2`.
+Exact-tag publish run `40611698045` succeeded at 00:55 UTC; Homey Build 43 was
+explicitly promoted Draft to Test. Reloaded Developer Tools confirms available
+for testing; independent public listing shows v1.0.43 and matching changelog.
+Test URL: <https://homey.app/a/uk.co.zarb.octopusenergy/test/>. Build 41 remains
+Live. Release-head CI, CodeQL and Homey validation passed. No certification filed.
+Next: separately approved tester reply, then updated diagnostics/support snapshot
+after normal operation; do not assume installation or sustained recovery.
+The implementation-stage candidate notes below are historical, not a claim that
+this task installed on the household Pro or established reporter recovery.
+No certification/Live action, provider refresh, Flow/battery write or reply.
+
 ## Evidence and limits
 
 A v1.0.42 retest supplied a matching manual Homey report and support snapshot.

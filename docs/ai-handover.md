@@ -6,6 +6,21 @@ Use this file as the authoritative entry point for a new human, AI assistant, or
 
 ## Current Project State
 
+28 October release execution: sample-selection PR #63 merged as `164296f`,
+release PR #64 as `6f377d2`. Version run `40611401663` passed all 787 tests,
+lint, audit and Homey validation. Release run `40611639501` created annotated
+tag/GitHub release v1.0.43 at the release merge. User authorised Test only;
+no local install, certification/Live, provider refresh, Flow/battery write or
+community reply. Reporter cause and sustained recovery remain unproven. See
+[delivery record](handover/mini-sample-selection.md).
+
+Exact-tag Homey publish run `40611698045` passed; Build 43 was explicitly promoted
+to Test and verified after reload and on the public v1.0.43 listing. Build 41
+remains Live. No tester reply sent for v1.0.43 yet. Await separately approved
+reply/retest and new diagnostics, not automatic recovery or Live clearance.
+
+The candidate-stage notes below precede this release.
+
 28 October: v1.0.42 retest and a matching manual report/support snapshot were
 received. Polling/subscription/discovery work; most selected samples are stale,
 with no Mini cooldown/budget skips or capability-write failures. Recovery remains
@@ -106,16 +121,16 @@ did not promote it. v1.0.40 is Test only; field/reporter gates remain open.
 | Field | Value |
 |---|---|
 | Repository | `zarbjustin/homey-octopus-energy` |
-| Branch | Release `main` at `fdeaae5` |
-| App version | `1.0.42` (release merge `fdeaae5`), including Mini diagnostics |
-| Homey build | `42` verified Test; `41` verified Live on 27 October |
-| GitHub release | [`v1.0.42`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.42) |
-| Publish workflow | `40589805514` succeeded, using exact release tag |
+| Branch | Release `main` at `6f377d2` |
+| App version | `1.0.43` (release merge `6f377d2`), including Mini sample selection fix |
+| Homey build | `43` verified Test; `41` verified Live on 28 October |
+| GitHub release | [`v1.0.43`](https://github.com/zarbjustin/homey-octopus-energy/releases/tag/v1.0.43) |
+| Publish workflow | `40611698045` succeeded, using exact release tag |
 | Local deployment | v1.0.40 enabled/not crashed on Pro; protected app GET responds; 2 available meters; identities/settings/6 Standard/5 Advanced Flows unchanged |
-| Last recorded release test baseline | 770 tests in v1.0.42 |
+| Last recorded release test baseline | 787 tests in v1.0.43 |
 | Original formal backlog | Complete through `BL-31` |
 | Next phase | Charging/reliability field acceptance, then S77/S78; S76 gaps remain open |
-| Homey channel | v1.0.42 authorised for Test only; Build 41 already Live before this delivery |
+| Homey channel | v1.0.43 Test only; Build 41 Live unchanged |
 
 ## Immediate Next Work
 
