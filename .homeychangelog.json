@@ -130,5 +130,8 @@
   },
   "1.0.43": {
     "en": "Fix Home Mini sample selection so malformed timestamps or future-dated rows cannot hide a newer valid reading. Preserve original measurement times and keep genuinely old data marked stale. Polling frequency and Flow contracts are unchanged."
+  },
+  "1.0.44": {
+    "en": "Restore bounded background recovery after HTTP 403 data failures without resetting credentials. Add privacy-safe Home Mini response counts and timestamp ranges to support live-reading diagnosis. Preserve polling frequency, device identities and Flow contracts."
   }
 }
