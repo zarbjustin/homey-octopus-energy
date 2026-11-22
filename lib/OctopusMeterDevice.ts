@@ -3,6 +3,7 @@
 import Homey from 'homey';
 import { OctopusClient, FuelType, OctopusApiError } from './OctopusClient';
 import { BackgroundRecovery } from './BackgroundRecovery';
+import { buildPriceWidgetDay } from './pricing/widgetDay';
 import { KrakenClient, AccountIogTariff, IogResolveDiagnostic } from './KrakenClient';
 import { isBudgetError } from './KrakenBudget';
 import { opaqueKeyMigrating, opaqueKey } from './diagnosticsKey';
@@ -118,29 +119,6 @@ interface IntegrationDiagnostic {
   /** Last time this area was skipped to protect the shared API budget (a soft
    *  retained-value skip, not a fault). */
   lastSkip?: string;
-}
-
-/** A single half-hourly Agile slot, shaped for the prices widget. */
-export interface AgileSlot {
-  start: string;
-  end: string | null;
-  label: string;
-  price: number;
-  level: PriceLevel;
-  current: boolean;
-  cheapest: boolean;
-}
-
-/** Today/tomorrow Agile data for the prices widget. */
-export interface AgileDayData {
-  unit: string;
-  vat: boolean;
-  currentPrice: number | null;
-  currentLevel: PriceLevel | null;
-  currentStart: string | null;
-  today: AgileSlot[];
-  tomorrow: AgileSlot[];
-  tomorrowAvailable: boolean;
 }
 
 /**
@@ -736,65 +714,38 @@ export class OctopusMeterDevice extends Homey.Device {
     };
   }
 
-  /**
-   * Structured half-hourly Agile data for today and tomorrow, used by the Agile
-   * prices widget. Slots are timezone-aware and flagged for the current slot and
-   * the cheapest `cheapestCount` slots of each day ("best times to use power").
-   * Tomorrow is empty until Agile prices publish (typically ~16:00 UK time).
-   */
-  getAgileDayData(cheapestCount = 6): AgileDayData {
-    const inc = this.vatInc();
-    const th = this.thresholds();
-    const current = rateAt(this.rates, new Date());
-    const currentStart = current ? current.valid_from : null;
+  /** Price periods and chart coordinates for the existing Agile widget API. */
+  getAgileDayData(cheapestCount = 6) {
+    const now = new Date();
+    const incVat = this.vatInc();
+    const thresholds = this.thresholds();
+    const timeZone = this.homey.clock.getTimezone();
+    const build = (dayOffset: number) => buildPriceWidgetDay(this.rates, {
+      timeZone, now, dayOffset, cheapestCount, incVat, thresholds,
+    });
+    const today = build(0);
+    const tomorrow = build(1);
+    const current = rateAt(this.rates, now);
 
-    const build = (from: Date, to: Date): AgileSlot[] => {
-      const slots = ratesInWindow(this.rates, from, to);
-      const cheap = new Set(
-        cheapestSlots(slots, cheapestCount, { incVat: inc }).map((r) => r.valid_from),
-      );
-      return slots.map((r) => {
-        const price = Number(valueOf(r, inc).toFixed(2));
-        return {
-          start: r.valid_from,
-          end: r.valid_to,
-          label: this.hourMinuteLabel(new Date(r.valid_from)),
-          price,
-          level: priceLevel(price, th),
-          current: currentStart === r.valid_from,
-          cheapest: cheap.has(r.valid_from),
-        };
-      });
-    };
-
-    const today = build(this.localMidnight(0), this.localMidnight(1));
-    const tomorrow = build(this.localMidnight(1), this.localMidnight(2));
     return {
       unit: 'p/kWh',
-      vat: inc,
+      vat: incVat,
       currentPrice: this.currentPrice,
-      currentLevel: current ? priceLevel(Number(valueOf(current, inc).toFixed(2)), th) : null,
-      currentStart,
-      today,
-      tomorrow,
-      // A published Agile day has 48 half-hours; treat a near-full day as available.
-      tomorrowAvailable: tomorrow.length >= 24,
+      currentLevel: current ? priceLevel(Number(valueOf(current, incVat).toFixed(2)), thresholds) : null,
+      currentStart: current?.valid_from ?? null,
+      today: today.slots,
+      tomorrow: tomorrow.slots,
+      todayTicks: today.ticks,
+      tomorrowTicks: tomorrow.ticks,
+      todayHasLongPeriods: today.hasLongPeriods,
+      tomorrowHasLongPeriods: tomorrow.hasLongPeriods,
+      tomorrowAvailable: tomorrow.available,
     };
   }
 
-  /**
-   * Compatibility alias. Even an empty cache must never refresh from a widget.
-   */
-  async getFreshAgileDayData(cheapestCount = 6): Promise<AgileDayData> {
+  /** Compatibility alias. Even an empty cache must never refresh from a widget. */
+  async getFreshAgileDayData(cheapestCount = 6) {
     return this.getAgileDayData(cheapestCount);
-  }
-
-  /** Local HH:MM label for an instant, in the Homey timezone. */
-  private hourMinuteLabel(d: Date): string {
-    const tz = this.homey.clock.getTimezone();
-    return new Intl.DateTimeFormat('en-GB', {
-      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz,
-    }).format(d);
   }
 
   /**
@@ -981,8 +932,21 @@ export class OctopusMeterDevice extends Homey.Device {
       }
     };
 
+    // An old tariff can still publish valid prices after a customer switches.
+    // Resolve the scheduled account check before fetching this cycle's rates.
+    let tariffChecked = false;
+    await this.runReporting('Tariff-change check', 'tariff', async () => {
+      const previousCheck = this.lastTariffCheck;
+      try {
+        await this.checkTariffChange();
+      } finally {
+        tariffChecked = this.lastTariffCheck !== previousCheck;
+      }
+    });
+    if (this.isStaleRefresh(generation)) return;
+
     [priceOk] = await Promise.all([
-      run('Price refresh', 'prices', () => this.refreshPricesWithTariffRecovery()),
+      run('Price refresh', 'prices', () => this.refreshPricesWithTariffRecovery(tariffChecked)),
       run('Standing-charge refresh', 'standing_charge', () => this.refreshStandingCharge()),
       run('Balance refresh', 'balance', () => this.refreshBalance()),
     ]);
@@ -996,7 +960,6 @@ export class OctopusMeterDevice extends Homey.Device {
     await this.runReporting('Monthly-cost refresh', 'monthly_cost', () => this.refreshMonthlyCost(generation));
     await this.runReporting('Billing-summary refresh', 'billing_summary', () => this.refreshBillingSummary(generation));
     await this.runReporting('Points refresh', 'points', () => this.refreshPoints());
-    await this.runReporting('Tariff-change check', 'tariff', () => this.checkTariffChange());
     await this.runReporting('Widget history', 'daily_usage', () => this.getSettledDailyUsage(7, true, generation));
     await this.runReporting('Effective-rate snapshot', 'effective_rate', async () => {
       const value = await this.getEffectiveRateView(true);
@@ -1122,6 +1085,11 @@ export class OctopusMeterDevice extends Homey.Device {
       const oldT = s.tariffCode ?? 'unknown';
       await this.setStoreValue('tariffCode', match.tariffCode);
       await this.setStoreValue('productCode', match.productCode);
+      // The previous tariff's cached prices cannot describe the new agreement.
+      this.rates = [];
+      this.nightRates = [];
+      this.rateSource = 'unknown';
+      this.currentPrice = null;
       this.lastStandingRefresh = 0;
       this.lastMonthlyRefresh = 0;
       await this.ensureRegisterCapabilities().catch((err) => this.error(err));
@@ -1136,7 +1104,7 @@ export class OctopusMeterDevice extends Homey.Device {
   }
 
   /** Re-discover a changed tariff and retry a price failure once. */
-  private async refreshPricesWithTariffRecovery(): Promise<void> {
+  private async refreshPricesWithTariffRecovery(tariffChecked = false): Promise<void> {
     try {
       await this.refreshPrices();
     } catch (err) {
@@ -1147,7 +1115,7 @@ export class OctopusMeterDevice extends Homey.Device {
       const now = Date.now();
       if (now - this.lastForcedRecoveryAt < 6 * 3600_000) throw err;
       this.lastForcedRecoveryAt = now;
-      const changed = await this.checkTariffChange(true);
+      const changed = !tariffChecked && await this.checkTariffChange(true);
       if (changed) {
         this.log('Tariff changed during price refresh; retrying with the active tariff.');
         await this.refreshPrices();

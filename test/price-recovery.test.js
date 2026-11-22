@@ -13,6 +13,56 @@ const { OctopusMeterDevice } = require('../.homeybuild/lib/OctopusMeterDevice.js
 
 Module._load = originalLoad;
 
+test('scheduled refresh fetches prices for the newly discovered Go tariff in the same cycle', async () => {
+  const store = {
+    fuel: 'electricity',
+    isExport: false,
+    accountNumber: 'synthetic-account',
+    mpxn: 'synthetic-meter',
+    serial: 'synthetic-serial',
+    productCode: 'AGILE-SYNTHETIC',
+    tariffCode: 'E-1R-AGILE-SYNTHETIC-C',
+  };
+  const device = Object.create(OctopusMeterDevice.prototype);
+  device.lastTariffCheck = 0;
+  device.rates = [{ value_inc_vat: 43 }];
+  device.currentPrice = 43;
+  device.store = () => store;
+  device.setStoreValue = async (key, value) => {
+    store[key] = value;
+  };
+  device.getData = () => ({ id: 'synthetic-device' });
+  device.notifyEnabled = () => false;
+  device.fireAppTrigger = () => {};
+  device.ensureRegisterCapabilities = async () => {};
+  device.backgroundRecovery = () => ({ allowed: () => true, success() {}, snapshot: () => ({}) });
+  device.recordIntegrationDiagnostic = () => {};
+  device.flushIntegrationDiagnostics = () => {};
+  device.isStaleRefresh = () => false;
+  for (const method of ['refreshStandingCharge', 'refreshBalance', 'refreshExtra', 'refreshPriceStats',
+    'refreshMonthlyCost', 'refreshBillingSummary', 'refreshPoints', 'getSettledDailyUsage',
+    'getEffectiveRateView', 'setHealth', 'updateChargingPlanFromCache']) {
+    device[method] = async () => {};
+  }
+  const requests = [];
+  device.client = {
+    discoverMeters: async () => {
+      requests.push('discover');
+      return [{ ...store, productCode: 'GO-SYNTHETIC', tariffCode: 'E-1R-GO-SYNTHETIC-C' }];
+    },
+  };
+  device.refreshPrices = async () => {
+    assert.deepEqual(device.getRates(), []);
+    assert.equal(device.currentPrice, null);
+    requests.push(store.tariffCode);
+  };
+
+  await device.runRefresh(1);
+  await device.runRefresh(2);
+
+  assert.deepEqual(requests, ['discover', 'E-1R-GO-SYNTHETIC-C', 'E-1R-GO-SYNTHETIC-C']);
+});
+
 test('IOG raw overlapping open-ended rows fail closed rather than depend on array order', async () => {
   const device = Object.create(OctopusMeterDevice.prototype);
   device.store = () => ({

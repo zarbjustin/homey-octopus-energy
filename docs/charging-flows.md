@@ -1,5 +1,13 @@
 # Charging Flow Setup and Controls
 
+For standard Octopus Go, use **Octopus Go off-peak is active** on the import
+meter to gate an action. It checks published prices for the UK off-peak
+period. Missing or stale evidence raises an error. **Octopus Go off-peak
+started** and **Octopus Go off-peak ended** fire when the meter observes the
+adjacent published period on a successful refresh. First observation seeds the
+state and missed periods are not replayed. Keep an independent timed cutoff
+for equipment that must stop at 05:30.
+
 Updated: 9 October 2026. These examples use the configured-plan cards delivered
 in v1.0.38. Updated hints are delivered in v1.0.39 / Build 39 Test and on local Pro.
 The examples have synthetic regression coverage, not real-Homey or battery

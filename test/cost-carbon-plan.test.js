@@ -48,6 +48,29 @@ test('price-only selects the cheapest contiguous window', () => {
   assert.match(result.estimateLabel, /not a bill or settlement/i);
 });
 
+test('Go periods produce half-hour plans and fail closed on an overlapping rate', () => {
+  const start = Date.parse('2026-11-22T00:00:00Z');
+  const at = (slot) => new Date(start + slot * SLOT_MS).toISOString();
+  const [day, night] = rates(start, [34.53, 9.40]);
+  day.valid_from = at(-37);
+  night.valid_to = at(11);
+  const rows = [day, night, { ...day, valid_from: at(11), valid_to: at(49) }];
+  const forecast = carbon(start, Array(16).fill(100));
+  const options = {
+    now: new Date(start + 60_000),
+    horizonEnd: new Date(at(16)),
+    durationSlots: 4,
+    greenness: 0,
+  };
+  const plan = evaluateCostCarbonPlan(rows, forecast, options);
+  assert.equal(plan.available, true);
+  assert.equal(plan.start, at(1));
+  assert.equal(plan.end, at(5));
+  assert.equal(plan.averagePrice, 9.4);
+  assert.equal(evaluateCostCarbonPlan([...rows, { ...day, valid_to: at(2) }], forecast, options).reason,
+    'insufficient-rates');
+});
+
 test('carbon-heavy weighting accepts a price premium for a cleaner window', () => {
   const start = Date.parse('2026-07-25T00:00:00Z');
   const result = evaluateCostCarbonPlan(

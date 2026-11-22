@@ -1,6 +1,6 @@
 {
   "name": {
-    "en": "Agile Prices"
+    "en": "Electricity Prices"
   },
   "settings": [
     {
@@ -33,7 +33,7 @@
         }
       ],
       "hint": {
-        "en": "Price bands colour every half-hour by cost. Classic mode keeps the original purple chart with the cheapest slots in green."
+        "en": "Price bands colour each rate period by cost. Classic mode shows the cheapest periods in green."
       }
     },
     {
@@ -46,7 +46,7 @@
       "min": 0,
       "max": 24,
       "hint": {
-        "en": "How many of the day's cheapest half-hours to highlight as the best times to use power."
+        "en": "Choose how many Agile half-hours to highlight. On tariffs with longer rates, any nonzero value highlights the lowest-rate periods."
       }
     },
     {

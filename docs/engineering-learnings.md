@@ -4,6 +4,19 @@
 
 This document captures durable constraints, root causes, and workflow gotchas that future maintainers and AI agents should reuse.
 
+## Rate periods in widgets
+
+Chart duration and labels must come from cached rate validity. A day/night tariff
+can provide only a few records for a full day. Include rates that overlap local
+midnight, preserve gaps and position the chart against the actual local day.
+Keep chart periods intact for display. The Energy Optimiser and its Flow cards
+can expand published, aligned periods into half-hours within their horizon.
+Require continuous coverage and reject conflicting periods or missing carbon.
+
+An old tariff's published price can still cover the current time after a tariff
+switch. Run the existing scheduled account check before the price refresh.
+Price-gap recovery alone cannot detect a switch when the old prices still load.
+
 ## Data Authority and Trust
 
 - HTTP 403 alone is not proof of invalid credentials. Do not turn it into a

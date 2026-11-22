@@ -40,14 +40,14 @@
     .axis { display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--homey-text-color-light, #888); text-align: right; min-width: 30px; padding: 2px 0 14px; }
     .chart-col { flex: 1; }
     .chart {
-      position: relative; display: flex; align-items: stretch; gap: 1px;
+      position: relative;
       height: 86px;
     }
     .zero-line {
       position: absolute; left: 0; right: 0; height: 1px;
       background: rgba(127,127,127,0.42); pointer-events: none;
     }
-    .bar-slot { flex: 1 1 0; min-width: 0; position: relative; }
+    .bar-slot { position: absolute; top: 0; bottom: 0; }
     .bar {
       position: absolute; left: 0; right: 0;
       background: #888;
@@ -83,7 +83,10 @@
     body.palette-high-contrast .price-band-badge.band-red { background: #991b1b; }
     .bar.cheapest-marker { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.95); }
     .bar.current { outline: 2px solid var(--homey-text-color, #fff); outline-offset: -1px; }
-    .ticks { display: flex; justify-content: space-between; font-size: 9px; color: var(--homey-text-color-light, #888); margin-top: 2px; }
+    .ticks { position: relative; height: 12px; font-size: 9px; color: var(--homey-text-color-light, #888); margin-top: 2px; }
+    .ticks span { position: absolute; transform: translateX(-50%); }
+    .ticks span:first-child { transform: none; }
+    .ticks span:last-child { transform: translateX(-100%); }
     .band-legend { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 5px; font-size: 9px; color: var(--homey-text-color-light, #666); }
     .legend-item { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
     .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.18); }
@@ -125,7 +128,7 @@
   </style>
 </head>
 <body>
-  <div id="content" aria-live="polite" role="region" aria-label="Octopus Agile prices"><div class="err">Loading…</div></div>
+  <div id="content" aria-live="polite" role="region" aria-label="Octopus electricity prices"><div class="err">Loading…</div></div>
 
   <script type="text/javascript">
     var STATE = { data: null, tab: 'today' };
@@ -201,8 +204,8 @@
         + (options.corrected ? '<div class="band-advisory" role="status">Invalid thresholds; using 10p / 20p / 30p defaults.</div>' : '');
     }
 
-    function renderChart(slots, options) {
-      if (!slots.length) return '<div class="muted">No half-hourly prices for this day.</div>';
+    function renderChart(slots, ticks, options) {
+      if (!slots.length) return '<div class="muted">No prices available for this day.</div>';
       var prices = slots.map(function (s) { return s.price; });
       var max = Math.max.apply(null, prices);
       var min = Math.min.apply(null, prices);
@@ -227,8 +230,9 @@
         if (s.current) cls += ' current';
         var description = options.mode === 'price_bands'
           ? bandLabel(s.band) + ' price band' : (s.cheapest ? 'Cheapest highlighted slot' : 'Price slot');
-        var title = esc(s.label + ' · ' + fmt(s.price) + 'p · ' + description);
-        return '<div class="bar-slot"><div class="' + cls + '" role="img" aria-label="' + title
+        var title = esc(s.label + '–' + s.endLabel + ' · ' + fmt(s.price) + 'p · ' + description + (s.current ? ' · Now' : ''));
+        return '<div class="bar-slot" style="left:' + Number(s.position) + '%;width:' + Number(s.width) + '%">'
+          + '<div class="' + cls + '" role="img" aria-label="' + title
           + '" style="top:' + top + '%;height:' + height + '%" title="' + title + '"></div></div>';
       }).join('');
 
@@ -238,38 +242,35 @@
         +     '<span>' + fmt(min, min >= 100 ? 0 : 1) + 'p</span></div>'
         +   '<div class="chart-col">'
         +     '<div class="chart"><div class="zero-line" style="top:' + zeroTop + '%"></div>' + bars + '</div>'
-        +     '<div class="ticks"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>'
+        +     '<div class="ticks">' + ticks.map(function (tick) {
+          return '<span style="left:' + Number(tick.position) + '%">' + esc(tick.label) + '</span>';
+        }).join('') + '</div>'
         +     renderBandLegend(options)
         +   '</div>'
         + '</div>';
     }
 
-    function addHalfHour(label) {
-      var p = String(label).split(':');
-      var h = Number(p[0]) || 0;
-      var m = (Number(p[1]) || 0) + 30;
-      if (m >= 60) { m -= 60; h = (h + 1) % 24; }
-      return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
-    }
-
-    function renderBestList(slots) {
+    function renderBestList(slots, hasLongPeriods) {
+      if (!slots.length) return '';
       var best = slots.filter(function (s) { return s.cheapest; });
       if (!best.length) {
-        return '<div class="muted">Set “Highlight cheapest slots” above 0 to see best times.</div>';
+        return hasLongPeriods ? '' : '<div class="muted">Set “Highlight cheapest slots” above 0 to see best times.</div>';
       }
       best.sort(function (a, b) { return a.price - b.price; });
       var rows = best.map(function (s, i) {
         var cls = 'li';
         if (s.price < 0) cls += ' plunge';
         if (s.current) cls += ' current';
-        var range = esc(s.label + ' – ' + addHalfHour(s.label));
+        var range = esc(s.label + ' – ' + s.endLabel);
         var now = s.current ? ' <span class="tag now">Now</span>' : '';
         return '<div class="' + cls + '">'
           + '<span class="rank">' + (i + 1) + '</span>'
           + '<span class="time">' + range + now + '</span>'
           + '<span class="p">' + fmt(s.price) + 'p</span></div>';
       }).join('');
-      return '<div class="lhead"><span><span class="hl">✅ Best times to use power</span> · cheapest first</span>' + estimatedBadge('Estimated selection')
+      var heading = hasLongPeriods ? 'Lowest-rate periods' : 'Best times to use power · cheapest first';
+      return '<div class="lhead"><span class="hl">' + heading + '</span>'
+        + (hasLongPeriods ? '' : estimatedBadge('Estimated selection'))
         + '<span>Price/kWh</span></div>'
         + '<div class="list" id="list">' + rows + '</div>';
     }
@@ -284,6 +285,8 @@
       var tomorrowOk = !!(d.tomorrowAvailable && (d.tomorrow || []).length);
       if (STATE.tab === 'tomorrow' && !tomorrowOk) STATE.tab = 'today';
       var slots = slotsFor(d, STATE.tab);
+      var ticks = (STATE.tab === 'tomorrow' ? d.tomorrowTicks : d.todayTicks) || [];
+      var hasLongPeriods = STATE.tab === 'tomorrow' ? d.tomorrowHasLongPeriods : d.todayHasLongPeriods;
       var options = bandOptions(d);
       var palettes = ['standard', 'colourblind', 'high_contrast'];
       var palette = palettes.indexOf(options.palette) >= 0 ? options.palette : 'standard';
@@ -311,12 +314,8 @@
         + (STATE.tab === 'tomorrow') + '"' + (tomorrowOk ? '' : ' disabled') + '>Tomorrow</button>';
       html += '</div>';
 
-      if (STATE.tab === 'tomorrow' && !tomorrowOk) {
-        html += '<div class="muted">Tomorrow\u2019s prices are not published yet (usually after ~4pm).</div>';
-      } else {
-        html += renderChart(slots, options);
-        html += renderBestList(slots);
-      }
+      html += renderChart(slots, ticks, options);
+      html += renderBestList(slots, hasLongPeriods);
 
       el.innerHTML = html;
     }
