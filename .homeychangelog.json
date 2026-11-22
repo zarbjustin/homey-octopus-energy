@@ -133,5 +133,8 @@
   },
   "1.0.44": {
     "en": "Restore bounded background recovery after HTTP 403 data failures without resetting credentials. Add privacy-safe Home Mini response counts and timestamp ranges to support live-reading diagnosis. Preserve polling frequency, device identities and Flow contracts."
+  },
+  "1.0.45": {
+    "en": "Improved standard Octopus Go support with accurate day and night periods in Electricity Prices, Energy Optimiser support, quicker tariff changes, and three off-peak Flow cards. Includes the latest Home Mini sample diagnostics and bounded recovery from HTTP 403 data errors."
   }
 }
