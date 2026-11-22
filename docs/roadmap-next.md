@@ -1,10 +1,15 @@
 # Roadmap After v1.0.44 Test
 
-Last updated: 28 October 2026
+Last updated: 22 November 2026
 
 ## Current Status and Direction
 
 Current next actions supersede historical candidate/deploy/reply notes below:
+
+The Octopus Go candidate is installed on the selected Pro. Homey reports
+current Go rates and lists the Electricity Prices widget and its dashboard
+instance. Visual verification of the overnight block remains open. Review
+any existing Flow using the Optimiser before exercising it on hardware.
 
 1. Await the new v1.0.44 reporter diagnostic/support snapshot. Approved Test reply
    sent and verified: do not resend. Inspect candidate counts/response time ranges

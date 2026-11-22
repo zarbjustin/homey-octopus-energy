@@ -2,6 +2,7 @@
 
 import { Rate, rateAt, regionFromTariff } from '../../lib/rates';
 import { OctopusMeterDevice } from '../../lib/OctopusMeterDevice';
+import { goPeriod, GoPeriod } from '../../lib/pricing/goOffPeak';
 import type { Reading } from '../../lib/freshness';
 import {
   CarbonClient, CarbonPoint, carbonLevelId, isGreenestNow, regionIdFromGsp,
@@ -20,6 +21,8 @@ interface LiveDemandApp {
 module.exports = class ElectricityDevice extends OctopusMeterDevice {
 
   private previousPrice: number | null = null;
+
+  private previousGoPeriod: GoPeriod | null = null;
 
   private thresholdEdgeBaseline: { start: string; end: string; price: number } | null = null;
 
@@ -86,6 +89,28 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   /** Is the current half-hour on the Economy 7 night (off-peak) register? */
   isNightRate(): boolean {
     return this.isTwoRegisterTariff() && this.isNightTime(new Date().toISOString());
+  }
+
+  isGoOffPeakActive(): boolean {
+    const freshness = this.getDataFreshness();
+    const period = this.currentGoPeriod();
+    if (freshness.problem || freshness.sources.prices?.state !== 'current' || !period) {
+      throw new Error('Fresh standard Octopus Go price periods are unavailable.');
+    }
+    return period.offPeak;
+  }
+
+  private currentGoPeriod(): GoPeriod | null {
+    if (this.rateSource !== 'rest') return null;
+    return goPeriod(this.getStoreValue('productCode'), this.rates, Date.now());
+  }
+
+  private updateGoOffPeak(): void {
+    const current = this.currentGoPeriod();
+    const previous = this.previousGoPeriod;
+    this.previousGoPeriod = current;
+    if (!current || !previous || previous.end !== current.start || previous.offPeak === current.offPeak) return;
+    this.trigger(current.offPeak ? 'go_off_peak_started' : 'go_off_peak_ended', {});
   }
 
   /** Is the current price in the cheapest `percent`% of the next `hours`? */
@@ -355,6 +380,7 @@ module.exports = class ElectricityDevice extends OctopusMeterDevice {
   /** Fire Flow triggers when the half-hourly unit rate changes. */
   protected async onPriceUpdated(value: number, rate: Rate): Promise<void> {
     await super.onPriceUpdated(value, rate);
+    this.updateGoOffPeak();
 
     const prev = this.previousPrice;
     const levelNow = this.getPriceLevel();

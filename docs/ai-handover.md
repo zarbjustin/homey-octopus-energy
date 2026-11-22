@@ -1,7 +1,50 @@
 # AI and LLM Handover
 
-Last updated: 28 October 2026. Authoritative current-state entry point. Older
+Last updated: 22 November 2026. Authoritative current-state entry point. Older
 candidate/next markers in historical records are not current instructions.
+
+## Octopus Go tariff and widget candidate
+
+Go Flow card follow-up on 22 November adds an active condition plus observed
+start and end triggers. The condition requires current REST price evidence for
+the standard UK Go period. Triggers follow scheduled rate observations and
+seed on startup without replay. The card build is validated locally and awaits
+real Homey boundary verification. The owner approved the local install on
+22 November. Independent readback confirmed all three cards on the import
+meter, and the live active condition returned true during off-peak. Both meter
+identity/settings fingerprints and six Standard/six Advanced Flow fingerprints
+matched this install's preflight. The aggregate app settings fingerprint still
+includes mutable runtime data and is inconclusive. The 07:30 report source and
+schedule matched and its scheduled run remains pending.
+
+The local candidate scales chart bars by rate duration and uses real rate ends.
+It includes rates that cross midnight and keeps Agile half-hour selection.
+The existing widget ID and settings keys are retained under the visible name
+Electricity Prices. The scheduled tariff check now runs before prices so a
+confirmed account change clears the old cached rates and is used in the same
+refresh. The Energy Optimiser
+and its matching Flow cards can plan over published long periods while
+requiring complete, non-overlapping half-hour price and carbon coverage.
+Go, Agile and the clock-change case pass in the widget tests.
+
+22 November Pro readback found v1.0.44 enabled and not crashed, with recent
+successful price refreshes and prices consistent with Go on the import meter.
+The earlier Agile readback has cleared. Its original cause and the earlier
+pre/post-install preservation gate remain unverified.
+
+Node 22 validation passed with 796 tests, lint, the production audit, build and
+publish validation (the two expected cumulative-direction warnings). The full
+audit reports 7 moderate findings in the development lint dependency chain.
+The owner subsequently approved the local upgrade. On 22 November the
+normal packed install succeeded on the selected Pro. Independent readback
+confirmed v1.0.44 enabled and not crashed, an available import meter and
+current price sources. Two meter identity/settings fingerprints, six
+Standard Flows and five Advanced Flows matched the immediate pre-install
+readback. The aggregate app settings comparison included mutable billing
+and Saving Sessions state and differed, so that aggregate is inconclusive
+for preservation. Homey registered Electricity Prices under the existing
+widget ID and still lists its dashboard instance. Browser access was
+unavailable for a visual dashboard check. The install was local.
 
 ## Current baseline
 

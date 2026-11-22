@@ -31,6 +31,7 @@ interface ElectricityDevice extends Homey.Device {
   isWithinCheapestPeriod(duration: number, within: number): boolean;
   isInCheapestPlan(duration: number, by: string): boolean;
   isNightRate(): boolean;
+  isGoOffPeakActive(): boolean;
   isCheapestPercentile(percent: number, hours: number): boolean;
   getRenewablePercent(): number | null;
   refreshNow(): Promise<void>;
@@ -129,6 +130,10 @@ module.exports = class ElectricityDriver extends OctopusMeterDriver {
     flow.getDeviceTriggerCard('charging_plan_run_started').registerRunListener(async () => true);
     flow.getDeviceTriggerCard('charging_plan_run_ended').registerRunListener(async () => true);
     flow.getDeviceTriggerCard('charging_plan_decision_changed').registerRunListener(async () => true);
+    flow.getDeviceTriggerCard('go_off_peak_started').registerRunListener(async () => true);
+    flow.getDeviceTriggerCard('go_off_peak_ended').registerRunListener(async () => true);
+    flow.getConditionCard('go_off_peak_active')
+      .registerRunListener(async (args: Args<unknown>) => args.device.isGoOffPeakActive());
     flow.getConditionCard('threshold_slots_before')
       .registerRunListener(async (args: Args<{ price: number; by: string }>) => args.device.getThresholdSlotsBefore(args.price, args.by).status === 'some');
     flow.getConditionCard('charging_plan_active')

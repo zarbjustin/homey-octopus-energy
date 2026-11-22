@@ -12,7 +12,11 @@ const card = (kind, id) => compose[kind].find((entry) => entry.id === id);
 
 test('additive charging follow-up preserves every released electricity Flow contract', () => {
   const contracts = structuredClone(compose);
-  const additions = new Set(['enough_threshold_time_before', 'charging_plan_decision_is', 'configure_charging_plan_standard', 'get_charging_plan_status', 'charging_plan_decision_changed', 'estimate_battery_duration']);
+  const additions = new Set([
+    'enough_threshold_time_before', 'charging_plan_decision_is', 'configure_charging_plan_standard',
+    'get_charging_plan_status', 'charging_plan_decision_changed', 'estimate_battery_duration',
+    'go_off_peak_started', 'go_off_peak_ended', 'go_off_peak_active',
+  ]);
   for (const kind of Object.keys(contracts)) {
     contracts[kind] = contracts[kind].filter((entry) => !additions.has(entry.id));
     for (const entry of contracts[kind]) delete entry.hint;

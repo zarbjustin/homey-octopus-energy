@@ -97,6 +97,26 @@ function rateEndMs(rate: Rate): number {
   return rate.valid_to ? Date.parse(rate.valid_to) : Date.parse(rate.valid_from) + SLOT_MS;
 }
 
+/** Expand published periods such as Go's day and night rates only inside the
+ * planning horizon. The coverage check still rejects gaps and overlaps. */
+function halfHourRates(rates: Rate[], fromMs: number, toMs: number): Rate[] {
+  const slots: Rate[] = [];
+  for (const rate of sortRates(rates)) {
+    const start = Math.max(Date.parse(rate.valid_from), fromMs);
+    const end = Math.min(rateEndMs(rate), toMs);
+    if (!(start < end)) continue;
+    if (start % SLOT_MS !== 0 || end % SLOT_MS !== 0) return [];
+    for (let at = start; at < end; at += SLOT_MS) {
+      slots.push({
+        ...rate,
+        valid_from: new Date(at).toISOString(),
+        valid_to: new Date(at + SLOT_MS).toISOString(),
+      });
+    }
+  }
+  return slots;
+}
+
 function unavailable(reason: Exclude<CostCarbonReason, null>): CostCarbonPlan {
   return {
     available: false,
@@ -164,7 +184,7 @@ export function evaluateCostCarbonPlan(
   const {
     now, horizonEnd, durationSlots,
   } = options;
-  if (!(durationSlots > 0) || horizonEnd.getTime() <= now.getTime()) {
+  if (!(durationSlots > 0) || !(horizonEnd.getTime() > now.getTime())) {
     return unavailable('invalid-window');
   }
 
@@ -172,15 +192,10 @@ export function evaluateCostCarbonPlan(
   const fromMs = options.includeCurrentSlot || now.getTime() === slotStartMs
     ? slotStartMs
     : slotStartMs + SLOT_MS;
-  const toMs = horizonEnd.getTime();
+  const requiredEndMs = Math.floor(horizonEnd.getTime() / SLOT_MS) * SLOT_MS;
   const incVat = options.incVat ?? true;
-  const pool = sortRates(rates).filter((rate) => {
-    const start = Date.parse(rate.valid_from);
-    const end = rateEndMs(rate);
-    return Number.isFinite(start) && Number.isFinite(end) && start >= fromMs && end <= toMs;
-  });
+  const pool = halfHourRates(rates, fromMs, requiredEndMs);
   if (pool.length < durationSlots) return unavailable('insufficient-rates');
-  const requiredEndMs = Math.floor(toMs / SLOT_MS) * SLOT_MS;
   const coversHorizon = pool[0] && Date.parse(pool[0].valid_from) === fromMs
     && pool.every((rate, index) => index === 0 || rateEndMs(pool[index - 1]) === Date.parse(rate.valid_from))
     && rateEndMs(pool[pool.length - 1]) === requiredEndMs;

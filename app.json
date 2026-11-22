@@ -780,6 +780,38 @@
         ]
       },
       {
+        "id": "go_off_peak_started",
+        "title": {
+          "en": "Octopus Go off-peak started"
+        },
+        "hint": {
+          "en": "Runs when the meter observes the start of a published standard Octopus Go off-peak period. Runs on the next successful price refresh after the boundary. Does not replay missed periods or fire on startup."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          }
+        ]
+      },
+      {
+        "id": "go_off_peak_ended",
+        "title": {
+          "en": "Octopus Go off-peak ended"
+        },
+        "hint": {
+          "en": "Runs when the meter observes the end of a published standard Octopus Go off-peak period. Runs on the next successful price refresh after the boundary. Keep a separate timed stop for equipment with a firm cutoff."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          }
+        ]
+      },
+      {
         "id": "charging_plan_decision_changed",
         "title": {
           "en": "Charging plan decision changed"
@@ -1753,6 +1785,22 @@
         "hint": {
           "en": "Whether an Octopus Power Up free-electricity session is running right now."
         }
+      },
+      {
+        "id": "go_off_peak_active",
+        "title": {
+          "en": "Octopus Go off-peak !{{is|isn't}} active"
+        },
+        "hint": {
+          "en": "Checks the current standard Octopus Go period against fresh published prices. Missing, stale or incompatible rates make the condition fail rather than grant permission."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=electricity"
+          }
+        ]
       },
       {
         "id": "enough_threshold_time_before",
@@ -5762,7 +5810,7 @@
   "widgets": {
     "agile": {
       "name": {
-        "en": "Agile Prices"
+        "en": "Electricity Prices"
       },
       "settings": [
         {
@@ -5795,7 +5843,7 @@
             }
           ],
           "hint": {
-            "en": "Price bands colour every half-hour by cost. Classic mode keeps the original purple chart with the cheapest slots in green."
+            "en": "Price bands colour each rate period by cost. Classic mode shows the cheapest periods in green."
           }
         },
         {
@@ -5808,7 +5856,7 @@
           "min": 0,
           "max": 24,
           "hint": {
-            "en": "How many of the day's cheapest half-hours to highlight as the best times to use power."
+            "en": "Choose how many Agile half-hours to highlight. On tariffs with longer rates, any nonzero value highlights the lowest-rate periods."
           }
         },
         {

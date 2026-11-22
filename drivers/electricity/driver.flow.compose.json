@@ -1,6 +1,16 @@
 {
   "triggers": [
     {
+      "id": "go_off_peak_started",
+      "title": { "en": "Octopus Go off-peak started" },
+      "hint": { "en": "Runs when the meter observes the start of a published standard Octopus Go off-peak period. Runs on the next successful price refresh after the boundary. Does not replay missed periods or fire on startup." }
+    },
+    {
+      "id": "go_off_peak_ended",
+      "title": { "en": "Octopus Go off-peak ended" },
+      "hint": { "en": "Runs when the meter observes the end of a published standard Octopus Go off-peak period. Runs on the next successful price refresh after the boundary. Keep a separate timed stop for equipment with a firm cutoff." }
+    },
+    {
       "id": "charging_plan_decision_changed",
       "title": { "en": "Charging plan decision changed" },
       "hint": { "en": "For notification/logging Flows, not a battery-start command. Emits on initial setup and meaningful decision or whole-plan fallback changes, including missing prices and recovery, completion, expiry and cancellation. Existing plans seed silently on upgrade. Repeated refresh/restart does not replay a persisted attempt; delivery is not guaranteed. Recheck current plan eligibility and keep independent battery stops. No new polling or automatic timeline notification." },
@@ -532,6 +542,11 @@
     }
   ],
   "conditions": [
+    {
+      "id": "go_off_peak_active",
+      "title": { "en": "Octopus Go off-peak !{{is|isn't}} active" },
+      "hint": { "en": "Checks the current standard Octopus Go period against fresh published prices. Missing, stale or incompatible rates make the condition fail rather than grant permission." }
+    },
     {
       "id": "enough_threshold_time_before",
       "title": { "en": "There is !{{enough|not enough}} cheap time before a deadline" },
